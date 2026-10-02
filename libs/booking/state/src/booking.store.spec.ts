@@ -1,0 +1,37 @@
+import { TestBed } from '@angular/core/testing';
+import { aBooking, bookingHandlers, bookingScenarios, defaultBookings } from '@mo-transfer/booking/testing';
+import { test, worker } from '@mo-transfer/shared/testing';
+import { beforeEach, describe, expect } from 'vitest';
+import { BookingStore } from './booking.store';
+
+describe('BookingStore', () => {
+  beforeEach(() => worker.use(...bookingHandlers));
+
+  test('loads bookings from the backend via the real BookingApi', async () => {
+    const store = TestBed.inject(BookingStore);
+
+    await store.load();
+
+    expect(store.all()).toEqual(defaultBookings);
+    expect(store.confirmed().map((booking) => booking.id)).toEqual(['b-101']);
+  });
+
+  test('replaces the list with whatever a single test serves', async ({ worker }) => {
+    worker.use(bookingScenarios.withBookings([aBooking({ id: 'b-1', status: 'confirmed' })]));
+    const store = TestBed.inject(BookingStore);
+
+    await store.load();
+
+    expect(store.confirmed().map((booking) => booking.id)).toEqual(['b-1']);
+  });
+
+  test('keeps the current bookings when the backend fails', async ({ worker }) => {
+    worker.use(bookingScenarios.serverError());
+    const store = TestBed.inject(BookingStore);
+    const before = store.all();
+
+    await expect(store.load()).rejects.toThrow('500');
+
+    expect(store.all()).toBe(before);
+  });
+});

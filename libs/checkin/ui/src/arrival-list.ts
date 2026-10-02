@@ -1,0 +1,31 @@
+import { Component, input, output } from '@angular/core';
+import { Arrival, CheckinRecord } from '@mo-transfer/checkin/types';
+import { checkinLabel } from '@mo-transfer/checkin/utils';
+
+// boundary-violation-example: import { CheckinStore } from '@mo-transfer/checkin/state'; // ui -> state (store, events)
+// boundary-violation-example: import { toCheckinRecord } from '../../../state/src/internal/checkin.mapper'; // module-private internal/
+
+@Component({
+  selector: 'app-arrival-list',
+  template: `
+    <ul>
+      @for (record of records(); track record.id) {
+        <li>{{ label(record) }}</li>
+      }
+    </ul>
+    <button type="button" (click)="reportWalkIn()">Walk-in guest</button>
+  `,
+})
+export class ArrivalList {
+  readonly records = input.required<CheckinRecord[]>();
+  /** plain value out — the container turns it into the domain event */
+  readonly arrived = output<Arrival>();
+
+  protected label(record: CheckinRecord): string {
+    return checkinLabel(record);
+  }
+
+  protected reportWalkIn(): void {
+    this.arrived.emit({ bookingId: 'walk-in', guestName: 'Walk-in guest' });
+  }
+}

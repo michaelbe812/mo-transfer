@@ -1,0 +1,27 @@
+import { Component, inject } from '@angular/core';
+import { BookingStore } from '@mo-transfer/booking/state';
+import { BookingCard } from '@mo-transfer/booking/ui';
+// shared between sibling feats: lives in the slice root (no feat-port)
+import { describeCheck } from '@mo-transfer/booking/utils';
+
+// boundary-violation-example: import { CheckBookingStore } from '@mo-transfer/booking/feat-check-booking/state'; // sibling feat (never, no feat-port)
+
+@Component({
+  selector: 'app-feat-manage-booking',
+  imports: [BookingCard],
+  template: `
+    <h2>Manage bookings</h2>
+    @for (booking of bookingStore.confirmed(); track booking.id) {
+      <app-booking-card [booking]="booking" />
+    }
+    <p>{{ lastCheck }}</p>
+  `,
+})
+export class FeatManageBooking {
+  protected readonly bookingStore = inject(BookingStore);
+
+  protected readonly lastCheck = describeCheck({
+    bookingId: 'b2',
+    checkedAt: new Date().toISOString(),
+  });
+}

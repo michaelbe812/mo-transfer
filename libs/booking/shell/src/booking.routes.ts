@@ -1,0 +1,15 @@
+import { Routes } from '@angular/router';
+
+/** Slice root (entry): the only thing the app shell wires up. */
+export const bookingRoutes: Routes = [
+  {
+    path: '',
+    loadComponent: () =>
+      import('@mo-transfer/booking/feat-check-booking/feature').then((m) => m.FeatCheckBooking),
+  },
+  {
+    path: 'manage',
+    loadComponent: () =>
+      import('@mo-transfer/booking/feat-manage-booking/feature').then((m) => m.FeatManageBooking),
+  },
+];
