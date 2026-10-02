@@ -1,0 +1,858 @@
+{
+  "id": "openapi-fetch",
+  "meta": {
+    "id": "openapi-fetch",
+    "name": "openapi-typescript + openapi-fetch",
+    "package": "openapi-typescript (+ openapi-fetch)",
+    "version": "7.13.0 (+ 0.17.0)",
+    "runtime": "node",
+    "license": "MIT",
+    "repo": "https://github.com/openapi-ts/openapi-typescript",
+    "docs": "https://openapi-ts.dev",
+    "outputStyle": "functions",
+    "config": {
+      "api": "Node-API (generate.mjs) statt CLI – nur dort gibt es `transform`",
+      "readWriteMarkers": "true – $Read/$Write; openapi-fetch wendet Readable/Writable an (readOnly raus aus Request, writeOnly raus aus Response)",
+      "rootTypes": "true – SchemaPet, SchemaUserProfile … als Root-Exports (mit Schema-Präfix, sonst Kollision mit Date/Object/Priority-Enum)",
+      "enum + conditionalEnums": "true – TS-Enum nur bei x-enum-varnames (Priority.LOW…), sonst Literal-Unions",
+      "defaultNonNullable": "false – Property mit default bleibt im Request optional (CLI-Default true machte vaccinated Pflicht)",
+      "arrayLength": "false – mit prefixItems + minItems falsches Tupel-Tupel (Bug), ohne Flag korrektes [number, number]",
+      "transform": "format: binary → Blob (dokumentiertes Rezept 'Blob types'); Date-Transform bewusst NICHT (Runtime konvertiert nicht)",
+      "enumValues": "false – nur Laufzeit-Arrays, kein Typgewinn; shadowt global ReadonlyArray im Output",
+      "excludeDeprecated": "false"
+    },
+    "angular": {
+      "httpClient": false,
+      "injectFn": false,
+      "provideFn": null,
+      "httpResource": false,
+      "httpContext": false,
+      "observeResponse": false,
+      "minAngular": "unabhängig (framework-agnostisch, fetch)"
+    },
+    "validation": "none",
+    "generation31": "ok",
+    "runtimeDeps": [
+      "openapi-fetch",
+      "openapi-typescript-helpers"
+    ],
+    "highlights": [
+      "Sehr hohe Typpräzision (75/77 Typ-Cases): Discriminator-Literale, readOnly/writeOnly getrennt, Fehler-Body pro Operation typisiert",
+      "3.1 vollständig: const, type-Arrays mit null, prefixItems-Tupel, Webhooks",
+      "Namen 1:1 (WeirdNames, user-profile, reserved params) – kein Umbenennen, nichts kaputt am Wire",
+      "Strict + max-strict-Compile fehlerfrei; ein generiertes File, Runtime = ein kleines Modul"
+    ],
+    "issues": [
+      "Runtime kennt Spec nicht: jeder Body JSON.stringify + Content-Type application/json (form, multipart, octet, text, merge-patch falsch)",
+      "Response immer JSON.parse ohne parseAs → Text/Binary werfen SyntaxError; kein Accept-Header",
+      "Query-Stile nicht pro Parameter: pipe/space/csv/form-object falsch (nur globaler querySerializer)",
+      "Readable<T> zerlegt Blob in Mapped Type → Binary-Response-Typ ist kein Blob",
+      "Keine Angular-Integration (kein HttpClient/Interceptor/DI/Resource), keine Auth-Konfiguration",
+      "--array-length erzeugt mit prefixItems falsches Tupel"
+    ]
+  },
+  "generation": {
+    "ms": 410,
+    "runs": [
+      410,
+      415,
+      388
+    ],
+    "error": null
+  },
+  "metrics": {
+    "source": {
+      "files": 1,
+      "tsFiles": 1,
+      "loc": 1866,
+      "bytes": 50615
+    },
+    "source31": {
+      "files": 1,
+      "tsFiles": 1,
+      "loc": 252,
+      "bytes": 6818
+    },
+    "any": {
+      "total": 5,
+      "inTypes": 5,
+      "tsNoCheckFiles": 0
+    },
+    "runtimeDeps": [
+      "openapi-fetch",
+      "openapi-typescript-helpers"
+    ],
+    "strict": {
+      "errors": 0,
+      "syntaxErrors": 0,
+      "byCode": {},
+      "sample": []
+    },
+    "maxStrict": {
+      "errors": 0,
+      "syntaxErrors": 0,
+      "byCode": {},
+      "sample": []
+    },
+    "bundle": {
+      "oneOp": {
+        "bytes": 6705,
+        "gzip": 2660,
+        "foreignPaths": []
+      },
+      "allOps": {
+        "bytes": 7416,
+        "gzip": 2917,
+        "foreignPaths": []
+      }
+    }
+  },
+  "suites": {
+    "types": {
+      "ms": 1298,
+      "exitCode": 1,
+      "crashed": false
+    },
+    "static": {
+      "ms": 570,
+      "exitCode": 0,
+      "crashed": false
+    },
+    "runtime": {
+      "ms": 5309,
+      "exitCode": 1,
+      "crashed": false
+    }
+  },
+  "cases": {
+    "T31-TYPE-NULL-UNION": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-CONST": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-ENUM-NULL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-PREFIX-ITEMS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-REF-SIBLINGS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-ONEOF-CONST-DISC": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-EXAMPLES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-DEPENDENT-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-BINARY-CONTENT-MEDIA-TYPE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-WEBHOOKS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-STRING": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-INT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-NUMBER": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-BOOLEAN": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-INT64": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-UUID": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-BYTE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-DATE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-STRING": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-INT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-VARNAMES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-NULLABLE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-SPECIAL-VALUES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NULLABLE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-READONLY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-WRITEONLY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-DEFAULTS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-REF": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-NESTED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-UNIQUE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-SCHEMA": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-FALSE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-TRUE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-WITH-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ALLOF-COMPOSE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ONEOF-DISC": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ONEOF-DISC-MAPPING": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ALLOF-DISC-INHERITANCE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ONEOF-PLAIN": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ANYOF": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RECURSIVE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-CIRCULAR": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-INLINE-OBJECT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-INLINE-ENUM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-PATH-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-PATH-TYPES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-ENUM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-ARRAY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-HEADER": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-RESERVED-PARAM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARTIAL-BODY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-FORM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-MULTIPART": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-OCTET": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-200": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-204": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-MULTI-2XX": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-BINARY": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'Blob' does not satisfy the constraint '{ text \"Expected function, Actual boolean\"; arrayBuffer \"Expected function, Actual boolean\"; stream \"Expected function, Actual boolean\"; slice \"Expected function, Actual boolean\"; size number; type string; bytes \"Expected function, Actual boolean\"; }'.   Types of property 'text' are incompatible.     Type '() => Promise<string>' is not assignable to typ"
+    },
+    "T-RESP-TEXT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-PRIMITIVE-ARRAY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-MAP": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-CONTENT-NEGOTIATION": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'Blob' does not satisfy the constraint '{ text \"Expected function, Actual boolean\"; arrayBuffer \"Expected function, Actual boolean\"; stream \"Expected function, Actual boolean\"; slice \"Expected function, Actual boolean\"; size number; type string; bytes \"Expected function, Actual boolean\"; }'.   Types of property 'text' are incompatible.     Type '() => Promise<string>' is not assignable to typ"
+    },
+    "T-ERROR-MODEL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-SPECIAL-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-RESERVED-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-SCHEMA-COLLISION": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-SCHEMA-SANITIZE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-OPERATION-ID-SANITIZE": {
+      "status": "unsupported",
+      "suite": "types",
+      "note": "[T-NAME-OPERATION-ID-SANITIZE] get-kebab_snake.op aufrufbar — unsupported: pfadbasierter Client, keine generierten Methoden-/Funktionsnamen"
+    },
+    "T-NO-OPERATION-ID": {
+      "status": "unsupported",
+      "suite": "types",
+      "note": "[T-NO-OPERATION-ID] ohne operationId → Tag — unsupported: pfadbasierter Client, es wird kein Name generiert"
+    },
+    "T-UNTAGGED-OP": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-UNREFERENCED-SCHEMA": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "S-DEPRECATED-OP": {
+      "status": "unsupported",
+      "suite": "static",
+      "note": "[S-DEPRECATED-OP] deprecatedOperation trägt @deprecated — unsupported: keine generierte Methode/Funktion, @deprecated nur am paths-Typ-Member"
+    },
+    "S-DEPRECATED-PROP": {
+      "status": "pass",
+      "suite": "static"
+    },
+    "S-JSDOC-DESCRIPTION": {
+      "status": "pass",
+      "suite": "static"
+    },
+    "R-PATH-MULTI": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-PATH-ENCODE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-PRIMITIVES": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-OPTIONAL-OMITTED": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-EXPLODE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-NOEXPLODE": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected [ 'a', 'b' ] to deeply equal [ 'a,b' ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/openapi-fetch/tests/runtime.spec.ts?import&browserv=1790970344138:97:50     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=32cad810"
+    },
+    "R-QUERY-ARRAY-PIPE": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected [ 'a', 'b' ] to deeply equal [ 'a|b' ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/openapi-fetch/tests/runtime.spec.ts?import&browserv=1790970344138:102:51     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=32cad81"
+    },
+    "R-QUERY-ARRAY-SPACE": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected [ '1', '2' ] to deeply equal [ '1 2' ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/openapi-fetch/tests/runtime.spec.ts?import&browserv=1790970344138:107:52     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=32cad81"
+    },
+    "R-QUERY-DEEPOBJECT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-FORM-OBJECT": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected null to be '1' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/openapi-fetch/tests/runtime.spec.ts?import&browserv=1790970344138:120:29     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=32cad810:"
+    },
+    "R-QUERY-DATE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-BOOLEAN": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-HEADER-PARAM": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-COOKIE-PARAM": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected '' to contain 'session=s1'     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/openapi-fetch/tests/runtime.spec.ts?import&browserv=1790970344138:154:50     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=32cad810:1903:20"
+    },
+    "R-NAME-RESERVED-PARAM": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-JSON": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-NULL-SEND": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-MERGE-PATCH": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected 'application/json' to be 'application/merge-patch+json' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/openapi-fetch/tests/runtime.spec.ts?import&browserv=1790970344138:191:49     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/"
+    },
+    "R-BODY-FORM-URLENCODED": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected 'application/json' to match /^application\\/x-…/x-www-form-urlencoded     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/openapi-fetch/tests/runtime.spec.ts?import&browserv=1790970344138:198:49     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/di"
+    },
+    "R-BODY-MULTIPART": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected 'application/json' to match /^multipart\\/form-…/form-data; boundary=     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/openapi-fetch/tests/runtime.spec.ts?import&browserv=1790970344138:208:49     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/di"
+    },
+    "R-BODY-MULTIPART-JSON-PART": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected 'application/json' to match /^multipart\\/form-…/form-data; boundary=     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/openapi-fetch/tests/runtime.spec.ts?import&browserv=1790970344138:220:49     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/di"
+    },
+    "R-BODY-OCTET": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected 'application/json' to be 'application/octet-stream' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/openapi-fetch/tests/runtime.spec.ts?import&browserv=1790970344138:230:49     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runn"
+    },
+    "R-BODY-TEXT": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected 'application/json' to match /^text\\/plain/plain     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/openapi-fetch/tests/runtime.spec.ts?import&browserv=1790970344138:237:49     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?"
+    },
+    "R-BODY-POLYMORPHIC": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-NAME-SPECIAL-PROPS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-204": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-BLOB": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "Error: promise rejected \"SyntaxError: Unexpected token '%', \"%PDF-…\" instead of resolving     at Assertion.__VITEST_RESOLVES__ (http://localhost:63315/node_modules/.pnpm/@vitest+expect@4.1.11/node_modules/@vitest/expect/dist/index.js?v=32cad810:1710:17)     at Assertion.propertyGetter (http://localhost:63315/node_modules/.vite/vitest/5dfe42a8810872239196e951f807f7c4da9fc8cf/deps/vitest___@vitest_e"
+    },
+    "R-RESP-TEXT": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "Error: promise rejected \"SyntaxError: Unexpected token 'h', \"hello…\" instead of resolving     at Assertion.__VITEST_RESOLVES__ (http://localhost:63315/node_modules/.pnpm/@vitest+expect@4.1.11/node_modules/@vitest/expect/dist/index.js?v=32cad810:1710:17)     at Assertion.propertyGetter (http://localhost:63315/node_modules/.vite/vitest/5dfe42a8810872239196e951f807f7c4da9fc8cf/deps/vitest___@vitest_e"
+    },
+    "R-RESP-VENDOR-JSON": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected '' to contain 'application/vnd.bench.v1+json'     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/openapi-fetch/tests/runtime.spec.ts?import&browserv=1790970344138:286:50     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v="
+    },
+    "R-ACCEPT-HEADER": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected null to be 'application/json' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/openapi-fetch/tests/runtime.spec.ts?import&browserv=1790970344138:291:44     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact"
+    },
+    "R-RESP-DATE-CONSISTENT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-201-LOCATION": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-ERROR-BODY": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-AUTH-BEARER": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-BEARER] Bearer über generierte Konfiguration — unsupported: openapi-typescript generiert keine Security-Konfiguration; Auth nur per handgeschriebener Middleware"
+    },
+    "R-AUTH-APIKEY-HEADER": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-APIKEY-HEADER] API-Key-Header über Konfiguration — unsupported: openapi-typescript generiert keine Security-Konfiguration; Auth nur per handgeschriebener Middleware"
+    },
+    "R-AUTH-APIKEY-QUERY": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-APIKEY-QUERY] API-Key-Query über Konfiguration — unsupported: openapi-typescript generiert keine Security-Konfiguration; Auth nur per handgeschriebener Middleware"
+    },
+    "R-AUTH-BASIC": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-BASIC] Basic über Konfiguration — unsupported: openapi-typescript generiert keine Security-Konfiguration; Auth nur per handgeschriebener Middleware"
+    },
+    "R-AUTH-OAUTH2": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-OAUTH2] OAuth2 über Konfiguration — unsupported: openapi-typescript generiert keine Security-Konfiguration; Auth nur per handgeschriebener Middleware"
+    },
+    "R-AUTH-NONE": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-NONE] security: [] ohne Credentials — unsupported: openapi-typescript generiert keine Security-Konfiguration; Auth nur per handgeschriebener Middleware (Runtime kennt security der Operationen nicht)"
+    },
+    "A-PROVIDE-FN": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-PROVIDE-FN] provideXxx()/DI-Token — unsupported: openapi-fetch ist framework-agnostisch (fetch), keine Angular-Integration"
+    },
+    "A-BASEURL": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-BASEURL] Base-URL per DI — unsupported: openapi-fetch ist framework-agnostisch (fetch), keine Angular-Integration; baseUrl nur als createClient-Option, nicht per DI"
+    },
+    "A-INJECT": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-INJECT] inject()/providedIn root — unsupported: openapi-fetch ist framework-agnostisch (fetch), keine Angular-Integration"
+    },
+    "A-HTTPCLIENT": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-HTTPCLIENT] nutzt HttpClient — unsupported: openapi-fetch ist framework-agnostisch (fetch), keine Angular-Integration; Requests gehen an globalThis.fetch"
+    },
+    "A-INTERCEPTORS": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-INTERCEPTORS] funktionale Interceptors — unsupported: openapi-fetch ist framework-agnostisch (fetch), keine Angular-Integration; nur eigene Middleware (client.use)"
+    },
+    "A-HTTPCONTEXT": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-HTTPCONTEXT] HttpContext pro Aufruf — unsupported: openapi-fetch ist framework-agnostisch (fetch), keine Angular-Integration"
+    },
+    "A-OBSERVE-RESPONSE": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-OBSERVE-RESPONSE] HttpResponse<Pet> — unsupported: openapi-fetch ist framework-agnostisch (fetch), keine Angular-Integration; liefert {data, error, response: Response}"
+    },
+    "A-REPORT-PROGRESS": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-REPORT-PROGRESS] Upload-Progress — unsupported: openapi-fetch ist framework-agnostisch (fetch), keine Angular-Integration; fetch bietet keinen Upload-Progress"
+    },
+    "A-HTTPRESOURCE": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-HTTPRESOURCE] httpResource/Signal-API — unsupported: openapi-fetch ist framework-agnostisch (fetch), keine Angular-Integration"
+    },
+    "A-OBSERVABLE-COLD": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected [ Request{} ] to have a length of +0 but got 1     at Proxy.<anonymous> (http://localhost:63315/node_modules/.pnpm/@vitest+expect@4.1.11/node_modules/@vitest/expect/dist/index.js?v=32cad810:1389:20)     at Proxy.<anonymous> (http://localhost:63315/node_modules/.pnpm/@vitest+expect@4.1.11/node_modules/@vitest/expect/dist/index.js?v=32cad810:1156:15)"
+    },
+    "A-ZONELESS": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-ZONELESS] lauffähig mit provideZonelessChangeDetection() ohne zone.js — unsupported: openapi-fetch ist framework-agnostisch (fetch), keine Angular-Integration"
+    },
+    "A-TREESHAKE": {
+      "status": "pass",
+      "note": "keine fremden Operationen im one-op-Bundle; one-op/all-ops = 90.4%",
+      "suite": "measured"
+    },
+    "S-NO-ANY-MODELS": {
+      "status": "fail",
+      "note": "5 any in Typdeklarationen, 5 gesamt",
+      "suite": "measured"
+    },
+    "S-STRICT-COMPILE": {
+      "status": "pass",
+      "note": "0 Fehler",
+      "suite": "measured"
+    },
+    "S-MAX-STRICT-COMPILE": {
+      "status": "pass",
+      "note": "0 Fehler",
+      "suite": "measured"
+    },
+    "S-NO-RUNTIME-DEPS": {
+      "status": "fail",
+      "note": "openapi-fetch, openapi-typescript-helpers",
+      "suite": "measured"
+    }
+  },
+  "integrity": {
+    "duplicates": [],
+    "unknown": [],
+    "missing": []
+  },
+  "score": {
+    "overall": 61,
+    "dimensions": {
+      "types": {
+        "points": 130,
+        "max": 135,
+        "pass": 73,
+        "fail": 2,
+        "unsupported": 2,
+        "missing": 0,
+        "pct": 96.3
+      },
+      "runtime": {
+        "points": 44,
+        "max": 78,
+        "pass": 18,
+        "fail": 15,
+        "unsupported": 6,
+        "missing": 0,
+        "pct": 56.4
+      },
+      "angular": {
+        "points": 2,
+        "max": 25,
+        "pass": 1,
+        "fail": 1,
+        "unsupported": 10,
+        "missing": 0,
+        "pct": 8
+      },
+      "static": {
+        "points": 6,
+        "max": 10,
+        "pass": 4,
+        "fail": 2,
+        "unsupported": 1,
+        "missing": 0,
+        "pct": 60
+      }
+    },
+    "categories": {
+      "types-models": {
+        "points": 46,
+        "max": 46,
+        "pass": 26,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "types-poly": {
+        "points": 17,
+        "max": 17,
+        "pass": 8,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "types-ops": {
+        "points": 43,
+        "max": 46,
+        "pass": 22,
+        "fail": 2,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 93.5
+      },
+      "types-naming": {
+        "points": 10,
+        "max": 12,
+        "pass": 7,
+        "fail": 0,
+        "unsupported": 2,
+        "missing": 0,
+        "pct": 83.3
+      },
+      "types-31": {
+        "points": 14,
+        "max": 14,
+        "pass": 10,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "runtime-params": {
+        "points": 25,
+        "max": 31,
+        "pass": 10,
+        "fail": 5,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 80.6
+      },
+      "runtime-bodies": {
+        "points": 9,
+        "max": 21,
+        "pass": 4,
+        "fail": 6,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 42.9
+      },
+      "runtime-responses": {
+        "points": 10,
+        "max": 17,
+        "pass": 4,
+        "fail": 4,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 58.8
+      },
+      "runtime-auth": {
+        "points": 0,
+        "max": 9,
+        "pass": 0,
+        "fail": 0,
+        "unsupported": 6,
+        "missing": 0,
+        "pct": 0
+      },
+      "angular": {
+        "points": 2,
+        "max": 25,
+        "pass": 1,
+        "fail": 1,
+        "unsupported": 10,
+        "missing": 0,
+        "pct": 8
+      },
+      "static": {
+        "points": 6,
+        "max": 10,
+        "pass": 4,
+        "fail": 2,
+        "unsupported": 1,
+        "missing": 0,
+        "pct": 60
+      }
+    }
+  }
+}

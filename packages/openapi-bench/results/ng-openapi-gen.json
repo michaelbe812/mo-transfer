@@ -1,0 +1,854 @@
+{
+  "id": "ng-openapi-gen",
+  "meta": {
+    "id": "ng-openapi-gen",
+    "name": "ng-openapi-gen",
+    "package": "ng-openapi-gen",
+    "version": "1.1.0",
+    "runtime": "node",
+    "license": "MIT",
+    "repo": "https://github.com/cyclosproject/ng-openapi-gen",
+    "docs": "https://github.com/cyclosproject/ng-openapi-gen#readme",
+    "outputStyle": "functions+services",
+    "config": {
+      "file": "ng-openapi-gen.json (3.1: gleiche Datei, --input/--output per CLI überschrieben)",
+      "services/apiService": "functions + Api.invoke(fn, params, ctx) als tree-shakeable Haupt-API (1.x-Default); services: true zusätzlich, weil nur Service-Methoden JSDoc (summary/@deprecated) tragen und eine klassische Fassade mit $Response-Varianten liefern — kostet im one-op-Bundle nichts",
+      "promises": "false — Observables statt Promise (cold, abbrechbar, rxjs-idiomatisch; Default true)",
+      "enumStyle": "alias — Union-Literale statt TS-enum (Literal-Zuweisung möglich, kein Runtime-Code)",
+      "enumArray": "true — PET_STATUS etc. als Werte-Arrays",
+      "ignoreUnusedModels": "false — sonst fehlt UnreferencedModel",
+      "skipJsonSuffix": "true — reportByAccept (JSON) ohne $Json-Suffix, PDF-Variante bleibt reportByAccept$Pdf",
+      "indexFile": "true — index.ts für bundle/all-ops.ts",
+      "module": "false — kein NgModule, provideApiConfiguration()"
+    },
+    "angular": {
+      "httpClient": true,
+      "injectFn": true,
+      "provideFn": "provideApiConfiguration(rootUrl)",
+      "httpResource": false,
+      "httpContext": true,
+      "observeResponse": true,
+      "minAngular": "≥ 16"
+    },
+    "validation": "none",
+    "generation31": "ok (webhooks ignoriert; upload31 ohne Schema → body: any)",
+    "runtimeDeps": [],
+    "highlights": [
+      "Sehr robuste Wire-Serialisierung: alle Query-Styles (explode/csv/pipe/space/deepObject/form-object), Pfad-Encoding, form-urlencoded, multipart inkl. JSON-Part als application/json-Blob",
+      "Funktionale API (fn/* + Api.invoke) → tree-shakeable, HttpContext pro Aufruf, invoke$Response für Header/Status",
+      "Nur @angular/* + rxjs, kompiliert unter Angular-CLI-strict fehlerfrei",
+      "3.1 gut: const, type-Arrays mit null, prefixItems → Tupel, const-Discriminator narrowt"
+    ],
+    "issues": [
+      "discriminator wird ignoriert: Shape-Varianten haben kind: string → kein Narrowing (oneOf und allOf-Vererbung)",
+      "readOnly/writeOnly ignoriert: Request-Pet verlangt id, Response-Pet enthält secretChipCode",
+      "Mehrere 2xx: nur erster Response-Typ (Pet statt Pet | Job)",
+      "Keine Fehlertypen pro Operation (nur HttpErrorResponse.error: any); additionalProperties: true → any",
+      "Keine securitySchemes-Unterstützung (Auth nur via eigener Interceptor), Cookie-Parameter verworfen, kein reportProgress, kein httpResource",
+      "Binary-Body: Content-Type = blob.type statt application/octet-stream (untypisierter Blob → kein Content-Type)",
+      "Array-Header (simple) als mehrere Header-Zeilen statt 'a,b'"
+    ]
+  },
+  "generation": {
+    "ms": 340,
+    "runs": [
+      333,
+      340,
+      350
+    ],
+    "error": null
+  },
+  "metrics": {
+    "source": {
+      "files": 103,
+      "tsFiles": 103,
+      "loc": 3445,
+      "bytes": 145152
+    },
+    "source31": {
+      "files": 19,
+      "tsFiles": 19,
+      "loc": 790,
+      "bytes": 29450
+    },
+    "any": {
+      "total": 154,
+      "inTypes": 4,
+      "tsNoCheckFiles": 0
+    },
+    "runtimeDeps": [],
+    "strict": {
+      "errors": 0,
+      "syntaxErrors": 0,
+      "byCode": {},
+      "sample": []
+    },
+    "maxStrict": {
+      "errors": 237,
+      "syntaxErrors": 0,
+      "byCode": {
+        "TS1484": 190,
+        "TS2379": 45,
+        "TS2769": 2
+      },
+      "sample": [
+        "generators/ng-openapi-gen/client-31/api.ts(9,10): error TS1484: 'StrictHttpResponse' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.",
+        "generators/ng-openapi-gen/client-31/fn/operations/get-item-31.ts(7,10): error TS1484: 'StrictHttpResponse' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.",
+        "generators/ng-openapi-gen/client-31/fn/operations/get-item-31.ts(10,10): error TS1484: 'Item31' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.",
+        "generators/ng-openapi-gen/client-31/fn/operations/get-item-31.ts(23,14): error TS2379: Argument of type '{ responseType: \"json\"; accept: string; context: HttpContext | undefined; }' is not assignable to parameter of type '{ accept?: string; responseType?: \"json\" | \"text\" | \"blob\" | \"arraybuffer\"; reportProgress?: boolean; context?: HttpContext; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.",
+        "generators/ng-openapi-gen/client-31/fn/operations/list-events-31.ts(7,10): error TS1484: 'StrictHttpResponse' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.",
+        "generators/ng-openapi-gen/client-31/fn/operations/list-events-31.ts(10,10): error TS1484: 'Event31' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.",
+        "generators/ng-openapi-gen/client-31/fn/operations/list-events-31.ts(21,14): error TS2379: Argument of type '{ responseType: \"json\"; accept: string; context: HttpContext | undefined; }' is not assignable to parameter of type '{ accept?: string; responseType?: \"json\" | \"text\" | \"blob\" | \"arraybuffer\"; reportProgress?: boolean; context?: HttpContext; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.",
+        "generators/ng-openapi-gen/client-31/fn/operations/put-item-31.ts(7,10): error TS1484: 'StrictHttpResponse' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled."
+      ]
+    },
+    "bundle": {
+      "oneOp": {
+        "bytes": 5863,
+        "gzip": 1921,
+        "foreignPaths": []
+      },
+      "allOps": {
+        "bytes": 30425,
+        "gzip": 6008,
+        "foreignPaths": [
+          "/polymorphism/shapes",
+          "/bodies/multipart",
+          "/auth/basic",
+          "/responses/download",
+          "/naming/special-properties"
+        ]
+      }
+    }
+  },
+  "suites": {
+    "types": {
+      "ms": 1578,
+      "exitCode": 1,
+      "crashed": false
+    },
+    "static": {
+      "ms": 567,
+      "exitCode": 0,
+      "crashed": false
+    },
+    "runtime": {
+      "ms": 4570,
+      "exitCode": 1,
+      "crashed": false
+    }
+  },
+  "cases": {
+    "T31-TYPE-NULL-UNION": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-CONST": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-ENUM-NULL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-PREFIX-ITEMS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-REF-SIBLINGS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-ONEOF-CONST-DISC": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-EXAMPLES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-DEPENDENT-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-BINARY-CONTENT-MEDIA-TYPE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-WEBHOOKS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-STRING": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-INT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-NUMBER": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-BOOLEAN": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-INT64": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-UUID": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-BYTE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-DATE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-STRING": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-INT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-VARNAMES": {
+      "status": "unsupported",
+      "suite": "types",
+      "note": "[T-ENUM-VARNAMES] x-enum-varnames — unsupported: ng-openapi-gen wertet x-enum-varnames nicht aus (nur x-enumNames, und nur mit enumStyle≠alias); Priority ist reiner Union-Typ 1|2|3 ohne benannte Member"
+    },
+    "T-ENUM-NULLABLE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-SPECIAL-VALUES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NULLABLE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-READONLY": {
+      "status": "fail",
+      "suite": "types",
+      "note": "No overload matches this call.   Overload 1 of 2, '(fn ApiFnRequired<CreatePet$Params, Pet>, params CreatePet$Params, context? HttpContext | undefined) Observable<...>', gave the following error.     Property 'id' is missing in type '{ name string; status \"available\"; photoUrls never[]; }' but required in type 'Pet'."
+    },
+    "T-WRITEONLY": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'false' does not satisfy the constraint '\"Expected literal boolean false, Actual literal boolean true\"'."
+    },
+    "T-DEFAULTS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-REF": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-NESTED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-UNIQUE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-SCHEMA": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-FALSE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-TRUE": {
+      "status": "fail",
+      "suite": "types",
+      "note": "This expression is not callable. Type 'ExpectUnknown<any>' has no call signatures."
+    },
+    "T-ADDPROPS-WITH-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ALLOF-COMPOSE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ONEOF-DISC": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Property 'radius' does not exist on type 'Shape'.   Property 'radius' does not exist on type 'Rectangle'."
+    },
+    "T-ONEOF-DISC-MAPPING": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type '\"circle\"' does not satisfy the constraint '\"Expected literal string circle, Actual string\"'. Unused '@ts-expect-error' directive."
+    },
+    "T-ALLOF-DISC-INHERITANCE": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Property 'petId' does not exist on type 'BaseEvent'. Type '\"created\"' does not satisfy the constraint '\"Expected literal string created, Actual string\"'."
+    },
+    "T-ONEOF-PLAIN": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ANYOF": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RECURSIVE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-CIRCULAR": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-INLINE-OBJECT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-INLINE-ENUM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-PATH-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-PATH-TYPES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-ENUM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-ARRAY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-HEADER": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-RESERVED-PARAM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARTIAL-BODY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-FORM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-MULTIPART": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-OCTET": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-200": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-204": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-MULTI-2XX": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'Observable<Job | Pet>' does not satisfy the constraint '{ source Observable<any> | undefined; operator \"Expected undefined, Actual never\" | \"Expected ..., Actual never\"; lift <R>(operator? Operator<Pet, R> | undefined) => Observable<...>; subscribe \"Expected function, Actual never\"; forEach \"Expected function, Actual never\"; pipe { ...; }; toPromise { ......'.   Types of property 'operator' "
+    },
+    "T-RESP-BINARY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-TEXT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-PRIMITIVE-ARRAY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-MAP": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-CONTENT-NEGOTIATION": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ERROR-MODEL": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'Problem' does not satisfy the constraint 'never'."
+    },
+    "T-NAME-SPECIAL-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-RESERVED-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-SCHEMA-COLLISION": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-SCHEMA-SANITIZE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-OPERATION-ID-SANITIZE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NO-OPERATION-ID": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-UNTAGGED-OP": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-UNREFERENCED-SCHEMA": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "S-DEPRECATED-OP": {
+      "status": "pass",
+      "suite": "static"
+    },
+    "S-DEPRECATED-PROP": {
+      "status": "pass",
+      "suite": "static"
+    },
+    "S-JSDOC-DESCRIPTION": {
+      "status": "pass",
+      "suite": "static"
+    },
+    "R-PATH-MULTI": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-PATH-ENCODE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-PRIMITIVES": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-OPTIONAL-OMITTED": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-EXPLODE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-NOEXPLODE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-PIPE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-SPACE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-DEEPOBJECT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-FORM-OBJECT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-DATE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-BOOLEAN": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-HEADER-PARAM": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-COOKIE-PARAM": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-COOKIE-PARAM] Cookie-Parameter — unsupported: ng-openapi-gen verwirft Cookie-Parameter (\"cannot be sent in XmlHttpRequests\"), session fehlt in HeaderAndCookieParams$Params"
+    },
+    "R-NAME-RESERVED-PARAM": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-JSON": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-NULL-SEND": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-MERGE-PATCH": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-FORM-URLENCODED": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-MULTIPART": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-MULTIPART-JSON-PART": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-OCTET": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected null to be 'application/octet-stream' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/ng-openapi-gen/tests/runtime.spec.ts?import&browserv=1790970324432:900:47     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artif"
+    },
+    "R-BODY-TEXT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-POLYMORPHIC": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-NAME-SPECIAL-PROPS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-204": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-BLOB": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-TEXT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-VENDOR-JSON": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-ACCEPT-HEADER": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-DATE-CONSISTENT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-201-LOCATION": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-ERROR-BODY": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-AUTH-BEARER": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-BEARER] Bearer-Token — unsupported: ng-openapi-gen ignoriert securitySchemes vollständig; README verweist auf manuelle Interceptors"
+    },
+    "R-AUTH-APIKEY-HEADER": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-APIKEY-HEADER] API-Key Header — unsupported: keine Security-Konfiguration generiert"
+    },
+    "R-AUTH-APIKEY-QUERY": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-APIKEY-QUERY] API-Key Query — unsupported: keine Security-Konfiguration generiert"
+    },
+    "R-AUTH-BASIC": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-BASIC] Basic Auth — unsupported: keine Security-Konfiguration generiert"
+    },
+    "R-AUTH-OAUTH2": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-OAUTH2] OAuth2 Access-Token — unsupported: keine Security-Konfiguration generiert"
+    },
+    "R-AUTH-NONE": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-NONE] Keine Credentials bei security: [] — unsupported: es gibt keinen konfigurierbaren Token, security: [] wird nicht ausgewertet"
+    },
+    "A-PROVIDE-FN": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-BASEURL": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-HTTPCLIENT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-HTTPCONTEXT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-OBSERVE-RESPONSE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-REPORT-PROGRESS": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-REPORT-PROGRESS] Upload-Progress — unsupported: weder Api.invoke noch fn/Service-Methoden reichen reportProgress/observe events durch (RequestBuilder.build wird ohne reportProgress aufgerufen, Events werden auf HttpResponse gefiltert)"
+    },
+    "A-OBSERVABLE-COLD": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-HTTPRESOURCE": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-HTTPRESOURCE] httpResource/Signal-API — unsupported: ng-openapi-gen generiert nur Observable/Promise-APIs, keine httpResource/resource-Varianten"
+    },
+    "A-ZONELESS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-INJECT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-INTERCEPTORS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-TREESHAKE": {
+      "status": "pass",
+      "note": "keine fremden Operationen im one-op-Bundle; one-op/all-ops = 19.3%",
+      "suite": "measured"
+    },
+    "S-NO-ANY-MODELS": {
+      "status": "fail",
+      "note": "4 any in Typdeklarationen, 154 gesamt",
+      "suite": "measured"
+    },
+    "S-STRICT-COMPILE": {
+      "status": "pass",
+      "note": "0 Fehler",
+      "suite": "measured"
+    },
+    "S-MAX-STRICT-COMPILE": {
+      "status": "fail",
+      "note": "237 Fehler",
+      "suite": "measured"
+    },
+    "S-NO-RUNTIME-DEPS": {
+      "status": "pass",
+      "note": "keine",
+      "suite": "measured"
+    }
+  },
+  "integrity": {
+    "duplicates": [],
+    "unknown": [],
+    "missing": []
+  },
+  "score": {
+    "overall": 85,
+    "dimensions": {
+      "types": {
+        "points": 119,
+        "max": 135,
+        "pass": 68,
+        "fail": 8,
+        "unsupported": 1,
+        "missing": 0,
+        "pct": 88.1
+      },
+      "runtime": {
+        "points": 66,
+        "max": 78,
+        "pass": 31,
+        "fail": 1,
+        "unsupported": 7,
+        "missing": 0,
+        "pct": 84.6
+      },
+      "angular": {
+        "points": 22,
+        "max": 25,
+        "pass": 10,
+        "fail": 0,
+        "unsupported": 2,
+        "missing": 0,
+        "pct": 88
+      },
+      "static": {
+        "points": 7,
+        "max": 10,
+        "pass": 5,
+        "fail": 2,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 70
+      }
+    },
+    "categories": {
+      "types-models": {
+        "points": 41,
+        "max": 46,
+        "pass": 22,
+        "fail": 3,
+        "unsupported": 1,
+        "missing": 0,
+        "pct": 89.1
+      },
+      "types-poly": {
+        "points": 10,
+        "max": 17,
+        "pass": 5,
+        "fail": 3,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 58.8
+      },
+      "types-ops": {
+        "points": 42,
+        "max": 46,
+        "pass": 22,
+        "fail": 2,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 91.3
+      },
+      "types-naming": {
+        "points": 12,
+        "max": 12,
+        "pass": 9,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "types-31": {
+        "points": 14,
+        "max": 14,
+        "pass": 10,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "runtime-params": {
+        "points": 30,
+        "max": 31,
+        "pass": 14,
+        "fail": 0,
+        "unsupported": 1,
+        "missing": 0,
+        "pct": 96.8
+      },
+      "runtime-bodies": {
+        "points": 19,
+        "max": 21,
+        "pass": 9,
+        "fail": 1,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 90.5
+      },
+      "runtime-responses": {
+        "points": 17,
+        "max": 17,
+        "pass": 8,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "runtime-auth": {
+        "points": 0,
+        "max": 9,
+        "pass": 0,
+        "fail": 0,
+        "unsupported": 6,
+        "missing": 0,
+        "pct": 0
+      },
+      "angular": {
+        "points": 22,
+        "max": 25,
+        "pass": 10,
+        "fail": 0,
+        "unsupported": 2,
+        "missing": 0,
+        "pct": 88
+      },
+      "static": {
+        "points": 7,
+        "max": 10,
+        "pass": 5,
+        "fail": 2,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 70
+      }
+    }
+  }
+}

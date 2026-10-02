@@ -1,0 +1,878 @@
+{
+  "id": "orval",
+  "meta": {
+    "id": "orval",
+    "name": "Orval",
+    "package": "orval",
+    "version": "8.39.0",
+    "runtime": "node",
+    "license": "MIT",
+    "repo": "https://github.com/orval-labs/orval",
+    "docs": "https://orval.dev/guides/angular",
+    "outputStyle": "class-services",
+    "config": {
+      "client": "angular — HttpClient-Services (@Injectable providedIn root, inject())",
+      "mode": "tags-split — ein Service + Resource-Datei pro Tag, Modelle einzeln unter model/ (Tree-Shaking auf Tag-Ebene)",
+      "override.angular.retrievalClient": "both — GET-Operationen zusätzlich als httpResource-Funktionen (*Resource), Services bleiben vollständig",
+      "override.angular.baseUrl": "{ apiId: 'bench' } — Base-URL via DI-Token BENCH_BASE_URL + provideBenchBaseUrl() statt hartkodierter Server-URL",
+      "override.enumGenerationType": "const — as-const-Objekt + Literal-Union-Typ: Union-Typsicherheit UND benannte Member (Priority.LOW)",
+      "override.preserveReadonlyRequestBodies": "strip — readOnly-Felder (id, createdAt) im Request-Body nicht Pflicht (NonReadonly<Pet>)",
+      "headers": "true — Header-Parameter werden typisiert generiert (sonst fehlen sie komplett)",
+      "urlEncodeParameters": "true — Pfadparameter mit encodeURIComponent",
+      "namingConvention": "kebab-case — Angular-Dateistil",
+      "useDates": "aus — Angular-Client hat keinen Date-Transformer (useDatesTransform nur fetch/query), Date-Typ wäre Lüge",
+      "input.unsafeDisableValidation": "true (nur 3.0-Spec) — Orvals Spec-Validator bricht an Property namens '$ref' ab (INVALID_REFERENCE), Spec ist valide"
+    },
+    "angular": {
+      "httpClient": true,
+      "injectFn": true,
+      "provideFn": "provideBenchBaseUrl(url) / provideBenchBaseUrlResolver(fn)",
+      "httpResource": true,
+      "httpContext": true,
+      "observeResponse": true,
+      "minAngular": "≥ 19.2 (httpResource), Services ≥ 17"
+    },
+    "validation": "none (optional zod via override.angular.runtimeValidation + schemas.type zod — nicht gewählt, Runtime-Dep zod)",
+    "generation31": "ok (type-Arrays, const, prefixItems-Tupel, enum mit null; webhooks werden ignoriert)",
+    "runtimeDeps": [],
+    "highlights": [
+      "httpResource-Funktionen pro GET mit Signal-Parametern, defaultValue-Overload, HttpContext/Header-Extension",
+      "observe body/response/events als typisierte Overloads, HttpContext/reportProgress via options",
+      "Content-Negotiation: reportByAccept('application/json'|'application/pdf') mit korrekten Overloads",
+      "deepObject/form-explode-Objekt-Query korrekt, 0/false werden gesendet",
+      "readOnly-Strip für Request-Bodies, const-Enums mit x-enum-varnames, Discriminator-Mapping-Literale",
+      "OpenAPI 3.1 sehr gut (Tupel, const, null-Unions)"
+    ],
+    "issues": [
+      "Strict-Compile-Fehler: integer-Header-Parameter (X-Retry-Count: number) wird ungecastet an HttpClient-headers übergeben (TS2322/TS2769) — Service + Resource",
+      "Strict-Compile-Fehler: reportByAcceptResource (httpResource bei Content-Negotiation) — parse-Typ Report vs Blob inkompatibel",
+      "x-www-form-urlencoded als URLSearchParams ohne Content-Type → Angular sendet Content-Type: application/json",
+      "merge-patch+json / octet-stream / Vendor-Accept: Content-Type bzw. Accept werden nicht gesetzt",
+      "Query-Arrays immer explode (form explode:false, pipeDelimited, spaceDelimited ignoriert)",
+      "securitySchemes komplett ignoriert (keine Auth-Konfiguration), Cookie-Parameter fehlen",
+      "writeOnly nicht berücksichtigt (secretChipCode im Response-Typ), keine operationsgebundenen Error-Typen",
+      "TData-Generic mit Default auf jeder Methode — Aufrufer kann Response-Typ beliebig umdeklarieren",
+      "options.headers/params als HttpHeaders/HttpParams-Instanz werden per Object-Spread zerstört",
+      "Spec-Validator-Fehlalarm bei Property '$ref' erzwingt unsafeDisableValidation"
+    ],
+    "workarounds": [
+      {
+        "description": "tsconfig.spec.json noCheck: true – generierter Code kompiliert nicht strict (Header-Param number an HttpHeaders, reportByAcceptResource), Angular-Test-Build bräche sonst ab",
+        "forceFail": []
+      }
+    ]
+  },
+  "generation": {
+    "ms": 1071,
+    "runs": [
+      1076,
+      1071,
+      1069
+    ],
+    "error": null
+  },
+  "metrics": {
+    "source": {
+      "files": 90,
+      "tsFiles": 90,
+      "loc": 4833,
+      "bytes": 180512
+    },
+    "source31": {
+      "files": 11,
+      "tsFiles": 11,
+      "loc": 556,
+      "bytes": 19731
+    },
+    "any": {
+      "total": 2,
+      "inTypes": 2,
+      "tsNoCheckFiles": 0
+    },
+    "runtimeDeps": [],
+    "strict": {
+      "errors": 15,
+      "syntaxErrors": 0,
+      "byCode": {
+        "TS2345": 1,
+        "TS2322": 6,
+        "TS2769": 8
+      },
+      "sample": [
+        "generators/orval/client/params/params.resource.ts(319,39): error TS2345: Argument of type '{ url: string; headers: HeaderAndCookieParamsHeaders; }' is not assignable to parameter of type 'string | HttpResourceRequest'.",
+        "generators/orval/client/params/params.service.ts(317,7): error TS2322: Type 'Observable<ArrayBuffer>' is not assignable to type 'Observable<TData | HttpEvent<TData>>'.",
+        "generators/orval/client/params/params.service.ts(321,9): error TS2769: No overload matches this call.",
+        "generators/orval/client/params/params.service.ts(326,7): error TS2322: Type 'Observable<ArrayBuffer>' is not assignable to type 'Observable<TData | HttpEvent<TData>>'.",
+        "generators/orval/client/params/params.service.ts(330,9): error TS2769: No overload matches this call.",
+        "generators/orval/client/params/params.service.ts(334,5): error TS2322: Type 'Observable<ArrayBuffer>' is not assignable to type 'Observable<TData | HttpEvent<TData>>'.",
+        "generators/orval/client/params/params.service.ts(338,9): error TS2769: No overload matches this call.",
+        "generators/orval/client/responses/responses.resource.ts(159,47): error TS2769: No overload matches this call."
+      ]
+    },
+    "maxStrict": {
+      "errors": 16,
+      "syntaxErrors": 0,
+      "byCode": {
+        "TS2345": 1,
+        "TS2322": 6,
+        "TS2769": 8,
+        "TS6133": 1
+      },
+      "sample": [
+        "generators/orval/client/params/params.resource.ts(319,39): error TS2345: Argument of type '{ url: string; headers: HeaderAndCookieParamsHeaders; }' is not assignable to parameter of type 'string | HttpResourceRequest'.",
+        "generators/orval/client/params/params.service.ts(317,7): error TS2322: Type 'Observable<ArrayBuffer>' is not assignable to type 'Observable<TData | HttpEvent<TData>>'.",
+        "generators/orval/client/params/params.service.ts(321,9): error TS2769: No overload matches this call.",
+        "generators/orval/client/params/params.service.ts(326,7): error TS2322: Type 'Observable<ArrayBuffer>' is not assignable to type 'Observable<TData | HttpEvent<TData>>'.",
+        "generators/orval/client/params/params.service.ts(330,9): error TS2769: No overload matches this call.",
+        "generators/orval/client/params/params.service.ts(334,5): error TS2322: Type 'Observable<ArrayBuffer>' is not assignable to type 'Observable<TData | HttpEvent<TData>>'.",
+        "generators/orval/client/params/params.service.ts(338,9): error TS2769: No overload matches this call.",
+        "generators/orval/client/responses/responses.resource.ts(17,1): error TS6133: 'map' is declared but its value is never read."
+      ]
+    },
+    "bundle": {
+      "oneOp": {
+        "bytes": 3381,
+        "gzip": 988,
+        "foreignPaths": []
+      },
+      "allOps": {
+        "bytes": 30636,
+        "gzip": 4951,
+        "foreignPaths": [
+          "/polymorphism/shapes",
+          "/bodies/multipart",
+          "/auth/basic",
+          "/responses/download",
+          "/naming/special-properties"
+        ]
+      }
+    }
+  },
+  "suites": {
+    "types": {
+      "ms": 1511,
+      "exitCode": 1,
+      "crashed": false
+    },
+    "static": {
+      "ms": 575,
+      "exitCode": 0,
+      "crashed": false
+    },
+    "runtime": {
+      "ms": 4629,
+      "exitCode": 1,
+      "crashed": false
+    }
+  },
+  "cases": {
+    "T31-TYPE-NULL-UNION": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-CONST": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-ENUM-NULL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-PREFIX-ITEMS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-REF-SIBLINGS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-ONEOF-CONST-DISC": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-EXAMPLES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-DEPENDENT-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-BINARY-CONTENT-MEDIA-TYPE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-WEBHOOKS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-STRING": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-INT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-NUMBER": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-BOOLEAN": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-INT64": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-UUID": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-BYTE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-DATE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-STRING": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-INT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-VARNAMES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-NULLABLE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-SPECIAL-VALUES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NULLABLE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-READONLY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-WRITEONLY": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'false' does not satisfy the constraint '\"Expected literal boolean false, Actual literal boolean true\"'."
+    },
+    "T-DEFAULTS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-REF": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-NESTED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-UNIQUE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-SCHEMA": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-FALSE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-TRUE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-WITH-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ALLOF-COMPOSE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ONEOF-DISC": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ONEOF-DISC-MAPPING": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ALLOF-DISC-INHERITANCE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ONEOF-PLAIN": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ANYOF": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RECURSIVE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-CIRCULAR": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-INLINE-OBJECT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-INLINE-ENUM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-PATH-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-PATH-TYPES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-ENUM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-ARRAY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-HEADER": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-RESERVED-PARAM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARTIAL-BODY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-FORM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-MULTIPART": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-OCTET": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-200": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-204": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-MULTI-2XX": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-BINARY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-TEXT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-PRIMITIVE-ARRAY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-MAP": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-CONTENT-NEGOTIATION": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ERROR-MODEL": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'Problem' does not satisfy the constraint 'never'."
+    },
+    "T-NAME-SPECIAL-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-RESERVED-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-SCHEMA-COLLISION": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-SCHEMA-SANITIZE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-OPERATION-ID-SANITIZE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NO-OPERATION-ID": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-UNTAGGED-OP": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-UNREFERENCED-SCHEMA": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "S-DEPRECATED-OP": {
+      "status": "pass",
+      "suite": "static"
+    },
+    "S-DEPRECATED-PROP": {
+      "status": "pass",
+      "suite": "static"
+    },
+    "S-JSDOC-DESCRIPTION": {
+      "status": "pass",
+      "suite": "static"
+    },
+    "R-PATH-MULTI": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-PATH-ENCODE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-PRIMITIVES": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-OPTIONAL-OMITTED": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-EXPLODE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-NOEXPLODE": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected [ 'a', 'b' ] to deeply equal [ 'a,b' ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/orval/tests/runtime.spec.ts?import&browserv=1790970374273:909:46     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=62deed79:302:11"
+    },
+    "R-QUERY-ARRAY-PIPE": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected [ 'a', 'b' ] to deeply equal [ 'a|b' ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/orval/tests/runtime.spec.ts?import&browserv=1790970374273:914:47     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=62deed79:302:11"
+    },
+    "R-QUERY-ARRAY-SPACE": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected [ '1', '2' ] to deeply equal [ '1 2' ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/orval/tests/runtime.spec.ts?import&browserv=1790970374273:919:48     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=62deed79:302:11"
+    },
+    "R-QUERY-DEEPOBJECT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-FORM-OBJECT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-DATE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-BOOLEAN": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-HEADER-PARAM": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-COOKIE-PARAM": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-COOKIE-PARAM] Cookie-Parameter session — unsupported: Orval generiert für in: cookie keinen Parameter (session fehlt in Signatur und Headers-Typ)"
+    },
+    "R-NAME-RESERVED-PARAM": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-JSON": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-NULL-SEND": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-MERGE-PATCH": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected 'application/json' to be 'application/merge-patch+json' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/orval/tests/runtime.spec.ts?import&browserv=1790970374273:1003:47     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/c"
+    },
+    "R-BODY-FORM-URLENCODED": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected 'application/json' to match /^application\\/x-…/x-www-form-urlencoded     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/orval/tests/runtime.spec.ts?import&browserv=1790970374273:1013:47     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-arti"
+    },
+    "R-BODY-MULTIPART": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-MULTIPART-JSON-PART": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-OCTET": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected null to be 'application/octet-stream' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/orval/tests/runtime.spec.ts?import&browserv=1790970374273:1051:47     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v"
+    },
+    "R-BODY-TEXT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-POLYMORPHIC": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-NAME-SPECIAL-PROPS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-204": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-BLOB": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-TEXT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-VENDOR-JSON": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected '' to contain 'application/vnd.bench.v1+json'     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/orval/tests/runtime.spec.ts?import&browserv=1790970374273:1120:53     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=62deed79:302:"
+    },
+    "R-ACCEPT-HEADER": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-DATE-CONSISTENT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-201-LOCATION": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-ERROR-BODY": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-AUTH-BEARER": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-BEARER] Bearer via Konfiguration — unsupported: Orval ignoriert securitySchemes vollständig (keine Credential-Konfiguration, kein Security-Metadatum pro Operation) — nur manueller Interceptor möglich"
+    },
+    "R-AUTH-APIKEY-HEADER": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-APIKEY-HEADER] X-API-Key via Konfiguration — unsupported: Orval ignoriert securitySchemes vollständig (keine Credential-Konfiguration, kein Security-Metadatum pro Operation) — nur manueller Interceptor möglich"
+    },
+    "R-AUTH-APIKEY-QUERY": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-APIKEY-QUERY] api_key via Konfiguration — unsupported: Orval ignoriert securitySchemes vollständig (keine Credential-Konfiguration, kein Security-Metadatum pro Operation) — nur manueller Interceptor möglich"
+    },
+    "R-AUTH-BASIC": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-BASIC] Basic via Konfiguration — unsupported: Orval ignoriert securitySchemes vollständig (keine Credential-Konfiguration, kein Security-Metadatum pro Operation) — nur manueller Interceptor möglich"
+    },
+    "R-AUTH-OAUTH2": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-OAUTH2] OAuth2-Token via Konfiguration — unsupported: Orval ignoriert securitySchemes vollständig (keine Credential-Konfiguration, kein Security-Metadatum pro Operation) — nur manueller Interceptor möglich"
+    },
+    "R-AUTH-NONE": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-NONE] security: [] ohne Authorization — unsupported: Orval ignoriert securitySchemes vollständig (keine Credential-Konfiguration, kein Security-Metadatum pro Operation) — nur manueller Interceptor möglich"
+    },
+    "A-PROVIDE-FN": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-BASEURL": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-INJECT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-HTTPCLIENT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-INTERCEPTORS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-HTTPCONTEXT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-OBSERVE-RESPONSE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-REPORT-PROGRESS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-OBSERVABLE-COLD": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-HTTPRESOURCE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-ZONELESS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-TREESHAKE": {
+      "status": "pass",
+      "note": "keine fremden Operationen im one-op-Bundle; one-op/all-ops = 11.0%",
+      "suite": "measured"
+    },
+    "S-NO-ANY-MODELS": {
+      "status": "fail",
+      "note": "2 any in Typdeklarationen, 2 gesamt",
+      "suite": "measured"
+    },
+    "S-STRICT-COMPILE": {
+      "status": "fail",
+      "note": "15 Fehler",
+      "suite": "measured"
+    },
+    "S-MAX-STRICT-COMPILE": {
+      "status": "fail",
+      "note": "16 Fehler",
+      "suite": "measured"
+    },
+    "S-NO-RUNTIME-DEPS": {
+      "status": "pass",
+      "note": "keine",
+      "suite": "measured"
+    }
+  },
+  "integrity": {
+    "duplicates": [],
+    "unknown": [],
+    "missing": []
+  },
+  "score": {
+    "overall": 83.8,
+    "dimensions": {
+      "types": {
+        "points": 132,
+        "max": 135,
+        "pass": 75,
+        "fail": 2,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 97.8
+      },
+      "runtime": {
+        "points": 57,
+        "max": 78,
+        "pass": 25,
+        "fail": 7,
+        "unsupported": 7,
+        "missing": 0,
+        "pct": 73.1
+      },
+      "angular": {
+        "points": 25,
+        "max": 25,
+        "pass": 12,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "static": {
+        "points": 4,
+        "max": 10,
+        "pass": 4,
+        "fail": 3,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 40
+      }
+    },
+    "categories": {
+      "types-models": {
+        "points": 45,
+        "max": 46,
+        "pass": 25,
+        "fail": 1,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 97.8
+      },
+      "types-poly": {
+        "points": 17,
+        "max": 17,
+        "pass": 8,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "types-ops": {
+        "points": 44,
+        "max": 46,
+        "pass": 23,
+        "fail": 1,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 95.7
+      },
+      "types-naming": {
+        "points": 12,
+        "max": 12,
+        "pass": 9,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "types-31": {
+        "points": 14,
+        "max": 14,
+        "pass": 10,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "runtime-params": {
+        "points": 26,
+        "max": 31,
+        "pass": 11,
+        "fail": 3,
+        "unsupported": 1,
+        "missing": 0,
+        "pct": 83.9
+      },
+      "runtime-bodies": {
+        "points": 15,
+        "max": 21,
+        "pass": 7,
+        "fail": 3,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 71.4
+      },
+      "runtime-responses": {
+        "points": 16,
+        "max": 17,
+        "pass": 7,
+        "fail": 1,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 94.1
+      },
+      "runtime-auth": {
+        "points": 0,
+        "max": 9,
+        "pass": 0,
+        "fail": 0,
+        "unsupported": 6,
+        "missing": 0,
+        "pct": 0
+      },
+      "angular": {
+        "points": 25,
+        "max": 25,
+        "pass": 12,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "static": {
+        "points": 4,
+        "max": 10,
+        "pass": 4,
+        "fail": 3,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 40
+      }
+    }
+  }
+}

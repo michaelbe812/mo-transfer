@@ -1,0 +1,1064 @@
+openapi: 3.0.3
+info:
+  title: OpenAPI Bench API
+  version: 1.0.0
+  description: |
+    Benchmark-Spec für Angular-/TypeScript-Client-Generatoren. Jede Operation / jedes Schema deckt
+    einen oder mehrere Fälle aus `cases.json` ab (Case-IDs in `x-bench-cases`).
+servers:
+  - url: https://{env}.bench.example.com/api/{version}
+    variables:
+      env:
+        default: prod
+        enum: [prod, staging]
+      version:
+        default: v1
+security:
+  - bearerAuth: []
+tags:
+  - name: pets
+  - name: params
+  - name: bodies
+  - name: responses
+  - name: polymorphism
+  - name: auth
+  - name: naming
+paths:
+  # ---------------------------------------------------------------- pets (CRUD, Basis)
+  /pets:
+    get:
+      tags: [pets]
+      operationId: listPets
+      summary: Liste Pets (paginiert)
+      x-bench-cases: [T-RESP-200, R-QUERY-PRIMITIVES, T-PARAM-QUERY-OPTIONAL, R-QUERY-OPTIONAL-OMITTED]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, format: int32, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, format: int32, minimum: 0 }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/PetStatus' }
+        - name: vaccinated
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Seite mit Pets
+          headers:
+            X-Total-Count:
+              schema: { type: integer }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PetPage' }
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [pets]
+      operationId: createPet
+      x-bench-cases: [T-BODY-REQUIRED, T-READONLY, R-BODY-JSON, R-RESP-201-LOCATION]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Pet' }
+      responses:
+        '201':
+          description: Angelegt
+          headers:
+            Location:
+              required: true
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pet' }
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /pets/{petId}:
+    parameters:
+      - name: petId
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      tags: [pets]
+      operationId: getPet
+      x-bench-cases: [T-PARAM-PATH-REQUIRED, T-RESP-200, R-ERROR-BODY]
+      responses:
+        '200':
+          description: Pet
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pet' }
+        '404':
+          description: Nicht gefunden
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Problem' }
+    put:
+      tags: [pets]
+      operationId: updatePet
+      x-bench-cases: [T-BODY-REQUIRED, R-BODY-JSON, R-NULL-SEND]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Pet' }
+      responses:
+        '200':
+          description: Aktualisiert
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pet' }
+    patch:
+      tags: [pets]
+      operationId: patchPet
+      x-bench-cases: [T-PARTIAL-BODY, R-BODY-MERGE-PATCH]
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: '#/components/schemas/PetPatch' }
+      responses:
+        '200':
+          description: Gepatcht
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pet' }
+    delete:
+      tags: [pets]
+      operationId: deletePet
+      x-bench-cases: [T-RESP-204, R-RESP-204]
+      responses:
+        '204':
+          description: Gelöscht
+
+  # ---------------------------------------------------------------- params
+  /params/path/{stringId}/{intId}/{uuidId}/{enumId}:
+    get:
+      tags: [params]
+      operationId: multiPathParams
+      x-bench-cases: [R-PATH-MULTI, R-PATH-ENCODE, T-PARAM-PATH-TYPES]
+      parameters:
+        - { name: stringId, in: path, required: true, schema: { type: string } }
+        - { name: intId, in: path, required: true, schema: { type: integer, format: int32 } }
+        - { name: uuidId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: enumId, in: path, required: true, schema: { $ref: '#/components/schemas/PetStatus' } }
+      responses:
+        '200':
+          description: Echo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Echo' }
+  /params/query:
+    get:
+      tags: [params]
+      operationId: queryStyles
+      x-bench-cases:
+        - R-QUERY-ARRAY-EXPLODE
+        - R-QUERY-ARRAY-NOEXPLODE
+        - R-QUERY-ARRAY-PIPE
+        - R-QUERY-ARRAY-SPACE
+        - R-QUERY-DEEPOBJECT
+        - R-QUERY-FORM-OBJECT
+        - R-QUERY-DATE
+        - R-QUERY-BOOLEAN
+        - T-PARAM-QUERY-ENUM
+        - T-PARAM-QUERY-REQUIRED
+        - T-PARAM-QUERY-ARRAY
+      parameters:
+        - name: required
+          in: query
+          required: true
+          schema: { type: string }
+        - name: tagsExplode
+          in: query
+          style: form
+          explode: true
+          schema: { type: array, items: { type: string } }
+        - name: tagsCsv
+          in: query
+          style: form
+          explode: false
+          schema: { type: array, items: { type: string } }
+        - name: tagsPipe
+          in: query
+          style: pipeDelimited
+          explode: false
+          schema: { type: array, items: { type: string } }
+        - name: tagsSpace
+          in: query
+          style: spaceDelimited
+          explode: false
+          schema: { type: array, items: { type: integer } }
+        - name: filter
+          in: query
+          style: deepObject
+          explode: true
+          schema: { $ref: '#/components/schemas/PetFilter' }
+        - name: point
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: object
+            properties:
+              x: { type: integer }
+              y: { type: integer }
+        - name: since
+          in: query
+          schema: { type: string, format: date-time }
+        - name: day
+          in: query
+          schema: { type: string, format: date }
+        - name: flag
+          in: query
+          schema: { type: boolean }
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+      responses:
+        '200':
+          description: Echo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Echo' }
+  /params/header-cookie:
+    get:
+      tags: [params]
+      operationId: headerAndCookieParams
+      x-bench-cases: [R-HEADER-PARAM, T-PARAM-HEADER, R-COOKIE-PARAM]
+      parameters:
+        - name: X-Request-Id
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+        - name: X-Trace-Flags
+          in: header
+          schema: { type: array, items: { type: string } }
+        - name: X-Retry-Count
+          in: header
+          schema: { type: integer }
+        - name: session
+          in: cookie
+          schema: { type: string }
+      responses:
+        '200':
+          description: Echo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Echo' }
+  /params/reserved/{class}:
+    get:
+      tags: [params]
+      operationId: reservedParamNames
+      x-bench-cases: [T-NAME-RESERVED-PARAM, R-NAME-RESERVED-PARAM]
+      parameters:
+        - { name: class, in: path, required: true, schema: { type: string } }
+        - { name: default, in: query, schema: { type: string } }
+        - { name: page-size, in: query, schema: { type: integer } }
+        - { name: 'filter.name', in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Echo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Echo' }
+
+  # ---------------------------------------------------------------- bodies
+  /bodies/form-urlencoded:
+    post:
+      tags: [bodies]
+      operationId: submitForm
+      x-bench-cases: [R-BODY-FORM-URLENCODED, T-BODY-FORM]
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string, format: password }
+                remember: { type: boolean }
+                scopes: { type: array, items: { type: string } }
+      responses:
+        '204':
+          description: OK
+  /bodies/multipart:
+    post:
+      tags: [bodies]
+      operationId: uploadFiles
+      x-bench-cases: [R-BODY-MULTIPART, T-BODY-MULTIPART, R-BODY-MULTIPART-JSON-PART]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, title]
+              properties:
+                title: { type: string }
+                file: { type: string, format: binary }
+                attachments:
+                  type: array
+                  items: { type: string, format: binary }
+                meta: { $ref: '#/components/schemas/UploadMeta' }
+            encoding:
+              meta:
+                contentType: application/json
+      responses:
+        '201':
+          description: Hochgeladen
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadResult' }
+  /bodies/binary:
+    put:
+      tags: [bodies]
+      operationId: uploadBinary
+      x-bench-cases: [R-BODY-OCTET, T-BODY-OCTET]
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '204':
+          description: OK
+  /bodies/text:
+    post:
+      tags: [bodies]
+      operationId: postText
+      x-bench-cases: [R-BODY-TEXT, R-RESP-TEXT, T-RESP-TEXT]
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema: { type: string }
+      responses:
+        '200':
+          description: Echo als Text
+          content:
+            text/plain:
+              schema: { type: string }
+  /bodies/optional:
+    post:
+      tags: [bodies]
+      operationId: optionalBody
+      x-bench-cases: [T-BODY-OPTIONAL]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Tag' }
+      responses:
+        '204':
+          description: OK
+  /bodies/inline:
+    post:
+      tags: [bodies]
+      operationId: inlineSchemas
+      x-bench-cases: [T-INLINE-OBJECT, T-INLINE-ENUM]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mode]
+              properties:
+                mode:
+                  type: string
+                  enum: [fast, slow]
+                nested:
+                  type: object
+                  properties:
+                    depth: { type: integer }
+      responses:
+        '200':
+          description: Inline-Antwort
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accepted, id]
+                properties:
+                  accepted: { type: boolean }
+                  id: { type: string }
+
+  # ---------------------------------------------------------------- responses
+  /responses/multi-status:
+    post:
+      tags: [responses]
+      operationId: multiStatus
+      x-bench-cases: [T-RESP-MULTI-2XX]
+      responses:
+        '200':
+          description: Existierte schon
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pet' }
+        '202':
+          description: Angenommen, wird verarbeitet
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+  /responses/download:
+    get:
+      tags: [responses]
+      operationId: downloadFile
+      x-bench-cases: [R-RESP-BLOB, T-RESP-BINARY]
+      responses:
+        '200':
+          description: Datei
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+  /responses/pdf-or-json:
+    get:
+      tags: [responses]
+      operationId: reportByAccept
+      x-bench-cases: [T-RESP-CONTENT-NEGOTIATION, R-ACCEPT-HEADER]
+      responses:
+        '200':
+          description: JSON oder PDF
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Report' }
+            application/pdf:
+              schema: { type: string, format: binary }
+  /responses/dates:
+    get:
+      tags: [responses]
+      operationId: getDates
+      x-bench-cases: [T-FORMAT-DATE, R-RESP-DATE-CONSISTENT]
+      responses:
+        '200':
+          description: Daten
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DateHolder' }
+  /responses/primitives:
+    get:
+      tags: [responses]
+      operationId: getPrimitiveArray
+      x-bench-cases: [T-RESP-PRIMITIVE-ARRAY]
+      responses:
+        '200':
+          description: Liste von Zahlen
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: integer, format: int64 }
+  /responses/map:
+    get:
+      tags: [responses]
+      operationId: getInventory
+      x-bench-cases: [T-ADDPROPS-SCHEMA, T-RESP-MAP]
+      responses:
+        '200':
+          description: Map Status → Anzahl
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: { type: integer, format: int32 }
+  /responses/vendor-json:
+    get:
+      tags: [responses]
+      operationId: getVendorJson
+      x-bench-cases: [R-RESP-VENDOR-JSON]
+      responses:
+        '200':
+          description: Vendor-JSON (application/vnd.bench+json)
+          content:
+            application/vnd.bench.v1+json:
+              schema: { $ref: '#/components/schemas/Tag' }
+
+  # ---------------------------------------------------------------- polymorphism
+  /polymorphism/shapes:
+    get:
+      tags: [polymorphism]
+      operationId: listShapes
+      x-bench-cases: [T-ONEOF-DISC, T-ONEOF-DISC-MAPPING]
+      responses:
+        '200':
+          description: Formen
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Shape' }
+    post:
+      tags: [polymorphism]
+      operationId: createShape
+      x-bench-cases: [T-ONEOF-DISC, R-BODY-POLYMORPHIC]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Shape' }
+      responses:
+        '201':
+          description: Angelegt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Shape' }
+  /polymorphism/events:
+    get:
+      tags: [polymorphism]
+      operationId: listEvents
+      x-bench-cases: [T-ALLOF-DISC-INHERITANCE]
+      responses:
+        '200':
+          description: Events (allOf-Vererbung mit Discriminator am Parent)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BaseEvent' }
+  /polymorphism/payment:
+    post:
+      tags: [polymorphism]
+      operationId: pay
+      x-bench-cases: [T-ONEOF-PLAIN, T-ANYOF]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaymentRequest' }
+      responses:
+        '200':
+          description: Ergebnis
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentResult' }
+  /polymorphism/tree:
+    get:
+      tags: [polymorphism]
+      operationId: getTree
+      x-bench-cases: [T-RECURSIVE, T-CIRCULAR]
+      responses:
+        '200':
+          description: Baum
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TreeNode' }
+
+  # ---------------------------------------------------------------- auth
+  /auth/bearer:
+    get:
+      tags: [auth]
+      operationId: authBearer
+      x-bench-cases: [R-AUTH-BEARER]
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: OK }
+  /auth/api-key-header:
+    get:
+      tags: [auth]
+      operationId: authApiKeyHeader
+      x-bench-cases: [R-AUTH-APIKEY-HEADER]
+      security:
+        - apiKeyHeader: []
+      responses:
+        '204': { description: OK }
+  /auth/api-key-query:
+    get:
+      tags: [auth]
+      operationId: authApiKeyQuery
+      x-bench-cases: [R-AUTH-APIKEY-QUERY]
+      security:
+        - apiKeyQuery: []
+      responses:
+        '204': { description: OK }
+  /auth/basic:
+    get:
+      tags: [auth]
+      operationId: authBasic
+      x-bench-cases: [R-AUTH-BASIC]
+      security:
+        - basicAuth: []
+      responses:
+        '204': { description: OK }
+  /auth/oauth2:
+    get:
+      tags: [auth]
+      operationId: authOauth2
+      x-bench-cases: [R-AUTH-OAUTH2]
+      security:
+        - oauth2: [pets:read]
+      responses:
+        '204': { description: OK }
+  /auth/public:
+    get:
+      tags: [auth]
+      operationId: authPublic
+      x-bench-cases: [R-AUTH-NONE]
+      security: []
+      responses:
+        '204': { description: OK }
+
+  # ---------------------------------------------------------------- naming
+  /naming/special-properties:
+    post:
+      tags: [naming]
+      operationId: specialProperties
+      x-bench-cases: [T-NAME-SPECIAL-PROPS, R-NAME-SPECIAL-PROPS, T-NAME-RESERVED-PROPS]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WeirdNames' }
+      responses:
+        '200':
+          description: Echo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WeirdNames' }
+  /naming/no-operation-id:
+    get:
+      tags: [naming]
+      x-bench-cases: [T-NO-OPERATION-ID]
+      responses:
+        '200':
+          description: Ohne operationId
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tag' }
+  /naming/deprecated:
+    get:
+      tags: [naming]
+      operationId: deprecatedOperation
+      deprecated: true
+      x-bench-cases: [S-DEPRECATED-OP]
+      responses:
+        '204': { description: OK }
+  /naming/kebab-op-id:
+    get:
+      tags: [naming]
+      operationId: get-kebab_snake.op
+      x-bench-cases: [T-NAME-OPERATION-ID-SANITIZE]
+      responses:
+        '204': { description: OK }
+  /schemas/kitchen-sink:
+    get:
+      tags: [naming]
+      operationId: getKitchenSink
+      x-bench-cases: [T-PRIM-STRING, T-ADDPROPS-FALSE, T-NAME-SCHEMA-SANITIZE]
+      responses:
+        '200':
+          description: Referenziert alle Modell-Schemas, damit sie generiert werden
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KitchenSink' }
+  /untagged:
+    get:
+      operationId: untaggedOperation
+      x-bench-cases: [T-UNTAGGED-OP]
+      responses:
+        '204': { description: OK }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+    basicAuth: { type: http, scheme: basic }
+    apiKeyHeader: { type: apiKey, in: header, name: X-API-Key }
+    apiKeyQuery: { type: apiKey, in: query, name: api_key }
+    oauth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.bench.example.com/token
+          scopes:
+            pets:read: Pets lesen
+  responses:
+    Error:
+      description: Fehler
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    ValidationError:
+      description: Validierungsfehler
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ValidationProblem' }
+  schemas:
+    # ---------------------------------------------------- primitives / formats
+    Primitives:
+      x-bench-cases: [T-PRIM-STRING, T-PRIM-INT, T-PRIM-NUMBER, T-PRIM-BOOLEAN, T-FORMAT-INT64, T-FORMAT-UUID, T-FORMAT-BYTE]
+      type: object
+      required: [str, int32, int64, float, double, bool, uuid, email, uri, byte]
+      properties:
+        str: { type: string }
+        int32: { type: integer, format: int32 }
+        int64: { type: integer, format: int64 }
+        float: { type: number, format: float }
+        double: { type: number, format: double }
+        bool: { type: boolean }
+        uuid: { type: string, format: uuid }
+        email: { type: string, format: email }
+        uri: { type: string, format: uri }
+        byte: { type: string, format: byte }
+        password: { type: string, format: password, writeOnly: true }
+    DateHolder:
+      type: object
+      required: [date, dateTime]
+      properties:
+        date: { type: string, format: date }
+        dateTime: { type: string, format: date-time }
+        optionalDateTime: { type: string, format: date-time }
+        nullableDateTime: { type: string, format: date-time, nullable: true }
+        dateTimes: { type: array, items: { type: string, format: date-time } }
+    # ---------------------------------------------------- enums
+    PetStatus:
+      x-bench-cases: [T-ENUM-STRING]
+      type: string
+      description: Status eines Pets
+      enum: [available, pending, sold]
+    Priority:
+      x-bench-cases: [T-ENUM-INT, T-ENUM-VARNAMES]
+      type: integer
+      enum: [1, 2, 3]
+      x-enum-varnames: [LOW, MEDIUM, HIGH]
+      x-enum-descriptions: [Niedrig, Mittel, Hoch]
+    NullableColor:
+      x-bench-cases: [T-ENUM-NULLABLE]
+      type: string
+      nullable: true
+      enum: [red, green, blue, null]
+    WeirdEnum:
+      x-bench-cases: [T-ENUM-SPECIAL-VALUES]
+      type: string
+      enum: ['with space', 'kebab-case', '1starts-with-digit', 'UPPER', 'lower', '']
+    # ---------------------------------------------------- core objects
+    Pet:
+      x-bench-cases: [T-REQUIRED, T-OPTIONAL, T-NULLABLE, T-READONLY, T-WRITEONLY, T-DEFAULTS, T-ARRAY-REF, T-ENUM-STRING]
+      type: object
+      required: [id, name, status, photoUrls]
+      properties:
+        id: { type: integer, format: int64, readOnly: true }
+        name: { type: string, minLength: 1, maxLength: 64, example: Bello }
+        status: { $ref: '#/components/schemas/PetStatus' }
+        priority: { $ref: '#/components/schemas/Priority' }
+        color: { $ref: '#/components/schemas/NullableColor' }
+        nickname: { type: string, nullable: true }
+        photoUrls: { type: array, items: { type: string, format: uri } }
+        tags: { type: array, items: { $ref: '#/components/schemas/Tag' } }
+        category: { $ref: '#/components/schemas/Category' }
+        birthDate: { type: string, format: date }
+        vaccinated: { type: boolean, default: false }
+        weightKg: { type: number, format: double, minimum: 0, exclusiveMinimum: true }
+        createdAt: { type: string, format: date-time, readOnly: true }
+        secretChipCode: { type: string, writeOnly: true }
+        legacyCode: { type: string, deprecated: true, description: 'Veraltet, wird entfernt' }
+        attributes:
+          type: object
+          additionalProperties: { type: string }
+        metadata:
+          type: object
+          additionalProperties: true
+    PetPatch:
+      type: object
+      description: Merge-Patch (alle Felder optional)
+      properties:
+        name: { type: string }
+        status: { $ref: '#/components/schemas/PetStatus' }
+        nickname: { type: string, nullable: true }
+    PetPage:
+      x-bench-cases: [T-ALLOF-COMPOSE]
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/Pet' }
+    PageMeta:
+      type: object
+      required: [total, limit, offset]
+      properties:
+        total: { type: integer, format: int32 }
+        limit: { type: integer, format: int32 }
+        offset: { type: integer, format: int32 }
+    Tag:
+      type: object
+      required: [name]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+    Category:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        parent: { $ref: '#/components/schemas/Category' }
+    PetFilter:
+      type: object
+      properties:
+        name: { type: string }
+        status: { $ref: '#/components/schemas/PetStatus' }
+        minAge: { type: integer }
+    Echo:
+      type: object
+      description: Server spiegelt Request (nur für Runtime-Tests relevant)
+      properties:
+        method: { type: string }
+        url: { type: string }
+        headers: { type: object, additionalProperties: { type: string } }
+    Job:
+      type: object
+      required: [jobId, state]
+      properties:
+        jobId: { type: string, format: uuid }
+        state: { type: string, enum: [queued, running] }
+    Report:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string }
+        rows: { type: array, items: { type: array, items: { type: number } } }
+    UploadMeta:
+      type: object
+      properties:
+        author: { type: string }
+        tags: { type: array, items: { type: string } }
+    UploadResult:
+      type: object
+      required: [ids]
+      properties:
+        ids: { type: array, items: { type: string } }
+        sizeBytes: { type: integer, format: int64 }
+    Problem:
+      x-bench-cases: [T-ERROR-MODEL]
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+    ValidationProblem:
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          required: [errors]
+          properties:
+            errors:
+              type: array
+              items:
+                type: object
+                required: [field, message]
+                properties:
+                  field: { type: string }
+                  message: { type: string }
+    # ---------------------------------------------------- free-form / maps
+    Settings:
+      x-bench-cases: [T-ADDPROPS-FALSE, T-ADDPROPS-TRUE, T-ADDPROPS-SCHEMA, T-ADDPROPS-WITH-PROPS, T-ARRAY-NESTED, T-ARRAY-UNIQUE]
+      type: object
+      additionalProperties: false
+      required: [strict]
+      properties:
+        strict:
+          type: object
+          additionalProperties: false
+          properties:
+            a: { type: string }
+        freeForm:
+          type: object
+          additionalProperties: true
+        freeFormImplicit:
+          type: object
+        counters:
+          type: object
+          additionalProperties: { type: integer }
+        refMap:
+          type: object
+          additionalProperties: { $ref: '#/components/schemas/Tag' }
+        mixed:
+          type: object
+          required: [known]
+          properties:
+            known: { type: string }
+          additionalProperties: { type: string }
+        matrix:
+          type: array
+          items: { type: array, items: { type: integer } }
+        uniqueTags:
+          type: array
+          uniqueItems: true
+          items: { type: string }
+        anything: {}
+    # ---------------------------------------------------- polymorphism
+    Shape:
+      oneOf:
+        - $ref: '#/components/schemas/Circle'
+        - $ref: '#/components/schemas/Rectangle'
+        - $ref: '#/components/schemas/Triangle'
+      discriminator:
+        propertyName: kind
+        mapping:
+          circle: '#/components/schemas/Circle'
+          rect: '#/components/schemas/Rectangle'
+          tri: '#/components/schemas/Triangle'
+    ShapeBase:
+      type: object
+      required: [kind]
+      properties:
+        kind: { type: string }
+        label: { type: string }
+    Circle:
+      allOf:
+        - $ref: '#/components/schemas/ShapeBase'
+        - type: object
+          required: [radius]
+          properties:
+            radius: { type: number }
+    Rectangle:
+      allOf:
+        - $ref: '#/components/schemas/ShapeBase'
+        - type: object
+          required: [width, height]
+          properties:
+            width: { type: number }
+            height: { type: number }
+    Triangle:
+      allOf:
+        - $ref: '#/components/schemas/ShapeBase'
+        - type: object
+          required: [a, b, c]
+          properties:
+            a: { type: number }
+            b: { type: number }
+            c: { type: number }
+    BaseEvent:
+      type: object
+      required: [eventType, occurredAt]
+      properties:
+        eventType: { type: string }
+        occurredAt: { type: string, format: date-time }
+      discriminator:
+        propertyName: eventType
+        mapping:
+          created: '#/components/schemas/CreatedEvent'
+          deleted: '#/components/schemas/DeletedEvent'
+    CreatedEvent:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          required: [petId]
+          properties:
+            petId: { type: integer, format: int64 }
+    DeletedEvent:
+      allOf:
+        - $ref: '#/components/schemas/BaseEvent'
+        - type: object
+          required: [reason]
+          properties:
+            reason: { type: string }
+    CardPayment:
+      type: object
+      required: [cardNumber, cvc]
+      properties:
+        cardNumber: { type: string, pattern: '^[0-9]{16}$' }
+        cvc: { type: string }
+    SepaPayment:
+      type: object
+      required: [iban]
+      properties:
+        iban: { type: string }
+    PaymentRequest:
+      type: object
+      required: [amount, method]
+      properties:
+        amount: { type: number }
+        method:
+          oneOf:
+            - $ref: '#/components/schemas/CardPayment'
+            - $ref: '#/components/schemas/SepaPayment'
+        note:
+          anyOf:
+            - type: string
+            - type: integer
+    PaymentResult:
+      anyOf:
+        - type: object
+          required: [ok]
+          properties:
+            ok: { type: boolean, enum: [true] }
+            transactionId: { type: string }
+        - $ref: '#/components/schemas/Problem'
+    TreeNode:
+      type: object
+      required: [value]
+      properties:
+        value: { type: string }
+        children:
+          type: array
+          items: { $ref: '#/components/schemas/TreeNode' }
+        parent: { $ref: '#/components/schemas/TreeParentRef' }
+    TreeParentRef:
+      type: object
+      properties:
+        node: { $ref: '#/components/schemas/TreeNode' }
+    # ---------------------------------------------------- naming
+    WeirdNames:
+      type: object
+      required: [x-request-id, '@type']
+      properties:
+        x-request-id: { type: string }
+        '@type': { type: string }
+        $ref: { type: string }
+        1stPlace: { type: boolean }
+        snake_case_prop: { type: string }
+        'with space': { type: string }
+        class: { type: string }
+        default: { type: string }
+        delete: { type: boolean }
+        constructor: { type: string }
+        __proto_like: { type: string }
+    # Schemas mit kollidierenden / reservierten Namen
+    Date:
+      x-bench-cases: [T-NAME-SCHEMA-COLLISION]
+      type: object
+      description: Schema-Name kollidiert mit globalem TS-Typ Date
+      properties:
+        value: { type: string }
+    Object:
+      type: object
+      description: Schema-Name kollidiert mit globalem TS-Typ Object
+      properties:
+        value: { type: string }
+    user-profile:
+      x-bench-cases: [T-NAME-SCHEMA-SANITIZE]
+      type: object
+      description: Schema-Name mit Bindestrich
+      properties:
+        displayName: { type: string }
+        birthday: { $ref: '#/components/schemas/Date' }
+        raw: { $ref: '#/components/schemas/Object' }
+    KitchenSink:
+      type: object
+      required: [settings, primitives]
+      properties:
+        settings: { $ref: '#/components/schemas/Settings' }
+        primitives: { $ref: '#/components/schemas/Primitives' }
+        weirdEnum: { $ref: '#/components/schemas/WeirdEnum' }
+        profile: { $ref: '#/components/schemas/user-profile' }
+        dates: { $ref: '#/components/schemas/DateHolder' }
+    # Nicht referenziertes Schema soll trotzdem generiert werden
+    UnreferencedModel:
+      x-bench-cases: [T-UNREFERENCED-SCHEMA]
+      type: object
+      required: [marker]
+      properties:
+        marker: { type: string, enum: [unreferenced] }

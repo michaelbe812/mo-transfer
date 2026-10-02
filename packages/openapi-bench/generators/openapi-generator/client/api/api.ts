@@ -1,0 +1,17 @@
+export * from './auth.service';
+import { AuthService } from './auth.service';
+export * from './bodies.service';
+import { BodiesService } from './bodies.service';
+export * from './default.service';
+import { DefaultService } from './default.service';
+export * from './naming.service';
+import { NamingService } from './naming.service';
+export * from './params.service';
+import { ParamsService } from './params.service';
+export * from './pets.service';
+import { PetsService } from './pets.service';
+export * from './polymorphism.service';
+import { PolymorphismService } from './polymorphism.service';
+export * from './responses.service';
+import { ResponsesService } from './responses.service';
+export const APIS = [AuthService, BodiesService, DefaultService, NamingService, ParamsService, PetsService, PolymorphismService, ResponsesService];

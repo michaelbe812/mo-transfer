@@ -1,0 +1,23 @@
+{
+  "name": "@mo-transfer/openapi-bench",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Benchmark Angular-/TS-OpenAPI-Client-Generatoren: eine Spec, Case-Katalog, Typ-/Runtime-/Static-Tests je Generator, Vergleichsmatrix.",
+  "scripts": {
+    "generate": "node scripts/generate-all.mjs",
+    "bench": "node scripts/run-bench.mjs",
+    "matrix": "node scripts/build-matrix.mjs"
+  },
+  "devDependencies": {
+    "@hey-api/openapi-ts": "0.99.0",
+    "@ng-openapi/http-resource": "0.2.0",
+    "esbuild": "^0.28.2",
+    "ng-openapi": "0.4.1",
+    "ng-openapi-gen": "1.1.0",
+    "nswag": "14.7.1",
+    "openapi-fetch": "0.17.0",
+    "openapi-typescript": "7.13.0",
+    "orval": "8.39.0"
+  }
+}

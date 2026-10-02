@@ -4,3 +4,6 @@
 /.nx/cache
 /.nx/workspace-data
 .angular
+/packages/openapi-bench/generators/*/client
+/packages/openapi-bench/generators/*/client-31
+/packages/openapi-bench/results

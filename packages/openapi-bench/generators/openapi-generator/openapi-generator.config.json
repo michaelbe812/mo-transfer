@@ -1,0 +1,15 @@
+{
+  "ngVersion": "22.0.0",
+  "providedIn": "root",
+  "supportsES6": true,
+  "fileNaming": "kebab-case",
+  "useSingleRequestParameter": true,
+  "stringEnums": false,
+  "enumPropertyNaming": "original",
+  "taggedUnions": true,
+  "nullSafeAdditionalProps": false,
+  "modelPropertyNaming": "original",
+  "paramNaming": "camelCase",
+  "sortParamsByRequiredFlag": true,
+  "queryParamObjectFormat": "key"
+}

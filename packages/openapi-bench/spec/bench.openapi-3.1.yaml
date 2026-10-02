@@ -1,0 +1,134 @@
+openapi: 3.1.0
+info:
+  title: OpenAPI Bench API (3.1-Features)
+  version: 1.0.0
+  description: |
+    Delta-Spec: nur Konstrukte, die es erst ab OpenAPI 3.1 / JSON Schema 2020-12 gibt.
+    Case-IDs (T31-*) in `x-bench-cases`.
+servers:
+  - url: https://bench.example.com/api/v1
+paths:
+  /v31/items/{itemId}:
+    get:
+      operationId: getItem31
+      summary: Item mit 3.1-Typen
+      x-bench-cases: [T31-TYPE-NULL-UNION, T31-CONST, T31-PREFIX-ITEMS, T31-ENUM-NULL, T31-REF-SIBLINGS, T31-EXAMPLES]
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Item
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Item31' }
+    put:
+      operationId: putItem31
+      summary: Item speichern
+      x-bench-cases: [T31-TYPE-NULL-UNION, T31-DEPENDENT-REQUIRED]
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Item31' }
+      responses:
+        '204':
+          description: OK
+  /v31/events:
+    get:
+      operationId: listEvents31
+      summary: Events mit const-Discriminator
+      x-bench-cases: [T31-ONEOF-CONST-DISC]
+      responses:
+        '200':
+          description: Events
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Event31' }
+  /v31/upload:
+    post:
+      operationId: upload31
+      summary: Upload mit contentMediaType
+      x-bench-cases: [T31-BINARY-CONTENT-MEDIA-TYPE]
+      requestBody:
+        required: true
+        content:
+          application/octet-stream: {}
+      responses:
+        '204':
+          description: OK
+webhooks:
+  itemChanged:
+    post:
+      operationId: onItemChanged
+      summary: Webhook
+      x-bench-cases: [T31-WEBHOOKS]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Item31' }
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Item31:
+      type: object
+      required: [id, kind, nickname, coords, label]
+      properties:
+        id: { type: string }
+        kind:
+          const: item
+        nickname:
+          type: [string, 'null']
+        count:
+          type: [integer, 'null']
+          format: int32
+        level:
+          enum: [low, high, null]
+        coords:
+          type: array
+          prefixItems:
+            - { type: number }
+            - { type: number }
+          items: false
+          minItems: 2
+        label:
+          $ref: '#/components/schemas/Label'
+          description: Sibling-Keywords neben $ref sind in 3.1 erlaubt
+        tags:
+          type: array
+          items: { type: string }
+          examples: [[a, b]]
+        creditCard: { type: string }
+        billingAddress: { type: string }
+      dependentRequired:
+        creditCard: [billingAddress]
+    Label:
+      type: string
+      minLength: 1
+    Event31:
+      oneOf:
+        - $ref: '#/components/schemas/StartEvent31'
+        - $ref: '#/components/schemas/StopEvent31'
+    StartEvent31:
+      type: object
+      required: [type, startedAt]
+      properties:
+        type: { const: start }
+        startedAt: { type: string, format: date-time }
+    StopEvent31:
+      type: object
+      required: [type, reason]
+      properties:
+        type: { const: stop }
+        reason: { type: string }

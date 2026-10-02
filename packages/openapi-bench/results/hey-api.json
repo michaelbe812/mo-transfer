@@ -1,0 +1,851 @@
+{
+  "id": "hey-api",
+  "meta": {
+    "id": "hey-api",
+    "name": "Hey API (openapi-ts)",
+    "package": "@hey-api/openapi-ts",
+    "version": "0.99.0",
+    "runtime": "node",
+    "license": "MIT",
+    "repo": "https://github.com/hey-api/hey-api",
+    "docs": "https://heyapi.dev/docs/openapi/typescript/clients/angular/v20",
+    "outputStyle": "functions",
+    "config": {
+      "@hey-api/client-angular": "Angular-HttpClient-Client, gebündelt in client/client (keine npm-Runtime-Dep); throwOnError: false (Default) → typisierte Result-Union { data } | { error }",
+      "@hey-api/typescript": "enums: 'javascript' → const-Objekte + Literal-Union-Typ (x-enum-varnames → Priority.LOW)",
+      "@hey-api/sdk": "operations: 'flat' (tree-shakeable Funktionen statt asClass), auth: true, paramsStructure: grouped (Default: path/query/headers/body getrennt)",
+      "@angular/common": "httpRequests + httpResources: HttpRequest-Factory + httpResource-Funktion je Operation",
+      "@hey-api/transformers": "bewusst NICHT aktiv: Schema `Date` der Spec überschattet globales Date in types.gen.ts → Date-Typ würde lügen; ohne Transformer date/date-time = string (konsistent)",
+      "validator": "keiner (zod/valibot-Plugin optional, nicht Teil des empfohlenen Angular-Basis-Setups)"
+    },
+    "angular": {
+      "httpClient": true,
+      "injectFn": true,
+      "provideFn": "provideHeyApiClient(client) – nur HttpClient-Wiring, keine Config (baseUrl via client.setConfig global)",
+      "httpResource": true,
+      "httpContext": false,
+      "observeResponse": true,
+      "minAngular": "≥ 19.2 (httpResource, provideAppInitializer)"
+    },
+    "validation": "none",
+    "generation31": "ok",
+    "runtimeDeps": [],
+    "highlights": [
+      "Sehr gute Modell-Typen: Writable-Varianten (readOnly/writeOnly getrennt), Literal-Unions, Tupel aus prefixItems, const, Webhook-Typen",
+      "Fehler-Typen pro Operation (GetPetError) + typisierte Result-Union",
+      "Flache, tree-shakeable SDK-Funktionen; httpResource-Funktionen je Operation",
+      "Query-Styles (form/pipe/space/deepObject) und multipart/urlencoded korrekt",
+      "Kompiliert unter Angular-CLI-strict fehlerfrei, keine externen Runtime-Deps"
+    ],
+    "issues": [
+      "Auth komplett wirkungslos im Angular-Client: setAuthParams() läuft NACH dem Bau des HttpRequest (Header/Query-Token gehen verloren)",
+      "Kein responseType: Blob-/Text-Responses werden als JSON angefragt (downloadFile/postText kaputt)",
+      "Kein Accept-Header, Content-Negotiation (JSON/PDF) nicht wählbar",
+      "Number-Header (X-Retry-Count) wird roh in HttpHeaders.set() gesteckt → HttpHeaders korrupt (TypeError)",
+      "SDK-Promise eager, kein HttpContext/reportProgress; response typisiert als HttpResponse<{200: Pet}>",
+      "Cookie-Parameter werden stillschweigend verworfen; 3.1 enum mit null verliert null; Discriminator-Literal nur in Union, nicht in Circle"
+    ]
+  },
+  "generation": {
+    "ms": 527,
+    "runs": [
+      546,
+      526,
+      527
+    ],
+    "error": null
+  },
+  "metrics": {
+    "source": {
+      "files": 17,
+      "tsFiles": 17,
+      "loc": 3581,
+      "bytes": 130207
+    },
+    "source31": {
+      "files": 17,
+      "tsFiles": 17,
+      "loc": 2001,
+      "bytes": 64146
+    },
+    "any": {
+      "total": 2,
+      "inTypes": 0,
+      "tsNoCheckFiles": 0
+    },
+    "runtimeDeps": [],
+    "strict": {
+      "errors": 0,
+      "syntaxErrors": 0,
+      "byCode": {},
+      "sample": []
+    },
+    "maxStrict": {
+      "errors": 22,
+      "syntaxErrors": 0,
+      "byCode": {
+        "TS2375": 4,
+        "TS2379": 18
+      },
+      "sample": [
+        "generators/hey-api/client-31/client/client.gen.ts(125,11): error TS2375: Type '{ request: undefined; response: undefined; }' is not assignable to type '{ request?: HttpRequest<unknown>; response?: any; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.",
+        "generators/hey-api/client-31/client/client.gen.ts(205,28): error TS2379: Argument of type '{ body: BodyInit | null | undefined; headers: Record<string, string>; method: \"CONNECT\" | \"DELETE\" | \"GET\" | \"HEAD\" | \"OPTIONS\" | \"PATCH\" | \"POST\" | \"PUT\" | \"TRACE\"; serializedBody: BodyInit | null | undefined; ... 31 more ...; sseMaxRetryDelay?: number; }' is not assignable to parameter of type 'ServerSentEventsOptions<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.",
+        "generators/hey-api/client-31/client/utils.gen.ts(112,55): error TS2379: Argument of type '{ explode: boolean; style: ArrayStyle; allowReserved: boolean | undefined; name: Extract<keyof T, string>; value: (T & object)[Extract<keyof T, string>] & any[]; }' is not assignable to parameter of type 'SerializeOptions<ArraySeparatorStyle> & { value: unknown[]; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.",
+        "generators/hey-api/client-31/client/utils.gen.ts(122,57): error TS2379: Argument of type '{ explode: boolean; style: ObjectStyle; allowReserved: boolean | undefined; name: Extract<keyof T, string>; value: Record<string, unknown>; }' is not assignable to parameter of type 'SerializeOptions<ObjectSeparatorStyle> & { value: Record<string, unknown> | Date; valueOnly?: boolean; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.",
+        "generators/hey-api/client-31/client/utils.gen.ts(132,63): error TS2379: Argument of type '{ allowReserved: boolean | undefined; name: Extract<keyof T, string>; value: string; }' is not assignable to parameter of type 'SerializePrimitiveParam' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.",
+        "generators/hey-api/client-31/client/utils.gen.ts(220,22): error TS2379: Argument of type '{ baseUrl: string; path: Record<string, unknown> | undefined; query: Record<string, unknown> | undefined; querySerializer: QuerySerializer; url: string; }' is not assignable to parameter of type '{ baseUrl?: string; path?: Record<string, unknown>; query?: Record<string, unknown>; querySerializer: QuerySerializer; url: string; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.",
+        "generators/hey-api/client-31/core/params.gen.ts(73,29): error TS2379: Argument of type '{ in: \"query\" | \"body\" | \"headers\" | \"path\"; map: string | undefined; }' is not assignable to parameter of type '{ in: Slot; map?: string; } | { in?: never; map: Slot; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.",
+        "generators/hey-api/client-31/core/pathSerializer.gen.ts(99,38): error TS2379: Argument of type '{ allowReserved: boolean | undefined; name: string; value: string; }' is not assignable to parameter of type 'SerializePrimitiveParam' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties."
+      ]
+    },
+    "bundle": {
+      "oneOp": {
+        "bytes": 9334,
+        "gzip": 3839,
+        "foreignPaths": []
+      },
+      "allOps": {
+        "bytes": 24929,
+        "gzip": 6326,
+        "foreignPaths": [
+          "/polymorphism/shapes",
+          "/bodies/multipart",
+          "/auth/basic",
+          "/responses/download",
+          "/naming/special-properties"
+        ]
+      }
+    }
+  },
+  "suites": {
+    "types": {
+      "ms": 1562,
+      "exitCode": 1,
+      "crashed": false
+    },
+    "static": {
+      "ms": 569,
+      "exitCode": 0,
+      "crashed": false
+    },
+    "runtime": {
+      "ms": 5408,
+      "exitCode": 1,
+      "crashed": false
+    }
+  },
+  "cases": {
+    "T31-TYPE-NULL-UNION": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-CONST": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-ENUM-NULL": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type '\"high\" | \"low\" | null | undefined' does not satisfy the constraint '\"Expected undefined, Actual never\" | \"Expected null, Actual never\" | \"Expected literal string high, Actual never\" | \"Expected literal string low, Actual never\"'.   Type 'undefined' is not assignable to type '\"Expected undefined, Actual never\" | \"Expected null, Actual never\" | \"Expected literal string high, Actual never\" | \"E"
+    },
+    "T31-PREFIX-ITEMS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-REF-SIBLINGS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-ONEOF-CONST-DISC": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-EXAMPLES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-DEPENDENT-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-BINARY-CONTENT-MEDIA-TYPE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-WEBHOOKS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-STRING": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-INT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-NUMBER": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-BOOLEAN": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-INT64": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-UUID": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-BYTE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-DATE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-STRING": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-INT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-VARNAMES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-NULLABLE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-SPECIAL-VALUES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NULLABLE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-READONLY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-WRITEONLY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-DEFAULTS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-REF": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-NESTED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-UNIQUE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-SCHEMA": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-FALSE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-TRUE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-WITH-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ALLOF-COMPOSE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ONEOF-DISC": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ONEOF-DISC-MAPPING": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type '\"circle\"' does not satisfy the constraint '\"Expected literal string circle, Actual string\"'. Unused '@ts-expect-error' directive."
+    },
+    "T-ALLOF-DISC-INHERITANCE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ONEOF-PLAIN": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ANYOF": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RECURSIVE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-CIRCULAR": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-INLINE-OBJECT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-INLINE-ENUM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-PATH-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-PATH-TYPES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-ENUM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-ARRAY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-HEADER": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-RESERVED-PARAM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARTIAL-BODY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-FORM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-MULTIPART": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-OCTET": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-200": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-204": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-MULTI-2XX": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-BINARY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-TEXT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-PRIMITIVE-ARRAY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-MAP": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-CONTENT-NEGOTIATION": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'Blob | Report' does not satisfy the constraint '{ slice never; stream never; text never; title \"Expected never, Actual string\"; rows \"Expected never, Actual undefined\" | \"Expected never, Actual ...\"; size never; type never; arrayBuffer never; bytes never; }'.   Type 'Blob' is missing the following properties from type '{ slice never; stream never; text never; title \"Expected never, Actual st"
+    },
+    "T-ERROR-MODEL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-SPECIAL-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-RESERVED-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-SCHEMA-COLLISION": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-SCHEMA-SANITIZE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-OPERATION-ID-SANITIZE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NO-OPERATION-ID": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-UNTAGGED-OP": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-UNREFERENCED-SCHEMA": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "S-DEPRECATED-OP": {
+      "status": "pass",
+      "suite": "static"
+    },
+    "S-DEPRECATED-PROP": {
+      "status": "pass",
+      "suite": "static"
+    },
+    "S-JSDOC-DESCRIPTION": {
+      "status": "pass",
+      "suite": "static"
+    },
+    "A-PROVIDE-FN": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected '/pets/1' to be 'http://test.local/api/pets/1' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/hey-api/tests/angular.spec.ts?import&browserv=1790970298471:40:17     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chun"
+    },
+    "A-BASEURL": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-INJECT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-HTTPCLIENT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-INTERCEPTORS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-HTTPCONTEXT": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-HTTPCONTEXT] HttpContext pro Aufruf — unsupported: SDK-Options (RequestInit-basiert) kennen kein `context`; nur Workaround über getPetRequest(...).clone({ context }) + eigenes HttpClient.request (dann ohne Auth/Interceptors des Hey-API-Clients)"
+    },
+    "A-OBSERVE-RESPONSE": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: response ist HttpResponse<{200: Pet}>, nicht HttpResponse<Pet>: expected false to be true // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/hey-api/tests/angular.spec.ts?import&browserv=1790970298471:87:94     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/nod"
+    },
+    "A-REPORT-PROGRESS": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-REPORT-PROGRESS] Upload-Progress — unsupported: kein reportProgress/observe-Option; Client filtert intern auf HttpEventType.Response (keine Progress-Events nach außen)"
+    },
+    "A-OBSERVABLE-COLD": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected 1 to be +0 // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/hey-api/tests/angular.spec.ts?import&browserv=1790970298471:99:33     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=3c1ed435:1903:20"
+    },
+    "A-HTTPRESOURCE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-ZONELESS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-PATH-MULTI": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-PATH-ENCODE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-PRIMITIVES": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-OPTIONAL-OMITTED": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-EXPLODE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-NOEXPLODE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-PIPE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-SPACE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-DEEPOBJECT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-FORM-OBJECT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-DATE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-BOOLEAN": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-HEADER-PARAM": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected 'HttpHeaders nicht lesbar: TypeError: …' to deeply equal [ …(3) ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/hey-api/tests/runtime.spec.ts?import&browserv=1790970298482:167:18     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-"
+    },
+    "R-COOKIE-PARAM": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-COOKIE-PARAM] Cookie-Parameter — unsupported: Cookie-Parameter `session` wird gar nicht generiert (fehlt in HeaderAndCookieParamsData)"
+    },
+    "R-NAME-RESERVED-PARAM": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-JSON": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-NULL-SEND": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-MERGE-PATCH": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-FORM-URLENCODED": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-MULTIPART": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-MULTIPART-JSON-PART": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-OCTET": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-TEXT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-POLYMORPHIC": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-NAME-SPECIAL-PROPS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-204": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-BLOB": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected 'json' to be 'blob' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/hey-api/tests/runtime.spec.ts?import&browserv=1790970298482:290:38     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=3c1ed435:1"
+    },
+    "R-RESP-TEXT": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected 'json' to be 'text' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/hey-api/tests/runtime.spec.ts?import&browserv=1790970298482:298:38     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=3c1ed435:1"
+    },
+    "R-RESP-VENDOR-JSON": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: the given combination of arguments (null and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string     at Proxy.<anonymous> (http://localhost:63315/node_modules/.pnpm/@vitest+expect@4.1.11/node_modules/@vitest/expect/dist/index.js?v=3c1ed435:1319:15)     at Proxy.<anonymous> (http://localhost:63315/node_modu"
+    },
+    "R-ACCEPT-HEADER": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected null to be 'application/json' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/hey-api/tests/runtime.spec.ts?import&browserv=1790970298482:318:20     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v="
+    },
+    "R-RESP-DATE-CONSISTENT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-201-LOCATION": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-ERROR-BODY": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-AUTH-BEARER": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected null to be 'Bearer jwt-token' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/hey-api/tests/runtime.spec.ts?import&browserv=1790970298482:366:27     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v="
+    },
+    "R-AUTH-APIKEY-HEADER": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected null to be 'header-key' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/hey-api/tests/runtime.spec.ts?import&browserv=1790970298482:380:17     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=3c1ed4"
+    },
+    "R-AUTH-APIKEY-QUERY": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected [] to deeply equal [ 'query-key' ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/hey-api/tests/runtime.spec.ts?import&browserv=1790970298482:390:18     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=3c1ed435:1903:20"
+    },
+    "R-AUTH-BASIC": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected null to be 'Basic dXNlcjpwYXNz' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/hey-api/tests/runtime.spec.ts?import&browserv=1790970298482:399:27     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?"
+    },
+    "R-AUTH-OAUTH2": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected null to be 'Bearer oauth-token' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/hey-api/tests/runtime.spec.ts?import&browserv=1790970298482:408:27     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?"
+    },
+    "R-AUTH-NONE": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "R-AUTH-BEARER nicht bestanden → R-AUTH-NONE ohne Aussagekraft"
+    },
+    "A-TREESHAKE": {
+      "status": "pass",
+      "note": "keine fremden Operationen im one-op-Bundle; one-op/all-ops = 37.4%",
+      "suite": "measured"
+    },
+    "S-NO-ANY-MODELS": {
+      "status": "pass",
+      "note": "0 any in Typdeklarationen, 2 gesamt",
+      "suite": "measured"
+    },
+    "S-STRICT-COMPILE": {
+      "status": "pass",
+      "note": "0 Fehler",
+      "suite": "measured"
+    },
+    "S-MAX-STRICT-COMPILE": {
+      "status": "fail",
+      "note": "22 Fehler",
+      "suite": "measured"
+    },
+    "S-NO-RUNTIME-DEPS": {
+      "status": "pass",
+      "note": "keine",
+      "suite": "measured"
+    }
+  },
+  "integrity": {
+    "duplicates": [],
+    "unknown": [],
+    "missing": []
+  },
+  "score": {
+    "overall": 81.8,
+    "dimensions": {
+      "types": {
+        "points": 131,
+        "max": 135,
+        "pass": 74,
+        "fail": 3,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 97
+      },
+      "runtime": {
+        "points": 58,
+        "max": 78,
+        "pass": 27,
+        "fail": 11,
+        "unsupported": 1,
+        "missing": 0,
+        "pct": 74.4
+      },
+      "angular": {
+        "points": 16,
+        "max": 25,
+        "pass": 7,
+        "fail": 3,
+        "unsupported": 2,
+        "missing": 0,
+        "pct": 64
+      },
+      "static": {
+        "points": 9,
+        "max": 10,
+        "pass": 6,
+        "fail": 1,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 90
+      }
+    },
+    "categories": {
+      "types-models": {
+        "points": 46,
+        "max": 46,
+        "pass": 26,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "types-poly": {
+        "points": 15,
+        "max": 17,
+        "pass": 7,
+        "fail": 1,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 88.2
+      },
+      "types-ops": {
+        "points": 45,
+        "max": 46,
+        "pass": 23,
+        "fail": 1,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 97.8
+      },
+      "types-naming": {
+        "points": 12,
+        "max": 12,
+        "pass": 9,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "types-31": {
+        "points": 13,
+        "max": 14,
+        "pass": 9,
+        "fail": 1,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 92.9
+      },
+      "runtime-params": {
+        "points": 27,
+        "max": 31,
+        "pass": 13,
+        "fail": 1,
+        "unsupported": 1,
+        "missing": 0,
+        "pct": 87.1
+      },
+      "runtime-bodies": {
+        "points": 21,
+        "max": 21,
+        "pass": 10,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "runtime-responses": {
+        "points": 10,
+        "max": 17,
+        "pass": 4,
+        "fail": 4,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 58.8
+      },
+      "runtime-auth": {
+        "points": 0,
+        "max": 9,
+        "pass": 0,
+        "fail": 6,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 0
+      },
+      "angular": {
+        "points": 16,
+        "max": 25,
+        "pass": 7,
+        "fail": 3,
+        "unsupported": 2,
+        "missing": 0,
+        "pct": 64
+      },
+      "static": {
+        "points": 9,
+        "max": 10,
+        "pass": 6,
+        "fail": 1,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 90
+      }
+    }
+  }
+}

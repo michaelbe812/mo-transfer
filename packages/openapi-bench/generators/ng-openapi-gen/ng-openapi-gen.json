@@ -1,0 +1,17 @@
+{
+  "$schema": "../../node_modules/ng-openapi-gen/ng-openapi-gen-schema.json",
+  "input": "../../spec/bench.openapi.yaml",
+  "output": "client",
+  "removeStaleFiles": true,
+  "silent": true,
+  "ignoreUnusedModels": false,
+  "enumStyle": "alias",
+  "enumArray": true,
+  "services": true,
+  "apiService": "Api",
+  "promises": false,
+  "module": false,
+  "indexFile": true,
+  "skipJsonSuffix": true,
+  "endOfLineStyle": "lf"
+}

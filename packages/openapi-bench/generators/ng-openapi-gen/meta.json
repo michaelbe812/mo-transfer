@@ -1,0 +1,49 @@
+{
+  "id": "ng-openapi-gen",
+  "name": "ng-openapi-gen",
+  "package": "ng-openapi-gen",
+  "version": "1.1.0",
+  "runtime": "node",
+  "license": "MIT",
+  "repo": "https://github.com/cyclosproject/ng-openapi-gen",
+  "docs": "https://github.com/cyclosproject/ng-openapi-gen#readme",
+  "outputStyle": "functions+services",
+  "config": {
+    "file": "ng-openapi-gen.json (3.1: gleiche Datei, --input/--output per CLI überschrieben)",
+    "services/apiService": "functions + Api.invoke(fn, params, ctx) als tree-shakeable Haupt-API (1.x-Default); services: true zusätzlich, weil nur Service-Methoden JSDoc (summary/@deprecated) tragen und eine klassische Fassade mit $Response-Varianten liefern — kostet im one-op-Bundle nichts",
+    "promises": "false — Observables statt Promise (cold, abbrechbar, rxjs-idiomatisch; Default true)",
+    "enumStyle": "alias — Union-Literale statt TS-enum (Literal-Zuweisung möglich, kein Runtime-Code)",
+    "enumArray": "true — PET_STATUS etc. als Werte-Arrays",
+    "ignoreUnusedModels": "false — sonst fehlt UnreferencedModel",
+    "skipJsonSuffix": "true — reportByAccept (JSON) ohne $Json-Suffix, PDF-Variante bleibt reportByAccept$Pdf",
+    "indexFile": "true — index.ts für bundle/all-ops.ts",
+    "module": "false — kein NgModule, provideApiConfiguration()"
+  },
+  "angular": {
+    "httpClient": true,
+    "injectFn": true,
+    "provideFn": "provideApiConfiguration(rootUrl)",
+    "httpResource": false,
+    "httpContext": true,
+    "observeResponse": true,
+    "minAngular": "≥ 16"
+  },
+  "validation": "none",
+  "generation31": "ok (webhooks ignoriert; upload31 ohne Schema → body: any)",
+  "runtimeDeps": [],
+  "highlights": [
+    "Sehr robuste Wire-Serialisierung: alle Query-Styles (explode/csv/pipe/space/deepObject/form-object), Pfad-Encoding, form-urlencoded, multipart inkl. JSON-Part als application/json-Blob",
+    "Funktionale API (fn/* + Api.invoke) → tree-shakeable, HttpContext pro Aufruf, invoke$Response für Header/Status",
+    "Nur @angular/* + rxjs, kompiliert unter Angular-CLI-strict fehlerfrei",
+    "3.1 gut: const, type-Arrays mit null, prefixItems → Tupel, const-Discriminator narrowt"
+  ],
+  "issues": [
+    "discriminator wird ignoriert: Shape-Varianten haben kind: string → kein Narrowing (oneOf und allOf-Vererbung)",
+    "readOnly/writeOnly ignoriert: Request-Pet verlangt id, Response-Pet enthält secretChipCode",
+    "Mehrere 2xx: nur erster Response-Typ (Pet statt Pet | Job)",
+    "Keine Fehlertypen pro Operation (nur HttpErrorResponse.error: any); additionalProperties: true → any",
+    "Keine securitySchemes-Unterstützung (Auth nur via eigener Interceptor), Cookie-Parameter verworfen, kein reportProgress, kein httpResource",
+    "Binary-Body: Content-Type = blob.type statt application/octet-stream (untypisierter Blob → kein Content-Type)",
+    "Array-Header (simple) als mehrere Header-Zeilen statt 'a,b'"
+  ]
+}

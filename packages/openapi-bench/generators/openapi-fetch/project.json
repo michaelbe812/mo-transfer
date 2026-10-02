@@ -1,0 +1,42 @@
+{
+  "name": "openapi-bench-openapi-fetch",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/openapi-bench/generators/openapi-fetch",
+  "tags": [
+    "scope:bench"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:ng-packagr-lite",
+      "options": {
+        "project": "{projectRoot}/ng-package.json",
+        "tsConfig": "{projectRoot}/tsconfig.spec.json"
+      },
+      "configurations": {
+        "development": {}
+      }
+    },
+    "test-runtime": {
+      "executor": "@nx/angular:unit-test",
+      "options": {
+        "tsConfig": "{projectRoot}/tsconfig.spec.json",
+        "runnerConfig": "packages/openapi-bench/vitest.runtime.config.mts",
+        "include": [
+          "tests/**/*.spec.ts"
+        ],
+        "browsers": [
+          "chromiumHeadless"
+        ],
+        "watch": false
+      }
+    },
+    "bench-generate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node generate.mjs",
+        "cwd": "{projectRoot}"
+      }
+    }
+  }
+}

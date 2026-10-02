@@ -1,0 +1,46 @@
+{
+  "id": "hey-api",
+  "name": "Hey API (openapi-ts)",
+  "package": "@hey-api/openapi-ts",
+  "version": "0.99.0",
+  "runtime": "node",
+  "license": "MIT",
+  "repo": "https://github.com/hey-api/hey-api",
+  "docs": "https://heyapi.dev/docs/openapi/typescript/clients/angular/v20",
+  "outputStyle": "functions",
+  "config": {
+    "@hey-api/client-angular": "Angular-HttpClient-Client, gebündelt in client/client (keine npm-Runtime-Dep); throwOnError: false (Default) → typisierte Result-Union { data } | { error }",
+    "@hey-api/typescript": "enums: 'javascript' → const-Objekte + Literal-Union-Typ (x-enum-varnames → Priority.LOW)",
+    "@hey-api/sdk": "operations: 'flat' (tree-shakeable Funktionen statt asClass), auth: true, paramsStructure: grouped (Default: path/query/headers/body getrennt)",
+    "@angular/common": "httpRequests + httpResources: HttpRequest-Factory + httpResource-Funktion je Operation",
+    "@hey-api/transformers": "bewusst NICHT aktiv: Schema `Date` der Spec überschattet globales Date in types.gen.ts → Date-Typ würde lügen; ohne Transformer date/date-time = string (konsistent)",
+    "validator": "keiner (zod/valibot-Plugin optional, nicht Teil des empfohlenen Angular-Basis-Setups)"
+  },
+  "angular": {
+    "httpClient": true,
+    "injectFn": true,
+    "provideFn": "provideHeyApiClient(client) – nur HttpClient-Wiring, keine Config (baseUrl via client.setConfig global)",
+    "httpResource": true,
+    "httpContext": false,
+    "observeResponse": true,
+    "minAngular": "≥ 19.2 (httpResource, provideAppInitializer)"
+  },
+  "validation": "none",
+  "generation31": "ok",
+  "runtimeDeps": [],
+  "highlights": [
+    "Sehr gute Modell-Typen: Writable-Varianten (readOnly/writeOnly getrennt), Literal-Unions, Tupel aus prefixItems, const, Webhook-Typen",
+    "Fehler-Typen pro Operation (GetPetError) + typisierte Result-Union",
+    "Flache, tree-shakeable SDK-Funktionen; httpResource-Funktionen je Operation",
+    "Query-Styles (form/pipe/space/deepObject) und multipart/urlencoded korrekt",
+    "Kompiliert unter Angular-CLI-strict fehlerfrei, keine externen Runtime-Deps"
+  ],
+  "issues": [
+    "Auth komplett wirkungslos im Angular-Client: setAuthParams() läuft NACH dem Bau des HttpRequest (Header/Query-Token gehen verloren)",
+    "Kein responseType: Blob-/Text-Responses werden als JSON angefragt (downloadFile/postText kaputt)",
+    "Kein Accept-Header, Content-Negotiation (JSON/PDF) nicht wählbar",
+    "Number-Header (X-Retry-Count) wird roh in HttpHeaders.set() gesteckt → HttpHeaders korrupt (TypeError)",
+    "SDK-Promise eager, kein HttpContext/reportProgress; response typisiert als HttpResponse<{200: Pet}>",
+    "Cookie-Parameter werden stillschweigend verworfen; 3.1 enum mit null verliert null; Discriminator-Literal nur in Union, nicht in Circle"
+  ]
+}

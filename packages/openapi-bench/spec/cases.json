@@ -1,0 +1,1243 @@
+{
+  "$comment": "Case-Katalog. dimension: types (Compile-Zeit, vitest typecheck), runtime (Angular TestBed + HttpTestingController), angular (Angular-First-Class, runtime/types), static (Text/AST des generierten Codes). weight: 3 = kritisch für Typsicherheit/Korrektheit, 2 = wichtig, 1 = nice-to-have. Jeder Generator MUSS für jede Case-ID genau einen Test haben, dessen Name mit [CASE-ID] beginnt. Nicht unterstützt → it.skip/test.skip mit Grund = 0 Punkte. Cases mit measured: true werden vom Skript scripts/run-bench.mjs gemessen — dafür KEINE Tests schreiben.",
+  "scoring": {
+    "pass": 1,
+    "fail": 0,
+    "unsupported": 0
+  },
+  "categories": {
+    "types-models": "Typen: Modelle",
+    "types-ops": "Typen: Operationen (Parameter, Bodies, Responses)",
+    "types-poly": "Typen: Polymorphie & Komposition",
+    "types-naming": "Typen: Namen & Sonderfälle",
+    "types-31": "Typen: OpenAPI 3.1",
+    "runtime-params": "Runtime: Parameter-Serialisierung",
+    "runtime-bodies": "Runtime: Request-Bodies",
+    "runtime-responses": "Runtime: Responses",
+    "runtime-auth": "Runtime: Security",
+    "angular": "Angular First-Class",
+    "static": "Statisch: Doku & Code-Qualität"
+  },
+  "cases": [
+    {
+      "id": "T-PRIM-STRING",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 2,
+      "spec": "Primitives.str",
+      "title": "string → string",
+      "expect": "Primitives['str'] ist exakt string (nicht any/unknown)."
+    },
+    {
+      "id": "T-PRIM-INT",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 2,
+      "spec": "Primitives.int32",
+      "title": "integer → number",
+      "expect": "Primitives['int32'] ist exakt number."
+    },
+    {
+      "id": "T-PRIM-NUMBER",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 2,
+      "spec": "Primitives.float/double",
+      "title": "number → number",
+      "expect": "float und double sind exakt number."
+    },
+    {
+      "id": "T-PRIM-BOOLEAN",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 2,
+      "spec": "Primitives.bool",
+      "title": "boolean → boolean",
+      "expect": "Primitives['bool'] ist exakt boolean."
+    },
+    {
+      "id": "T-FORMAT-INT64",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 2,
+      "spec": "Primitives.int64",
+      "title": "int64 konsistent zur Runtime",
+      "expect": "int64 ist number (JSON.parse liefert number). bigint/string nur ok, wenn der Client zur Laufzeit tatsächlich konvertiert (dann im Test nachweisen)."
+    },
+    {
+      "id": "T-FORMAT-UUID",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 1,
+      "spec": "Primitives.uuid/email/uri",
+      "title": "uuid/email/uri → string",
+      "expect": "Formate ohne Laufzeit-Konvertierung sind string (oder string-Brand)."
+    },
+    {
+      "id": "T-FORMAT-BYTE",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 1,
+      "spec": "Primitives.byte",
+      "title": "byte (base64) → string",
+      "expect": "format: byte ist string (base64), nicht Blob."
+    },
+    {
+      "id": "T-FORMAT-DATE",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 3,
+      "spec": "DateHolder",
+      "title": "date/date-time typisiert",
+      "expect": "date-time ist string ODER Date. Nicht any. Muss zu R-RESP-DATE-CONSISTENT passen."
+    },
+    {
+      "id": "T-ENUM-STRING",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 3,
+      "spec": "PetStatus",
+      "title": "String-Enum geschlossen",
+      "expect": "Pet['status'] akzeptiert 'available'|'pending'|'sold' (Literal oder Enum-Member), ein ungültiger String ('foo') ist Compile-Fehler (@ts-expect-error)."
+    },
+    {
+      "id": "T-ENUM-INT",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 2,
+      "spec": "Priority",
+      "title": "Integer-Enum geschlossen",
+      "expect": "Priority akzeptiert 1|2|3, 4 ist Compile-Fehler."
+    },
+    {
+      "id": "T-ENUM-VARNAMES",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 1,
+      "spec": "Priority x-enum-varnames",
+      "title": "x-enum-varnames genutzt",
+      "expect": "Es gibt benannte Member/Konstanten LOW/MEDIUM/HIGH (z. B. Priority.LOW === 1 oder PriorityLOW)."
+    },
+    {
+      "id": "T-ENUM-NULLABLE",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 2,
+      "spec": "NullableColor",
+      "title": "Nullable Enum",
+      "expect": "Pet['color'] akzeptiert null und 'red', lehnt 'pink' ab."
+    },
+    {
+      "id": "T-ENUM-SPECIAL-VALUES",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 1,
+      "spec": "WeirdEnum",
+      "title": "Enum-Werte mit Sonderzeichen",
+      "expect": "Alle 6 Werte inkl. 'with space', '1starts-with-digit' und '' sind gültig, Typ ist exakt die Union (Werte unverändert)."
+    },
+    {
+      "id": "T-REQUIRED",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 3,
+      "spec": "Pet.required",
+      "title": "required → nicht optional",
+      "expect": "In der Response-Pet-Typisierung sind name, status, photoUrls nicht optional (kein undefined): Objekt ohne name ist Compile-Fehler."
+    },
+    {
+      "id": "T-OPTIONAL",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 2,
+      "spec": "Pet.tags",
+      "title": "optional → optional",
+      "expect": "Pet['tags'] ist optional (Objekt ohne tags kompiliert)."
+    },
+    {
+      "id": "T-NULLABLE",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 3,
+      "spec": "Pet.nickname nullable",
+      "title": "nullable → | null",
+      "expect": "Pet['nickname'] erlaubt null (und string); Pet['name'] erlaubt kein null."
+    },
+    {
+      "id": "T-READONLY",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 2,
+      "spec": "Pet.id readOnly",
+      "title": "readOnly im Request nicht erzwungen",
+      "expect": "createPet akzeptiert einen Body OHNE id/createdAt (readOnly). Bonus-frei: readonly-Modifier zählt nicht als Erfüllung, wenn id im Request trotzdem Pflicht ist."
+    },
+    {
+      "id": "T-WRITEONLY",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 1,
+      "spec": "Pet.secretChipCode writeOnly",
+      "title": "writeOnly nicht in Response",
+      "expect": "Response-Typ von getPet enthält secretChipCode NICHT (oder Request/Response-Typen sind getrennt)."
+    },
+    {
+      "id": "T-DEFAULTS",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 1,
+      "spec": "Pet.vaccinated default",
+      "title": "Property mit default optional im Request",
+      "expect": "vaccinated (default false) ist im Request optional und boolean."
+    },
+    {
+      "id": "T-ARRAY-REF",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 2,
+      "spec": "Pet.tags",
+      "title": "Array von Refs",
+      "expect": "Pet['tags'] ist Array<Tag> (Element hat name: string)."
+    },
+    {
+      "id": "T-ARRAY-NESTED",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 1,
+      "spec": "Settings.matrix",
+      "title": "Verschachteltes Array",
+      "expect": "Settings['matrix'] ist number[][] (optional)."
+    },
+    {
+      "id": "T-ARRAY-UNIQUE",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 1,
+      "spec": "Settings.uniqueTags",
+      "title": "uniqueItems konsistent",
+      "expect": "uniqueTags ist string[] (oder Set<string> NUR wenn Runtime ein Set liefert)."
+    },
+    {
+      "id": "T-ADDPROPS-SCHEMA",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 2,
+      "spec": "Settings.counters, getInventory",
+      "title": "additionalProperties: Schema → Record",
+      "expect": "counters ist Record<string, number> bzw. { [k: string]: number }; Wert string ist Compile-Fehler."
+    },
+    {
+      "id": "T-ADDPROPS-FALSE",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 2,
+      "spec": "Settings.strict",
+      "title": "additionalProperties: false → kein Index",
+      "expect": "Settings['strict'] hat keine Index-Signatur: { a: 'x', b: 1 } als Objekt-Literal ist Compile-Fehler (excess property)."
+    },
+    {
+      "id": "T-ADDPROPS-TRUE",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 1,
+      "spec": "Settings.freeForm",
+      "title": "Free-form Objekt",
+      "expect": "freeForm ist Record<string, unknown> o. ä.; Werte sind unknown (any = fail, da unsicher)."
+    },
+    {
+      "id": "T-ADDPROPS-WITH-PROPS",
+      "dimension": "types",
+      "category": "types-models",
+      "weight": 1,
+      "spec": "Settings.mixed",
+      "title": "properties + additionalProperties",
+      "expect": "mixed.known ist string (required) UND beliebige weitere string-Keys erlaubt."
+    },
+    {
+      "id": "T-ALLOF-COMPOSE",
+      "dimension": "types",
+      "category": "types-poly",
+      "weight": 3,
+      "spec": "PetPage",
+      "title": "allOf komponiert",
+      "expect": "PetPage hat total/limit/offset (number, required) UND items: Pet[] (required)."
+    },
+    {
+      "id": "T-ONEOF-DISC",
+      "dimension": "types",
+      "category": "types-poly",
+      "weight": 3,
+      "spec": "Shape",
+      "title": "oneOf + discriminator → narrowbare Union",
+      "expect": "Shape ist Union; switch auf kind narrowt: im Zweig kind==='circle' ist radius number zugreifbar ohne Cast; radius im rect-Zweig ist Compile-Fehler."
+    },
+    {
+      "id": "T-ONEOF-DISC-MAPPING",
+      "dimension": "types",
+      "category": "types-poly",
+      "weight": 2,
+      "spec": "Shape.mapping",
+      "title": "Discriminator-Mapping-Werte als Literale",
+      "expect": "kind in Circle ist 'circle' (Mapping-Wert, NICHT 'Circle' und nicht string). Circle mit kind: 'rect' ist Compile-Fehler."
+    },
+    {
+      "id": "T-ALLOF-DISC-INHERITANCE",
+      "dimension": "types",
+      "category": "types-poly",
+      "weight": 2,
+      "spec": "BaseEvent/CreatedEvent",
+      "title": "allOf-Vererbung mit Discriminator am Parent",
+      "expect": "Response von listEvents ist auf CreatedEvent narrowbar (eventType==='created' → petId zugreifbar) ODER CreatedEvent enthält alle BaseEvent-Felder und eventType ist literal 'created'."
+    },
+    {
+      "id": "T-ONEOF-PLAIN",
+      "dimension": "types",
+      "category": "types-poly",
+      "weight": 2,
+      "spec": "PaymentRequest.method",
+      "title": "oneOf ohne Discriminator → Union",
+      "expect": "method akzeptiert CardPayment und SepaPayment, lehnt {} bzw. {foo:1} ab; nicht any."
+    },
+    {
+      "id": "T-ANYOF",
+      "dimension": "types",
+      "category": "types-poly",
+      "weight": 2,
+      "spec": "PaymentRequest.note, PaymentResult",
+      "title": "anyOf → Union",
+      "expect": "note ist string | number (optional); boolean ist Compile-Fehler."
+    },
+    {
+      "id": "T-RECURSIVE",
+      "dimension": "types",
+      "category": "types-poly",
+      "weight": 2,
+      "spec": "TreeNode.children",
+      "title": "Rekursive Typen",
+      "expect": "TreeNode['children'] ist TreeNode[]; tiefe Verschachtelung (children[0].children[0].value) ist string."
+    },
+    {
+      "id": "T-CIRCULAR",
+      "dimension": "types",
+      "category": "types-poly",
+      "weight": 1,
+      "spec": "TreeNode ↔ TreeParentRef, Category.parent",
+      "title": "Zirkuläre Refs über mehrere Schemas",
+      "expect": "node.parent?.node?.value ist string | undefined bzw. string; Category.parent?.parent?.name kompiliert typisiert."
+    },
+    {
+      "id": "T-INLINE-OBJECT",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 2,
+      "spec": "inlineSchemas",
+      "title": "Inline-Schemas typisiert",
+      "expect": "Response von inlineSchemas hat accepted: boolean und id: string (nicht any/object/unknown); Request nested.depth ist number."
+    },
+    {
+      "id": "T-INLINE-ENUM",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 2,
+      "spec": "inlineSchemas.mode",
+      "title": "Inline-Enum geschlossen",
+      "expect": "Request mode akzeptiert 'fast'|'slow', lehnt 'medium' ab."
+    },
+    {
+      "id": "T-PARAM-PATH-REQUIRED",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 3,
+      "spec": "getPet(petId)",
+      "title": "Pflicht-Pfadparameter erzwungen",
+      "expect": "Aufruf ohne petId ist Compile-Fehler; petId ist number (string = Fehler)."
+    },
+    {
+      "id": "T-PARAM-PATH-TYPES",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 2,
+      "spec": "multiPathParams",
+      "title": "Pfadparameter-Typen",
+      "expect": "intId number, enumId PetStatus (ungültiger String = Fehler), stringId/uuidId string."
+    },
+    {
+      "id": "T-PARAM-QUERY-OPTIONAL",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 2,
+      "spec": "listPets",
+      "title": "Optionale Query-Parameter weglassbar",
+      "expect": "listPets() ohne Parameter kompiliert; limit ist number."
+    },
+    {
+      "id": "T-PARAM-QUERY-REQUIRED",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 3,
+      "spec": "queryStyles.required",
+      "title": "Pflicht-Query-Parameter erzwungen",
+      "expect": "queryStyles ohne required ist Compile-Fehler."
+    },
+    {
+      "id": "T-PARAM-QUERY-ENUM",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 2,
+      "spec": "queryStyles.sort, listPets.status",
+      "title": "Enum-Query-Parameter geschlossen",
+      "expect": "sort: 'up' ist Compile-Fehler; 'asc' ok."
+    },
+    {
+      "id": "T-PARAM-QUERY-ARRAY",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 2,
+      "spec": "queryStyles.tagsExplode/tagsSpace",
+      "title": "Array-Query-Parameter typisiert",
+      "expect": "tagsExplode ist string[] bzw. Array<string>, tagsSpace number[]; filter (deepObject) hat Typ PetFilter."
+    },
+    {
+      "id": "T-PARAM-HEADER",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 2,
+      "spec": "headerAndCookieParams",
+      "title": "Header-Parameter typisiert & Pflicht",
+      "expect": "X-Request-Id (required) muss angegeben werden (Weglassen = Compile-Fehler); X-Retry-Count ist number."
+    },
+    {
+      "id": "T-NAME-RESERVED-PARAM",
+      "dimension": "types",
+      "category": "types-naming",
+      "weight": 1,
+      "spec": "reservedParamNames",
+      "title": "Parameter class/default/page-size/filter.name aufrufbar",
+      "expect": "Operation ist aufrufbar mit allen 4 Parametern (umbenannt erlaubt, z. B. _class, pageSize)."
+    },
+    {
+      "id": "T-BODY-REQUIRED",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 3,
+      "spec": "createPet",
+      "title": "Pflicht-Body erzwungen & typisiert",
+      "expect": "createPet ohne Body ist Compile-Fehler; Body mit name: 123 ist Compile-Fehler."
+    },
+    {
+      "id": "T-BODY-OPTIONAL",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 1,
+      "spec": "optionalBody",
+      "title": "Optionaler Body weglassbar",
+      "expect": "optionalBody() ohne Body kompiliert; mit Tag-Body ebenfalls."
+    },
+    {
+      "id": "T-PARTIAL-BODY",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 1,
+      "spec": "patchPet",
+      "title": "Merge-Patch-Body typisiert",
+      "expect": "patchPet akzeptiert { nickname: null } und lehnt { status: 'x' } ab."
+    },
+    {
+      "id": "T-BODY-FORM",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 2,
+      "spec": "submitForm",
+      "title": "form-urlencoded Body typisiert",
+      "expect": "username/password sind Pflicht-Strings; remember boolean."
+    },
+    {
+      "id": "T-BODY-MULTIPART",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 2,
+      "spec": "uploadFiles",
+      "title": "multipart Body typisiert",
+      "expect": "file ist Blob (oder Blob|File), title Pflicht-String, attachments Array<Blob>; file: 'string' ist Compile-Fehler."
+    },
+    {
+      "id": "T-BODY-OCTET",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 1,
+      "spec": "uploadBinary",
+      "title": "Binary Body = Blob",
+      "expect": "uploadBinary akzeptiert Blob; ein Objekt {} ist Compile-Fehler."
+    },
+    {
+      "id": "T-RESP-200",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 3,
+      "spec": "getPet, listPets",
+      "title": "Response-Typ korrekt",
+      "expect": "getPet liefert Observable<Pet> / Promise<Pet> / Resource<Pet> (Default-Aufruf, ohne Casts); listPets liefert PetPage."
+    },
+    {
+      "id": "T-RESP-204",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 2,
+      "spec": "deletePet",
+      "title": "204 → void",
+      "expect": "deletePet liefert void/undefined/unknown-freies leeres Ergebnis (NICHT any)."
+    },
+    {
+      "id": "T-RESP-MULTI-2XX",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 2,
+      "spec": "multiStatus",
+      "title": "Mehrere 2xx → Union",
+      "expect": "Result ist Pet | Job (Union). Nur Pet = fail (falsch), any = fail."
+    },
+    {
+      "id": "T-RESP-BINARY",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 2,
+      "spec": "downloadFile",
+      "title": "Binary Response = Blob",
+      "expect": "downloadFile liefert Blob (oder ArrayBuffer), nicht string/any."
+    },
+    {
+      "id": "T-RESP-TEXT",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 2,
+      "spec": "postText",
+      "title": "text/plain Response = string",
+      "expect": "postText liefert string."
+    },
+    {
+      "id": "T-RESP-PRIMITIVE-ARRAY",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 1,
+      "spec": "getPrimitiveArray",
+      "title": "Array<number> Response",
+      "expect": "liefert number[]."
+    },
+    {
+      "id": "T-RESP-MAP",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 1,
+      "spec": "getInventory",
+      "title": "Map Response",
+      "expect": "liefert Record<string, number> o. ä."
+    },
+    {
+      "id": "T-RESP-CONTENT-NEGOTIATION",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 1,
+      "spec": "reportByAccept",
+      "title": "Mehrere Content-Types → wählbar & typisiert",
+      "expect": "JSON-Variante liefert Report; PDF-Variante wählbar und liefert Blob. Nur eine Variante korrekt typisiert = fail."
+    },
+    {
+      "id": "T-ERROR-MODEL",
+      "dimension": "types",
+      "category": "types-ops",
+      "weight": 2,
+      "spec": "getPet 404 Problem, createPet 422",
+      "title": "Fehler-Modelle typisiert erreichbar",
+      "expect": "Es gibt einen exportierten typisierten Weg, den Fehler-Body als Problem/ValidationProblem zu bekommen, der an die Operation gebunden ist (z. B. Error-Generic, ErrorType-Export pro Operation, Result-Union). Nur generisches HttpErrorResponse.error:any = fail."
+    },
+    {
+      "id": "T-NAME-SPECIAL-PROPS",
+      "dimension": "types",
+      "category": "types-naming",
+      "weight": 3,
+      "spec": "WeirdNames",
+      "title": "Property-Namen exakt erhalten",
+      "expect": "Properties heißen exakt 'x-request-id', '@type', '$ref', '1stPlace', 'with space', 'snake_case_prop' (kein camelCase-Umbenennen ohne Mapping — sonst kaputt am Wire)."
+    },
+    {
+      "id": "T-NAME-RESERVED-PROPS",
+      "dimension": "types",
+      "category": "types-naming",
+      "weight": 1,
+      "spec": "WeirdNames.class/default/delete/constructor",
+      "title": "Reservierte Wörter als Properties",
+      "expect": "class/default/delete/constructor sind als Properties unter exakt diesem Namen typisiert."
+    },
+    {
+      "id": "T-NAME-SCHEMA-COLLISION",
+      "dimension": "types",
+      "category": "types-naming",
+      "weight": 2,
+      "spec": "Schemas Date/Object",
+      "title": "Schema-Namen kollidieren nicht mit TS-Globals",
+      "expect": "user-profile.birthday hat den Schema-Typ (value?: string), nicht das globale Date; raw nicht globales Object."
+    },
+    {
+      "id": "T-NAME-SCHEMA-SANITIZE",
+      "dimension": "types",
+      "category": "types-naming",
+      "weight": 1,
+      "spec": "Schema user-profile",
+      "title": "Schema-Name mit Bindestrich",
+      "expect": "Ein exportierter Typ für user-profile existiert (z. B. UserProfile) mit displayName?: string."
+    },
+    {
+      "id": "T-NAME-OPERATION-ID-SANITIZE",
+      "dimension": "types",
+      "category": "types-naming",
+      "weight": 1,
+      "spec": "operationId get-kebab_snake.op",
+      "title": "operationId mit Sonderzeichen",
+      "expect": "Ein aufrufbarer, gültiger Methoden-/Funktionsname existiert."
+    },
+    {
+      "id": "T-NO-OPERATION-ID",
+      "dimension": "types",
+      "category": "types-naming",
+      "weight": 1,
+      "spec": "GET /naming/no-operation-id",
+      "title": "Operation ohne operationId",
+      "expect": "Wird generiert (Name aus Methode+Pfad) und liefert Tag."
+    },
+    {
+      "id": "T-UNTAGGED-OP",
+      "dimension": "types",
+      "category": "types-naming",
+      "weight": 1,
+      "spec": "untaggedOperation",
+      "title": "Operation ohne Tag",
+      "expect": "Wird generiert und ist aufrufbar."
+    },
+    {
+      "id": "T-UNREFERENCED-SCHEMA",
+      "dimension": "types",
+      "category": "types-naming",
+      "weight": 1,
+      "spec": "UnreferencedModel",
+      "title": "Nicht referenziertes Schema generiert",
+      "expect": "Typ UnreferencedModel existiert mit marker: 'unreferenced'."
+    },
+    {
+      "id": "T31-TYPE-NULL-UNION",
+      "dimension": "types",
+      "category": "types-31",
+      "weight": 3,
+      "spec": "3.1 Item31.nickname type: [string, null]",
+      "title": "type-Array mit null",
+      "expect": "nickname ist string | null (required); count number | null."
+    },
+    {
+      "id": "T31-CONST",
+      "dimension": "types",
+      "category": "types-31",
+      "weight": 2,
+      "spec": "3.1 Item31.kind const",
+      "title": "const → Literal",
+      "expect": "kind ist exakt 'item'; 'other' ist Compile-Fehler."
+    },
+    {
+      "id": "T31-ENUM-NULL",
+      "dimension": "types",
+      "category": "types-31",
+      "weight": 1,
+      "spec": "3.1 Item31.level",
+      "title": "Enum mit null (ohne nullable)",
+      "expect": "level ist 'low' | 'high' | null (optional)."
+    },
+    {
+      "id": "T31-PREFIX-ITEMS",
+      "dimension": "types",
+      "category": "types-31",
+      "weight": 1,
+      "spec": "3.1 Item31.coords",
+      "title": "prefixItems → Tupel",
+      "expect": "coords ist [number, number] (number[] = fail)."
+    },
+    {
+      "id": "T31-REF-SIBLINGS",
+      "dimension": "types",
+      "category": "types-31",
+      "weight": 1,
+      "spec": "3.1 Item31.label",
+      "title": "$ref mit Siblings",
+      "expect": "label ist string (Ref aufgelöst, required)."
+    },
+    {
+      "id": "T31-ONEOF-CONST-DISC",
+      "dimension": "types",
+      "category": "types-31",
+      "weight": 2,
+      "spec": "3.1 Event31",
+      "title": "oneOf mit const-Discriminator",
+      "expect": "Event31 narrowt über type==='start' → startedAt zugreifbar."
+    },
+    {
+      "id": "T31-EXAMPLES",
+      "dimension": "types",
+      "category": "types-31",
+      "weight": 1,
+      "spec": "3.1 Item31.tags examples",
+      "title": "examples (Array) bricht Generierung nicht",
+      "expect": "tags ist string[] (optional)."
+    },
+    {
+      "id": "T31-DEPENDENT-REQUIRED",
+      "dimension": "types",
+      "category": "types-31",
+      "weight": 1,
+      "spec": "3.1 dependentRequired",
+      "title": "dependentRequired toleriert",
+      "expect": "creditCard/billingAddress sind optionale strings (Generierung bricht nicht)."
+    },
+    {
+      "id": "T31-BINARY-CONTENT-MEDIA-TYPE",
+      "dimension": "types",
+      "category": "types-31",
+      "weight": 1,
+      "spec": "3.1 upload31 octet-stream ohne schema",
+      "title": "Binary-Body ohne Schema (3.1-Stil)",
+      "expect": "upload31 akzeptiert Blob."
+    },
+    {
+      "id": "T31-WEBHOOKS",
+      "dimension": "types",
+      "category": "types-31",
+      "weight": 1,
+      "spec": "3.1 webhooks.itemChanged",
+      "title": "Webhooks generiert/typisiert",
+      "expect": "Ein Typ für den Webhook-Payload (Item31) oder Webhook-Request existiert; Generierung bricht nicht."
+    },
+    {
+      "id": "R-PATH-MULTI",
+      "dimension": "runtime",
+      "category": "runtime-params",
+      "weight": 3,
+      "spec": "multiPathParams",
+      "title": "Mehrere Pfadparameter korrekt eingesetzt",
+      "expect": "URL endet auf /params/path/abc/42/<uuid>/sold."
+    },
+    {
+      "id": "R-PATH-ENCODE",
+      "dimension": "runtime",
+      "category": "runtime-params",
+      "weight": 3,
+      "spec": "multiPathParams stringId='a/b c?#'",
+      "title": "Pfadparameter URL-encodiert",
+      "expect": "stringId 'a/b c?#' erscheint als a%2Fb%20c%3F%23 im Pfad (Slash MUSS encodiert sein)."
+    },
+    {
+      "id": "R-QUERY-PRIMITIVES",
+      "dimension": "runtime",
+      "category": "runtime-params",
+      "weight": 3,
+      "spec": "listPets",
+      "title": "Primitive Query-Parameter",
+      "expect": "listPets({limit:10, offset:0, status:'sold', vaccinated:false}) → limit=10&offset=0&status=sold&vaccinated=false (0 und false werden gesendet!)."
+    },
+    {
+      "id": "R-QUERY-OPTIONAL-OMITTED",
+      "dimension": "runtime",
+      "category": "runtime-params",
+      "weight": 3,
+      "spec": "listPets",
+      "title": "Undefined/fehlende Parameter nicht gesendet",
+      "expect": "listPets() → keine Query-Parameter; insbesondere kein 'undefined'/'null' als Wert."
+    },
+    {
+      "id": "R-QUERY-ARRAY-EXPLODE",
+      "dimension": "runtime",
+      "category": "runtime-params",
+      "weight": 3,
+      "spec": "queryStyles.tagsExplode",
+      "title": "form/explode=true",
+      "expect": "tagsExplode=a&tagsExplode=b."
+    },
+    {
+      "id": "R-QUERY-ARRAY-NOEXPLODE",
+      "dimension": "runtime",
+      "category": "runtime-params",
+      "weight": 2,
+      "spec": "queryStyles.tagsCsv",
+      "title": "form/explode=false",
+      "expect": "tagsCsv=a,b (Komma ggf. als %2C encodiert)."
+    },
+    {
+      "id": "R-QUERY-ARRAY-PIPE",
+      "dimension": "runtime",
+      "category": "runtime-params",
+      "weight": 1,
+      "spec": "queryStyles.tagsPipe",
+      "title": "pipeDelimited",
+      "expect": "tagsPipe=a|b (| ggf. %7C)."
+    },
+    {
+      "id": "R-QUERY-ARRAY-SPACE",
+      "dimension": "runtime",
+      "category": "runtime-params",
+      "weight": 1,
+      "spec": "queryStyles.tagsSpace",
+      "title": "spaceDelimited",
+      "expect": "tagsSpace=1%202 (oder 1+2)."
+    },
+    {
+      "id": "R-QUERY-DEEPOBJECT",
+      "dimension": "runtime",
+      "category": "runtime-params",
+      "weight": 2,
+      "spec": "queryStyles.filter",
+      "title": "deepObject",
+      "expect": "filter[name]=rex&filter[status]=sold (Klammern ggf. encodiert)."
+    },
+    {
+      "id": "R-QUERY-FORM-OBJECT",
+      "dimension": "runtime",
+      "category": "runtime-params",
+      "weight": 1,
+      "spec": "queryStyles.point",
+      "title": "form/explode Objekt",
+      "expect": "x=1&y=2 (Objekt-Properties als einzelne Parameter)."
+    },
+    {
+      "id": "R-QUERY-DATE",
+      "dimension": "runtime",
+      "category": "runtime-params",
+      "weight": 2,
+      "spec": "queryStyles.since/day",
+      "title": "Datum-Query als ISO",
+      "expect": "since=2024-01-02T03:04:05.000Z (oder ohne ms) und day=2024-01-02 — kein 'Tue Jan 02 ...' toString."
+    },
+    {
+      "id": "R-QUERY-BOOLEAN",
+      "dimension": "runtime",
+      "category": "runtime-params",
+      "weight": 1,
+      "spec": "queryStyles.flag",
+      "title": "Boolean-Query",
+      "expect": "flag=true / flag=false (false wird gesendet)."
+    },
+    {
+      "id": "R-HEADER-PARAM",
+      "dimension": "runtime",
+      "category": "runtime-params",
+      "weight": 3,
+      "spec": "headerAndCookieParams",
+      "title": "Header-Parameter gesendet",
+      "expect": "X-Request-Id und X-Retry-Count (als '3') werden als Header gesendet; X-Trace-Flags als 'a,b'."
+    },
+    {
+      "id": "R-COOKIE-PARAM",
+      "dimension": "runtime",
+      "category": "runtime-params",
+      "weight": 1,
+      "spec": "headerAndCookieParams.session",
+      "title": "Cookie-Parameter",
+      "expect": "Generator bietet Cookie-Parameter an UND setzt Cookie-Header (im Browser i. d. R. unmöglich → unsupported ist ehrlich)."
+    },
+    {
+      "id": "R-NAME-RESERVED-PARAM",
+      "dimension": "runtime",
+      "category": "runtime-params",
+      "weight": 2,
+      "spec": "reservedParamNames",
+      "title": "Umbenannte Parameter mit Originalnamen am Wire",
+      "expect": "/params/reserved/x?default=d&page-size=5&filter.name=n (Originalnamen)."
+    },
+    {
+      "id": "R-BODY-JSON",
+      "dimension": "runtime",
+      "category": "runtime-bodies",
+      "weight": 3,
+      "spec": "createPet",
+      "title": "JSON-Body",
+      "expect": "Method POST, Body ist das Objekt (bzw. JSON-String davon) unverändert, Content-Type application/json (explizit oder durch HttpClient)."
+    },
+    {
+      "id": "R-NULL-SEND",
+      "dimension": "runtime",
+      "category": "runtime-bodies",
+      "weight": 2,
+      "spec": "updatePet nickname:null",
+      "title": "null-Felder bleiben erhalten",
+      "expect": "nickname: null ist im gesendeten Body enthalten (nicht entfernt)."
+    },
+    {
+      "id": "R-BODY-MERGE-PATCH",
+      "dimension": "runtime",
+      "category": "runtime-bodies",
+      "weight": 2,
+      "spec": "patchPet",
+      "title": "application/merge-patch+json",
+      "expect": "Method PATCH, Content-Type application/merge-patch+json, Body JSON-serialisierbar korrekt."
+    },
+    {
+      "id": "R-BODY-FORM-URLENCODED",
+      "dimension": "runtime",
+      "category": "runtime-bodies",
+      "weight": 2,
+      "spec": "submitForm",
+      "title": "x-www-form-urlencoded",
+      "expect": "Body serialisiert zu username=u&password=p&remember=true (Reihenfolge egal), Content-Type application/x-www-form-urlencoded. Ein JSON-Body = fail."
+    },
+    {
+      "id": "R-BODY-MULTIPART",
+      "dimension": "runtime",
+      "category": "runtime-bodies",
+      "weight": 3,
+      "spec": "uploadFiles",
+      "title": "multipart/form-data",
+      "expect": "Body ist FormData mit title, file (Blob) und attachments (2 Einträge); KEIN manuell gesetzter Content-Type ohne boundary."
+    },
+    {
+      "id": "R-BODY-MULTIPART-JSON-PART",
+      "dimension": "runtime",
+      "category": "runtime-bodies",
+      "weight": 1,
+      "spec": "uploadFiles.meta encoding application/json",
+      "title": "JSON-Part in multipart",
+      "expect": "meta-Part ist JSON-String {\"author\":...} (oder Blob type application/json), nicht '[object Object]'."
+    },
+    {
+      "id": "R-BODY-OCTET",
+      "dimension": "runtime",
+      "category": "runtime-bodies",
+      "weight": 2,
+      "spec": "uploadBinary",
+      "title": "Binary-Body",
+      "expect": "Body ist der übergebene Blob, Content-Type application/octet-stream, Method PUT."
+    },
+    {
+      "id": "R-BODY-TEXT",
+      "dimension": "runtime",
+      "category": "runtime-bodies",
+      "weight": 2,
+      "spec": "postText",
+      "title": "text/plain Body",
+      "expect": "Body ist der String (nicht JSON-gequotet '\"hello\"'), Content-Type text/plain."
+    },
+    {
+      "id": "R-BODY-POLYMORPHIC",
+      "dimension": "runtime",
+      "category": "runtime-bodies",
+      "weight": 1,
+      "spec": "createShape",
+      "title": "Polymorpher Body unverändert",
+      "expect": "{kind:'circle', radius: 2} wird unverändert gesendet."
+    },
+    {
+      "id": "R-NAME-SPECIAL-PROPS",
+      "dimension": "runtime",
+      "category": "runtime-bodies",
+      "weight": 3,
+      "spec": "specialProperties",
+      "title": "Sonder-Property-Namen am Wire",
+      "expect": "Gesendeter Body und geparster Response-Body nutzen exakt 'x-request-id', '@type', '1stPlace' etc."
+    },
+    {
+      "id": "R-RESP-204",
+      "dimension": "runtime",
+      "category": "runtime-responses",
+      "weight": 2,
+      "spec": "deletePet",
+      "title": "204 ohne Body",
+      "expect": "Observable/Promise completes ohne Fehler bei leerem Body."
+    },
+    {
+      "id": "R-RESP-BLOB",
+      "dimension": "runtime",
+      "category": "runtime-responses",
+      "weight": 3,
+      "spec": "downloadFile",
+      "title": "Binary Response als Blob",
+      "expect": "Request hat responseType 'blob' (bzw. arraybuffer) und Ergebnis ist Blob mit Inhalt."
+    },
+    {
+      "id": "R-RESP-TEXT",
+      "dimension": "runtime",
+      "category": "runtime-responses",
+      "weight": 2,
+      "spec": "postText",
+      "title": "Text-Response",
+      "expect": "Request hat responseType 'text'; Ergebnis ist der rohe String (kein JSON-Parse-Fehler)."
+    },
+    {
+      "id": "R-RESP-VENDOR-JSON",
+      "dimension": "runtime",
+      "category": "runtime-responses",
+      "weight": 1,
+      "spec": "getVendorJson",
+      "title": "Vendor-JSON geparst",
+      "expect": "application/vnd.bench.v1+json wird als JSON geparst (Objekt, nicht String); Accept enthält den Vendor-Typ."
+    },
+    {
+      "id": "R-ACCEPT-HEADER",
+      "dimension": "runtime",
+      "category": "runtime-responses",
+      "weight": 1,
+      "spec": "reportByAccept",
+      "title": "Accept-Header passend",
+      "expect": "JSON-Variante sendet Accept application/json; PDF-Variante (falls wählbar) application/pdf mit responseType blob."
+    },
+    {
+      "id": "R-RESP-DATE-CONSISTENT",
+      "dimension": "runtime",
+      "category": "runtime-responses",
+      "weight": 3,
+      "spec": "getDates",
+      "title": "Datums-Typ = Laufzeitwert",
+      "expect": "Wenn dateTime als Date typisiert: Wert ist instanceof Date. Wenn string typisiert: Wert ist string. Abweichung = fail (Lüge im Typ)."
+    },
+    {
+      "id": "R-RESP-201-LOCATION",
+      "dimension": "runtime",
+      "category": "runtime-responses",
+      "weight": 2,
+      "spec": "createPet 201 Location",
+      "title": "Response-Header zugreifbar",
+      "expect": "Über eine Client-API (observe: 'response', Response-Wrapper o. ä.) ist Header Location und Status 201 auslesbar."
+    },
+    {
+      "id": "R-ERROR-BODY",
+      "dimension": "runtime",
+      "category": "runtime-responses",
+      "weight": 3,
+      "spec": "getPet 404",
+      "title": "Fehler-Body erreichbar",
+      "expect": "Bei 404 schlägt der Aufruf fehl (error-Kanal/throw) und der Problem-Body (title) ist auslesbar."
+    },
+    {
+      "id": "R-AUTH-BEARER",
+      "dimension": "runtime",
+      "category": "runtime-auth",
+      "weight": 2,
+      "spec": "authBearer",
+      "title": "Bearer-Token über Client-Konfiguration",
+      "expect": "Über generierte Konfiguration (nicht manueller Interceptor) gesetzter Token → Authorization: Bearer <token>."
+    },
+    {
+      "id": "R-AUTH-APIKEY-HEADER",
+      "dimension": "runtime",
+      "category": "runtime-auth",
+      "weight": 2,
+      "spec": "authApiKeyHeader",
+      "title": "API-Key Header",
+      "expect": "Über Konfiguration → Header X-API-Key: <key> nur bei dieser Operation."
+    },
+    {
+      "id": "R-AUTH-APIKEY-QUERY",
+      "dimension": "runtime",
+      "category": "runtime-auth",
+      "weight": 1,
+      "spec": "authApiKeyQuery",
+      "title": "API-Key Query",
+      "expect": "Über Konfiguration → ?api_key=<key>."
+    },
+    {
+      "id": "R-AUTH-BASIC",
+      "dimension": "runtime",
+      "category": "runtime-auth",
+      "weight": 1,
+      "spec": "authBasic",
+      "title": "Basic Auth",
+      "expect": "Über Konfiguration (user/pass) → Authorization: Basic base64(user:pass)."
+    },
+    {
+      "id": "R-AUTH-OAUTH2",
+      "dimension": "runtime",
+      "category": "runtime-auth",
+      "weight": 1,
+      "spec": "authOauth2",
+      "title": "OAuth2 Access-Token",
+      "expect": "Über Konfiguration → Authorization: Bearer <accessToken>."
+    },
+    {
+      "id": "R-AUTH-NONE",
+      "dimension": "runtime",
+      "category": "runtime-auth",
+      "weight": 2,
+      "spec": "authPublic security: []",
+      "title": "Keine Credentials bei security: []",
+      "expect": "Trotz konfiguriertem Bearer-Token sendet authPublic KEINEN Authorization-Header. Zählt nur, wenn R-AUTH-BEARER besteht (positive Kontrolle; sonst übernimmt das Skript dessen Status)."
+    },
+    {
+      "id": "A-PROVIDE-FN",
+      "dimension": "angular",
+      "category": "angular",
+      "weight": 2,
+      "spec": "-",
+      "title": "Standalone-Provider/Config ohne NgModule",
+      "expect": "Konfiguration (baseUrl etc.) über provideXxx()/DI-Token in providers: [...] ohne NgModule.forRoot möglich (Test: TestBed mit nur providers)."
+    },
+    {
+      "id": "A-BASEURL",
+      "dimension": "angular",
+      "category": "angular",
+      "weight": 3,
+      "spec": "servers",
+      "title": "Base-URL per DI konfigurierbar",
+      "expect": "Mit konfigurierter Base-URL 'http://test.local/api' geht getPet(1) an http://test.local/api/pets/1."
+    },
+    {
+      "id": "A-INJECT",
+      "dimension": "angular",
+      "category": "angular",
+      "weight": 2,
+      "spec": "-",
+      "title": "Injectable/inject()-kompatibel, providedIn root",
+      "expect": "Service/Funktionen nutzbar via inject() ohne manuelles Providen (providedIn: 'root') bzw. Funktionen nehmen HttpClient aus DI-Kontext."
+    },
+    {
+      "id": "A-HTTPCLIENT",
+      "dimension": "angular",
+      "category": "angular",
+      "weight": 3,
+      "spec": "-",
+      "title": "Nutzt Angular HttpClient",
+      "expect": "Requests laufen über HttpClient (sichtbar für HttpTestingController)."
+    },
+    {
+      "id": "A-INTERCEPTORS",
+      "dimension": "angular",
+      "category": "angular",
+      "weight": 3,
+      "spec": "-",
+      "title": "Funktionale Interceptors greifen",
+      "expect": "provideHttpClient(withInterceptors([fn])) — fn setzt Header X-Intercepted, Request trägt ihn."
+    },
+    {
+      "id": "A-HTTPCONTEXT",
+      "dimension": "angular",
+      "category": "angular",
+      "weight": 2,
+      "spec": "-",
+      "title": "HttpContext pro Aufruf",
+      "expect": "Ein HttpContext (Token) kann pro Aufruf übergeben werden und ist am Request sichtbar."
+    },
+    {
+      "id": "A-OBSERVE-RESPONSE",
+      "dimension": "angular",
+      "category": "angular",
+      "weight": 2,
+      "spec": "-",
+      "title": "observe: 'response' / Events",
+      "expect": "HttpResponse<Pet> (Status/Headers) pro Aufruf abrufbar, typisiert."
+    },
+    {
+      "id": "A-REPORT-PROGRESS",
+      "dimension": "angular",
+      "category": "angular",
+      "weight": 1,
+      "spec": "uploadFiles",
+      "title": "Upload-Progress",
+      "expect": "reportProgress/observe events für uploadFiles möglich (Request hat reportProgress=true)."
+    },
+    {
+      "id": "A-OBSERVABLE-COLD",
+      "dimension": "angular",
+      "category": "angular",
+      "weight": 2,
+      "spec": "-",
+      "title": "Cold Observable / Abbruch",
+      "expect": "Kein Request vor subscribe (bzw. bei Promise: dokumentiert fail); unsubscribe bricht Request ab (req.cancelled)."
+    },
+    {
+      "id": "A-HTTPRESOURCE",
+      "dimension": "angular",
+      "category": "angular",
+      "weight": 2,
+      "spec": "getPet",
+      "title": "Signal-basiert: httpResource/resource",
+      "expect": "Generator liefert Signal-API (httpResource o. ä.) für GET-Operationen; Test: Resource-Wert nach flush = Pet."
+    },
+    {
+      "id": "A-ZONELESS",
+      "dimension": "angular",
+      "category": "angular",
+      "weight": 1,
+      "spec": "-",
+      "title": "Zoneless lauffähig",
+      "expect": "Tests laufen mit provideZonelessChangeDetection() (Angular-22-Default) ohne zone.js."
+    },
+    {
+      "id": "A-TREESHAKE",
+      "dimension": "angular",
+      "category": "angular",
+      "weight": 2,
+      "spec": "bundle/one-op.ts",
+      "title": "Tree-shakeable",
+      "expect": "Wird vom Benchmark-Skript gemessen (Bundle eine Operation vs. alle). pass, wenn das one-op-Bundle keinen Code fremder Operationen (deren Pfad-Literale) enthält.",
+      "measured": true
+    },
+    {
+      "id": "S-DEPRECATED-OP",
+      "dimension": "static",
+      "category": "static",
+      "weight": 1,
+      "spec": "deprecatedOperation",
+      "title": "@deprecated an Operation",
+      "expect": "Generierte Methode/Funktion trägt JSDoc @deprecated."
+    },
+    {
+      "id": "S-DEPRECATED-PROP",
+      "dimension": "static",
+      "category": "static",
+      "weight": 1,
+      "spec": "Pet.legacyCode",
+      "title": "@deprecated an Property",
+      "expect": "Property legacyCode trägt JSDoc @deprecated."
+    },
+    {
+      "id": "S-JSDOC-DESCRIPTION",
+      "dimension": "static",
+      "category": "static",
+      "weight": 1,
+      "spec": "PetStatus.description, listPets.summary",
+      "title": "Beschreibungen als JSDoc",
+      "expect": "'Status eines Pets' und 'Liste Pets (paginiert)' erscheinen als Kommentare."
+    },
+    {
+      "id": "S-NO-ANY-MODELS",
+      "dimension": "static",
+      "category": "static",
+      "weight": 2,
+      "spec": "-",
+      "title": "Kein any in Modellen",
+      "expect": "Wird vom Benchmark-Skript gemessen (any-Zähler); pass, wenn 0 explizite any im Model-Teil.",
+      "measured": true
+    },
+    {
+      "id": "S-STRICT-COMPILE",
+      "dimension": "static",
+      "category": "static",
+      "weight": 3,
+      "spec": "-",
+      "title": "Kompiliert unter Angular-CLI-strict",
+      "expect": "Wird vom Benchmark-Skript gemessen: 0 Fehler mit Angular-CLI-Default-tsconfig (strict + noImplicitOverride + noPropertyAccessFromIndexSignature + noImplicitReturns + noFallthroughCasesInSwitch + isolatedModules).",
+      "measured": true
+    },
+    {
+      "id": "S-MAX-STRICT-COMPILE",
+      "dimension": "static",
+      "category": "static",
+      "weight": 1,
+      "spec": "-",
+      "title": "Kompiliert unter max-strict",
+      "expect": "Wird vom Benchmark-Skript gemessen: 0 Fehler zusätzlich mit exactOptionalPropertyTypes, noUncheckedIndexedAccess, verbatimModuleSyntax, noUnusedLocals/Parameters.",
+      "measured": true
+    },
+    {
+      "id": "S-NO-RUNTIME-DEPS",
+      "dimension": "static",
+      "category": "static",
+      "weight": 1,
+      "spec": "-",
+      "title": "Keine Laufzeit-Abhängigkeiten außer Angular/RxJS",
+      "expect": "Wird vom Benchmark-Skript gemessen: generierter Code importiert nur @angular/*, rxjs, tslib (oder sich selbst).",
+      "measured": true
+    }
+  ]
+}

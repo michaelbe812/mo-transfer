@@ -1,5 +1,6 @@
 packages:
   - 'packages/tooling/*'
+  - 'packages/openapi-bench'
 
 autoInstallPeers: true
 onlyBuiltDependencies:

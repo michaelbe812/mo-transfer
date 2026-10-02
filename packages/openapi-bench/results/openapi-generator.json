@@ -1,0 +1,852 @@
+{
+  "id": "openapi-generator",
+  "meta": {
+    "id": "openapi-generator",
+    "name": "OpenAPI Generator (typescript-angular)",
+    "package": "@openapitools/openapi-generator-cli",
+    "version": "7.25.0 (Generator-JAR; CLI-Wrapper 2.41.0)",
+    "runtime": "java",
+    "license": "Apache-2.0",
+    "repo": "https://github.com/OpenAPITools/openapi-generator",
+    "docs": "https://openapi-generator.tech/docs/generators/typescript-angular",
+    "outputStyle": "class-services",
+    "config": {
+      "ngVersion": "22.0.0 – passend zur Workspace-Angular-Version (Default von 7.25.0)",
+      "providedIn": "root – Services ohne manuelles Providen via inject()",
+      "useSingleRequestParameter": "true – ein typisiertes <Op>RequestParams-Interface pro Operation statt Positionsparametern",
+      "stringEnums": "false – erzeugt `const X = {...} as const` + Union-Typ (Literale zuweisbar, benannte Konstanten vorhanden); true würde TS-enums erzeugen (Literale nicht zuweisbar)",
+      "enumPropertyNaming": "original – x-enum-varnames (LOW/MEDIUM/HIGH) bleiben unverändert",
+      "taggedUnions": "true – Discriminator-Literale (eventType: 'created') statt Interface-Vererbung",
+      "legacyDiscriminatorBehavior": "Default (true) – false erzeugt zusätzlich kaputtes `export type CreatedEvent = ;`",
+      "modelPropertyNaming": "original – Wire-Namen unverändert (sonst kaputt ohne eigene (De-)Serialisierung)",
+      "fileNaming": "kebab-case – Angular-Style-Guide",
+      "supportsES6": "true",
+      "nullSafeAdditionalProps": "false – Index-Signaturen exakt { [k]: T } (noUncheckedIndexedAccess deckt undefined ab)",
+      "queryParamObjectFormat": "key – Fallback; Styles (deepObject/form/pipe/space) werden pro Parameter aus der Spec gelesen",
+      "disallowAdditionalPropertiesIfNotPresent": "Default (true) – false würde jedem Modell eine any-Index-Signatur geben"
+    },
+    "angular": {
+      "httpClient": true,
+      "injectFn": true,
+      "provideFn": "provideApi(basePath | ConfigurationParameters)",
+      "httpResource": false,
+      "httpContext": true,
+      "observeResponse": true,
+      "minAngular": "konfigurierbar über ngVersion (≥ 9.0.0); provideApi/makeEnvironmentProviders ab ≥ 15"
+    },
+    "validation": "none",
+    "generation31": "partial: OpenAPI 3.1 'beta'; Webhook-DefaultService überschreibt den Pfad-DefaultService (Duplicate file path) → getItem31/putItem31/listEvents31/upload31 fehlen; const/prefixItems → any",
+    "runtimeDeps": [],
+    "highlights": [
+      "Sehr korrektes Wire-Format: alle Query-Styles (form/explode, pipe, space, deepObject, form-object), Pfad-Encoding, Header, urlencoded, Multipart inkl. JSON-Part als Blob, Text/Blob/Vendor-JSON-Response",
+      "Alle Security-Schemes über Configuration.credentials (pro Operation, security: [] respektiert)",
+      "Volle HttpClient-Integration: observe body/response/events, reportProgress, HttpContext, transferCache, Accept-Auswahl",
+      "provideApi() + providedIn: 'root', keine Runtime-Abhängigkeiten außer @angular/* und rxjs",
+      "Enums als const-Objekt + Union, x-enum-varnames und x-enum-descriptions übernommen"
+    ],
+    "issues": [
+      "oneOf mit Discriminator (Shape) erzeugt ungültiges TypeScript `export type Shape = ;` (TS1110) – bricht jeden Build, der polymorphism.service/index importiert",
+      "oneOf ohne Discriminator wird zu einem Interface mit ALLEN Feldern aller Varianten verschmolzen (PaymentRequestMethod, PaymentResult); anyOf string|integer → leeres Interface {}",
+      "readOnly/writeOnly ignoriert: createPet verlangt id; secretChipCode im Response-Typ",
+      "204/keine Response → Observable<any>; mehrere 2xx → nur erster Typ; Content-Negotiation ändert Rückgabetyp nicht (PDF als Report typisiert)",
+      "Kein typisierter Fehlerkanal; Cookie-Parameter angeboten, aber stillschweigend nicht gesendet",
+      "uniqueItems → Set<string> ohne Laufzeitkonvertierung (Typ-Lüge); additionalProperties: true → any",
+      "3.1: Webhook überschreibt Default-Service, const → any, prefixItems → Array<any>, oneOf(const) zu Interface verschmolzen"
+    ],
+    "workarounds": [
+      {
+        "description": "model/shape.ts ist ungültiges TS ('export type Shape = ;') → Tests importieren einzelne Service-Dateien statt Barrel; polymorphism.service nicht importierbar (R-BODY-POLYMORPHIC als ❌ gewertet), all-ops-Bundle nicht baubar",
+        "forceFail": []
+      }
+    ]
+  },
+  "generation": {
+    "ms": 3301,
+    "runs": [
+      3301,
+      3300,
+      3312
+    ],
+    "error": null
+  },
+  "metrics": {
+    "source": {
+      "files": 76,
+      "tsFiles": 70,
+      "loc": 4069,
+      "bytes": 207835
+    },
+    "source31": {
+      "files": 22,
+      "tsFiles": 16,
+      "loc": 711,
+      "bytes": 36127
+    },
+    "any": {
+      "total": 219,
+      "inTypes": 4,
+      "tsNoCheckFiles": 0
+    },
+    "runtimeDeps": [],
+    "strict": {
+      "errors": 1,
+      "syntaxErrors": 1,
+      "byCode": {
+        "TS1110": 1
+      },
+      "sample": [
+        "generators/openapi-generator/client/model/shape.ts(15,21): error TS1110: Type expected."
+      ]
+    },
+    "maxStrict": {
+      "errors": 1,
+      "syntaxErrors": 1,
+      "byCode": {
+        "TS1110": 1
+      },
+      "sample": [
+        "generators/openapi-generator/client/model/shape.ts(15,21): error TS1110: Type expected."
+      ]
+    },
+    "bundle": {
+      "oneOp": {
+        "bytes": 11216,
+        "gzip": 2900,
+        "foreignPaths": []
+      },
+      "allOps": {
+        "error": "Build failed with 1 error:\ngenerators/openapi-generator/client/model/shape.ts:15:20: ERROR: Unexpected \";\""
+      }
+    }
+  },
+  "suites": {
+    "types": {
+      "ms": 1735,
+      "exitCode": 1,
+      "crashed": false
+    },
+    "static": {
+      "ms": 569,
+      "exitCode": 0,
+      "crashed": false
+    },
+    "runtime": {
+      "ms": 4611,
+      "exitCode": 1,
+      "crashed": false
+    }
+  },
+  "cases": {
+    "T31-TYPE-NULL-UNION": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-CONST": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type '\"item\"' does not satisfy the constraint 'never'. Unused '@ts-expect-error' directive."
+    },
+    "T31-ENUM-NULL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-PREFIX-ITEMS": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type '[number, number]' does not satisfy the constraint '{ [x number] undefined; 0 \"Expected number, Actual never\"; 1 \"Expected number, Actual never\"; }'.   Types of property '0' are incompatible.     Type 'number' is not assignable to type '\"Expected number, Actual never\"'."
+    },
+    "T31-REF-SIBLINGS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-ONEOF-CONST-DISC": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Unused '@ts-expect-error' directive."
+    },
+    "T31-EXAMPLES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-DEPENDENT-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-BINARY-CONTENT-MEDIA-TYPE": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Property 'upload31' does not exist on type 'DefaultService'."
+    },
+    "T31-WEBHOOKS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-STRING": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-INT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-NUMBER": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-BOOLEAN": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-INT64": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-UUID": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-BYTE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-DATE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-STRING": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-INT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-VARNAMES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-NULLABLE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-SPECIAL-VALUES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NULLABLE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-READONLY": {
+      "status": "fail",
+      "suite": "types",
+      "note": "No overload matches this call.   Overload 1 of 3, '(requestParameters CreatePetRequestParams, observe? \"body\" | undefined, reportProgress? boolean | undefined, options? { httpHeaderAccept? \"application/json\" | undefined; context? HttpContext | undefined; transferCache? boolean | undefined; } | undefined) Observable<...>', gave the following error.     Property 'id' is missing in type '{ name strin"
+    },
+    "T-WRITEONLY": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Expected 2 arguments, but got 1."
+    },
+    "T-DEFAULTS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-REF": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-NESTED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-UNIQUE": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'string[] | undefined' does not satisfy the constraint '\"Expected undefined, Actual ...\" | \"Expected ..., Actual ...\"'.   Type 'undefined' is not assignable to type '\"Expected undefined, Actual ...\" | \"Expected ..., Actual ...\"'."
+    },
+    "T-ADDPROPS-SCHEMA": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-FALSE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-TRUE": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'unknown' does not satisfy the constraint '\"Expected unknown, Actual never\"'."
+    },
+    "T-ADDPROPS-WITH-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ALLOF-COMPOSE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ONEOF-DISC": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type '\"valid discriminated union Circle | Rectangle | Triangle\"' does not satisfy the constraint '\"Expected literal string valid discriminated union Circle | Rectangle | Triangle, Actual literal string syntax-error export type Shape = ;\"'."
+    },
+    "T-ONEOF-DISC-MAPPING": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type '\"circle\"' does not satisfy the constraint '\"Expected literal string circle, Actual string\"'. Unused '@ts-expect-error' directive."
+    },
+    "T-ALLOF-DISC-INHERITANCE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ONEOF-PLAIN": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Property 'iban' is missing in type 'CardPayment' but required in type 'PaymentRequestMethod'. Type 'SepaPayment' is missing the following properties from type 'PaymentRequestMethod' cardNumber, cvc"
+    },
+    "T-ANYOF": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'string | number | undefined' does not satisfy the constraint '\"Expected string, Actual boolean\" | \"Expected number, Actual boolean\" | \"Expected undefined, Actual boolean\"'.   Type 'undefined' is not assignable to type '\"Expected string, Actual boolean\" | \"Expected number, Actual boolean\" | \"Expected undefined, Actual boolean\"'. Unused '@ts-expect-error' directive."
+    },
+    "T-RECURSIVE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-CIRCULAR": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-INLINE-OBJECT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-INLINE-ENUM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-PATH-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-PATH-TYPES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-ENUM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-ARRAY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-HEADER": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-RESERVED-PARAM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARTIAL-BODY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-FORM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-MULTIPART": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-OCTET": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-200": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-204": {
+      "status": "fail",
+      "suite": "types",
+      "note": "This expression is not callable. Type 'Inverted<ExpectAny<any>>' has no call signatures."
+    },
+    "T-RESP-MULTI-2XX": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'Observable<Pet | Job>' does not satisfy the constraint '{ forEach \"Expected function, Actual never\"; source Observable<any> | undefined; operator \"Expected undefined, Actual never\" | \"Expected ..., Actual never\"; lift <R>(operator? Operator<...> | undefined) => Observable<...>; subscribe \"Expected function, Actual never\"; pipe { ...; }; toPromise { ...; }...'.   Types of property 'forEach' a"
+    },
+    "T-RESP-BINARY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-TEXT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-PRIMITIVE-ARRAY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-MAP": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-CONTENT-NEGOTIATION": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'Observable<Blob>' does not satisfy the constraint '{ forEach \"Expected function, Actual function\"; source Observable<any> | undefined; operator \"Expected undefined, Actual ...\" | \"Expected ..., Actual ...\"; lift <R>(operator? Operator<...> | undefined) => Observable<...>; subscribe \"Expected function, Actual function\"; pipe { ...; }; toPromise { ...;...'.   Types of property 'forEach' are in"
+    },
+    "T-ERROR-MODEL": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'Problem' does not satisfy the constraint 'never'."
+    },
+    "T-NAME-SPECIAL-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-RESERVED-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-SCHEMA-COLLISION": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-SCHEMA-SANITIZE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-OPERATION-ID-SANITIZE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NO-OPERATION-ID": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-UNTAGGED-OP": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-UNREFERENCED-SCHEMA": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "S-DEPRECATED-OP": {
+      "status": "pass",
+      "suite": "static"
+    },
+    "S-DEPRECATED-PROP": {
+      "status": "pass",
+      "suite": "static"
+    },
+    "S-JSDOC-DESCRIPTION": {
+      "status": "pass",
+      "suite": "static"
+    },
+    "R-PATH-MULTI": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-PATH-ENCODE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-PRIMITIVES": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-OPTIONAL-OMITTED": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-EXPLODE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-NOEXPLODE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-PIPE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-SPACE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-DEEPOBJECT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-FORM-OBJECT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-DATE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-BOOLEAN": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-HEADER-PARAM": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-COOKIE-PARAM": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected null to be 'session=abc' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/openapi-generator/tests/runtime.spec.ts?import&browserv=1790970362842:2114:22"
+    },
+    "R-NAME-RESERVED-PARAM": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-JSON": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-NULL-SEND": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-MERGE-PATCH": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-FORM-URLENCODED": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-MULTIPART": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-MULTIPART-JSON-PART": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-OCTET": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-TEXT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-POLYMORPHIC": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "Error: generated client/model/shape.ts does not compile (TS1110: export type Shape = ;) → createShape unusable     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/openapi-generator/tests/runtime.spec.ts?import&browserv=1790970362842:2212:13     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@"
+    },
+    "R-NAME-SPECIAL-PROPS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-204": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-BLOB": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-TEXT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-VENDOR-JSON": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-ACCEPT-HEADER": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-DATE-CONSISTENT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-201-LOCATION": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-ERROR-BODY": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-AUTH-BEARER": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-AUTH-APIKEY-HEADER": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-AUTH-APIKEY-QUERY": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-AUTH-BASIC": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-AUTH-OAUTH2": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-AUTH-NONE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-PROVIDE-FN": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-BASEURL": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-INJECT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-HTTPCLIENT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-INTERCEPTORS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-HTTPCONTEXT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-OBSERVE-RESPONSE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-REPORT-PROGRESS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-OBSERVABLE-COLD": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-HTTPRESOURCE": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-HTTPRESOURCE] Signal-API für GET — unsupported: typescript-angular generiert nur Observable-Services, keine httpResource/Signal-API"
+    },
+    "A-ZONELESS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-TREESHAKE": {
+      "status": "pass",
+      "note": "keine fremden Operationen im one-op-Bundle",
+      "suite": "measured"
+    },
+    "S-NO-ANY-MODELS": {
+      "status": "fail",
+      "note": "4 any in Typdeklarationen, 219 gesamt",
+      "suite": "measured"
+    },
+    "S-STRICT-COMPILE": {
+      "status": "fail",
+      "note": "1 Fehler",
+      "suite": "measured"
+    },
+    "S-MAX-STRICT-COMPILE": {
+      "status": "fail",
+      "note": "1 Fehler",
+      "suite": "measured"
+    },
+    "S-NO-RUNTIME-DEPS": {
+      "status": "pass",
+      "note": "keine",
+      "suite": "measured"
+    }
+  },
+  "integrity": {
+    "duplicates": [],
+    "unknown": [],
+    "missing": []
+  },
+  "score": {
+    "overall": 84.5,
+    "dimensions": {
+      "types": {
+        "points": 108,
+        "max": 135,
+        "pass": 61,
+        "fail": 16,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 80
+      },
+      "runtime": {
+        "points": 76,
+        "max": 78,
+        "pass": 37,
+        "fail": 2,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 97.4
+      },
+      "angular": {
+        "points": 23,
+        "max": 25,
+        "pass": 11,
+        "fail": 0,
+        "unsupported": 1,
+        "missing": 0,
+        "pct": 92
+      },
+      "static": {
+        "points": 4,
+        "max": 10,
+        "pass": 4,
+        "fail": 3,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 40
+      }
+    },
+    "categories": {
+      "types-models": {
+        "points": 41,
+        "max": 46,
+        "pass": 22,
+        "fail": 4,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 89.1
+      },
+      "types-poly": {
+        "points": 8,
+        "max": 17,
+        "pass": 4,
+        "fail": 4,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 47.1
+      },
+      "types-ops": {
+        "points": 39,
+        "max": 46,
+        "pass": 20,
+        "fail": 4,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 84.8
+      },
+      "types-naming": {
+        "points": 12,
+        "max": 12,
+        "pass": 9,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "types-31": {
+        "points": 8,
+        "max": 14,
+        "pass": 6,
+        "fail": 4,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 57.1
+      },
+      "runtime-params": {
+        "points": 30,
+        "max": 31,
+        "pass": 14,
+        "fail": 1,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 96.8
+      },
+      "runtime-bodies": {
+        "points": 20,
+        "max": 21,
+        "pass": 9,
+        "fail": 1,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 95.2
+      },
+      "runtime-responses": {
+        "points": 17,
+        "max": 17,
+        "pass": 8,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "runtime-auth": {
+        "points": 9,
+        "max": 9,
+        "pass": 6,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "angular": {
+        "points": 23,
+        "max": 25,
+        "pass": 11,
+        "fail": 0,
+        "unsupported": 1,
+        "missing": 0,
+        "pct": 92
+      },
+      "static": {
+        "points": 4,
+        "max": 10,
+        "pass": 4,
+        "fail": 3,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 40
+      }
+    }
+  }
+}

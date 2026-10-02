@@ -1,0 +1,916 @@
+{
+  "id": "nswag",
+  "meta": {
+    "id": "nswag",
+    "name": "NSwag (TypeScript, Template Angular)",
+    "package": "nswag",
+    "version": "14.7.1 (NJsonSchema 11.6.1, .NET-Runtime Net80)",
+    "runtime": "dotnet",
+    "license": "MIT",
+    "repo": "https://github.com/RicoSuter/NSwag",
+    "docs": "https://github.com/RicoSuter/NSwag/wiki/TypeScriptClientGenerator",
+    "outputStyle": "class-services",
+    "config": {
+      "file": "nswag.json (openApiToTypeScriptClient); Input/Output per /variables: aus generate.mjs",
+      "template": "Angular – @Injectable({ providedIn: 'root' })-Clients, HttpClient, rxjs-Observables",
+      "rxJsVersion/typeScriptVersion": "7.0 / 5.0 – moderne Imports, `override`, `??`",
+      "injectionTokenType": "InjectionToken – API_BASE_URL als DI-Token (statt OpaqueToken)",
+      "useSingletonProvider": "true – providedIn: 'root' → inject() ohne Providen",
+      "operationGenerationMode": "MultipleClientsFromFirstTagAndOperationId – ein Client pro Tag (PetsClient, ParamsClient, …; untagged → Client)",
+      "typeStyle": "Interface – Class-Variante evaluiert und verworfen: init() setzt fehlende optionale Felder auf null (Typ sagt undefined), toJSON() sendet jedes ungesetzte Feld als null (z. B. id: null bei createPet), Request-Bodies müssen per new Pet({...}) gebaut werden",
+      "dateTimeType": "String – konsistent mit Interface-Style (keine Laufzeit-Konvertierung). Date bei Interface wäre Typ-Lüge (JSON.parse liefert string)",
+      "enumStyle": "StringLiteral – Union-Literale. Enum würde x-enum-varnames ebenfalls ignorieren (_1/_2/_3) und Literal-Zuweisung verbieten",
+      "nullValue": "Null – nötig, damit nullable: true als `| null` typisiert wird (Undefined macht daraus `| undefined`)",
+      "markOptionalProperties": "true – nicht-required → `?`",
+      "generateOptionalParameters": "true – optionale Parameter ans Ende (listPets() ohne Argumente)",
+      "includeHttpContext": "true – HttpContext als letzter Parameter jeder Methode",
+      "wrapResponses": "false – true würde ALLE Rückgabetypen auf SwaggerResponse<T> ändern (Status/Header), aber T-RESP-200 brechen",
+      "wrapDtoExceptions/exceptionClass": "true / ApiException (Default-Name)",
+      "excludedOperationIds": "[reservedParamNames] – NOTLÖSUNG: NSwag erzeugt `reservedParamNames(class: string, default?: …)` → Syntaxfehler (TS1390) zerstört die gesamte Datei. Ohne Ausschluss kein kompilierbarer Client"
+    },
+    "angular": {
+      "httpClient": true,
+      "injectFn": true,
+      "provideFn": null,
+      "httpResource": false,
+      "httpContext": true,
+      "observeResponse": false,
+      "minAngular": "≥ 12.1 (HttpContext); Konstruktor-DI mit @Inject/@Optional"
+    },
+    "validation": "none",
+    "generation31": "failed: NJsonSchema JsonSerializationException bei `items: false` (Item31.coords, prefixItems) – kein Output",
+    "runtimeDeps": [],
+    "highlights": [
+      "Robuste Basis-Operationen: Pfad-Encoding, Query-Primitives inkl. 0/false, explode-Arrays, Header, JSON/merge-patch/urlencoded/text/octet-Bodies, Vendor-JSON, Multipart-JSON-Part",
+      "providedIn: 'root' + InjectionToken API_BASE_URL + HttpContext pro Aufruf; interceptor-fähig, cold Observables",
+      "Fehler-Responses werden als ApiException mit geparstem result (Problem) geworfen",
+      "readOnly-Felder als `readonly`, Enums als Literal-Unions, Sonder-Property-Namen korrekt gequotet",
+      "Nur @angular/* + rxjs, eine Datei"
+    ],
+    "issues": [
+      "Reservierte Parameternamen (class, default) nicht escaped → ungültiges TS, ganze Datei bricht (Operation ausgeschlossen)",
+      "Shape (oneOf + discriminator mapping): Circle wird nie generiert, listShapes referenziert undefiniertes Anonymous2 (TS2552) → Angular-Build bricht (Shim tests/anonymous2-shim.d.ts nötig); Shape = { [key: string]: any }",
+      "Jedes Modell ohne explizites additionalProperties: false bekommt `[key: string]: any` → Tippfehler in Keys werden nicht erkannt; oneOf/anyOf → leere any-Interfaces bzw. nur erste Variante (method: CardPayment)",
+      "Query-Styles ignoriert: csv/pipe/space als explode, deepObject/form-object als [object Object]; Cookie-Parameter angeboten aber verworfen",
+      "Multipart: optionale Parts (meta, attachments) werfen 'cannot be null' beim Weglassen; required title/file als optional typisiert, file als FileParameter { data: any }",
+      "multiStatus: 202 (Job) wird als ApiException geworfen statt Pet | Job; Content-Negotiation nur JSON",
+      "Keine securitySchemes-Unterstützung, kein observe/reportProgress pro Aufruf, kein httpResource; responseType immer 'blob' (eigener Parser)",
+      "x-enum-varnames ignoriert, deprecated an Properties ignoriert, writeOnly ignoriert, Fehler-Body ApiException.result: any"
+    ],
+    "workarounds": [
+      {
+        "description": "Operation reservedParamNames per excludedOperationIds ausgeschlossen – NSwag erzeugt sonst Syntaxfehler (TS1390, Parameter 'class'), der die ganze Datei bricht",
+        "forceFail": [
+          "S-STRICT-COMPILE",
+          "S-MAX-STRICT-COMPILE"
+        ]
+      },
+      {
+        "description": "tests/anonymous2-shim.d.ts (nur Runtime-Tests): NSwag referenziert nicht existierenden Typ Anonymous2 (listShapes)",
+        "forceFail": []
+      }
+    ]
+  },
+  "generation": {
+    "ms": 999,
+    "runs": [
+      986,
+      999,
+      1019
+    ],
+    "error": null
+  },
+  "metrics": {
+    "source": {
+      "files": 1,
+      "tsFiles": 1,
+      "loc": 2377,
+      "bytes": 106930
+    },
+    "source31": {
+      "files": 1,
+      "tsFiles": 0,
+      "loc": 0,
+      "bytes": 375
+    },
+    "any": {
+      "total": 510,
+      "inTypes": 67,
+      "tsNoCheckFiles": 0
+    },
+    "runtimeDeps": [],
+    "strict": {
+      "errors": 5,
+      "syntaxErrors": 0,
+      "byCode": {
+        "TS2552": 5
+      },
+      "sample": [
+        "generators/nswag/client/api.ts(1386,55): error TS2552: Cannot find name 'Anonymous2'. Did you mean 'Anonymous'?",
+        "generators/nswag/client/api.ts(1406,69): error TS2552: Cannot find name 'Anonymous2'. Did you mean 'Anonymous'?",
+        "generators/nswag/client/api.ts(1409,73): error TS2552: Cannot find name 'Anonymous2'. Did you mean 'Anonymous'?",
+        "generators/nswag/client/api.ts(1413,73): error TS2552: Cannot find name 'Anonymous2'. Did you mean 'Anonymous'?",
+        "generators/nswag/client/api.ts(1423,107): error TS2552: Cannot find name 'Anonymous2'. Did you mean 'Anonymous'?"
+      ]
+    },
+    "maxStrict": {
+      "errors": 7,
+      "syntaxErrors": 0,
+      "byCode": {
+        "TS6133": 1,
+        "TS2322": 1,
+        "TS2552": 5
+      },
+      "sample": [
+        "generators/nswag/client/api.ts(579,123): error TS6133: 'session' is declared but its value is never read.",
+        "generators/nswag/client/api.ts(1105,13): error TS2322: Type 'Observable<{ fileName: string | undefined; data: any; status: number; headers: any; }>' is not assignable to type 'Observable<FileResponse>'.",
+        "generators/nswag/client/api.ts(1386,55): error TS2552: Cannot find name 'Anonymous2'. Did you mean 'Anonymous'?",
+        "generators/nswag/client/api.ts(1406,69): error TS2552: Cannot find name 'Anonymous2'. Did you mean 'Anonymous'?",
+        "generators/nswag/client/api.ts(1409,73): error TS2552: Cannot find name 'Anonymous2'. Did you mean 'Anonymous'?",
+        "generators/nswag/client/api.ts(1413,73): error TS2552: Cannot find name 'Anonymous2'. Did you mean 'Anonymous'?",
+        "generators/nswag/client/api.ts(1423,107): error TS2552: Cannot find name 'Anonymous2'. Did you mean 'Anonymous'?"
+      ]
+    },
+    "bundle": {
+      "oneOp": {
+        "bytes": 35330,
+        "gzip": 3940,
+        "foreignPaths": [
+          "/polymorphism/shapes",
+          "/bodies/multipart",
+          "/auth/basic",
+          "/responses/download",
+          "/naming/special-properties"
+        ]
+      },
+      "allOps": {
+        "bytes": 35419,
+        "gzip": 3994,
+        "foreignPaths": [
+          "/polymorphism/shapes",
+          "/bodies/multipart",
+          "/auth/basic",
+          "/responses/download",
+          "/naming/special-properties"
+        ]
+      }
+    }
+  },
+  "suites": {
+    "types": {
+      "ms": 1411,
+      "exitCode": 1,
+      "crashed": false
+    },
+    "static": {
+      "ms": 572,
+      "exitCode": 1,
+      "crashed": false
+    },
+    "runtime": {
+      "ms": 5126,
+      "exitCode": 1,
+      "crashed": false
+    }
+  },
+  "cases": {
+    "T31-TYPE-NULL-UNION": {
+      "status": "unsupported",
+      "suite": "types",
+      "note": "[T31-TYPE-NULL-UNION] type: [string, null] — unsupported: NSwag-Generierung der 3.1-Spec bricht ab, kein Client"
+    },
+    "T31-CONST": {
+      "status": "unsupported",
+      "suite": "types",
+      "note": "[T31-CONST] const — unsupported: NSwag-Generierung der 3.1-Spec bricht ab, kein Client"
+    },
+    "T31-ENUM-NULL": {
+      "status": "unsupported",
+      "suite": "types",
+      "note": "[T31-ENUM-NULL] enum mit null — unsupported: NSwag-Generierung der 3.1-Spec bricht ab, kein Client"
+    },
+    "T31-PREFIX-ITEMS": {
+      "status": "unsupported",
+      "suite": "types",
+      "note": "[T31-PREFIX-ITEMS] prefixItems → Tupel — unsupported: NSwag-Generierung der 3.1-Spec bricht ab, kein Client"
+    },
+    "T31-REF-SIBLINGS": {
+      "status": "unsupported",
+      "suite": "types",
+      "note": "[T31-REF-SIBLINGS] $ref mit Siblings — unsupported: NSwag-Generierung der 3.1-Spec bricht ab, kein Client"
+    },
+    "T31-ONEOF-CONST-DISC": {
+      "status": "unsupported",
+      "suite": "types",
+      "note": "[T31-ONEOF-CONST-DISC] oneOf mit const-Discriminator — unsupported: NSwag-Generierung der 3.1-Spec bricht ab, kein Client"
+    },
+    "T31-EXAMPLES": {
+      "status": "unsupported",
+      "suite": "types",
+      "note": "[T31-EXAMPLES] examples — unsupported: NSwag-Generierung der 3.1-Spec bricht ab, kein Client"
+    },
+    "T31-DEPENDENT-REQUIRED": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type '\"ok\"' does not satisfy the constraint '\"Expected literal string ok, Actual literal string failed NJsonSchema kann items false nicht lesen\"'."
+    },
+    "T31-BINARY-CONTENT-MEDIA-TYPE": {
+      "status": "unsupported",
+      "suite": "types",
+      "note": "[T31-BINARY-CONTENT-MEDIA-TYPE] octet-stream ohne Schema — unsupported: NSwag-Generierung der 3.1-Spec bricht ab, kein Client"
+    },
+    "T31-WEBHOOKS": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type '\"ok\"' does not satisfy the constraint '\"Expected literal string ok, Actual literal string failed NJsonSchema kann items false nicht lesen\"'."
+    },
+    "T-PRIM-STRING": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-INT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-NUMBER": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-BOOLEAN": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-INT64": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-UUID": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-BYTE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-DATE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-STRING": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-INT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-VARNAMES": {
+      "status": "unsupported",
+      "suite": "types",
+      "note": "[T-ENUM-VARNAMES] Priority.LOW/MEDIUM/HIGH — unsupported: x-enum-varnames ignoriert, Priority ist reiner Union-Typ ohne Wert-Export/benannte Member"
+    },
+    "T-ENUM-NULLABLE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-SPECIAL-VALUES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NULLABLE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-READONLY": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Argument of type '{ name string; status \"available\"; photoUrls never[]; }' is not assignable to parameter of type 'Pet'.   Property 'id' is missing in type '{ name string; status \"available\"; photoUrls never[]; }' but required in type 'Pet'."
+    },
+    "T-WRITEONLY": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Expected 2 arguments, but got 1."
+    },
+    "T-DEFAULTS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-REF": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-NESTED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-UNIQUE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-SCHEMA": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-FALSE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-TRUE": {
+      "status": "fail",
+      "suite": "types",
+      "note": "This expression is not callable. Type 'Inverted<ExpectAny<any>>' has no call signatures. Type 'Record<string, unknown>' does not satisfy the constraint 'never'."
+    },
+    "T-ADDPROPS-WITH-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ALLOF-COMPOSE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ONEOF-DISC": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Property 'kind' comes from an index signature, so it must be accessed with ['kind']. Property 'radius' comes from an index signature, so it must be accessed with ['radius']. Type 'number' does not satisfy the constraint 'never'."
+    },
+    "T-ONEOF-DISC-MAPPING": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Namespace '\"/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/nswag/client/api\"' has no exported member 'Circle'."
+    },
+    "T-ALLOF-DISC-INHERITANCE": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type '\"created\"' does not satisfy the constraint '\"Expected literal string created, Actual string\"'."
+    },
+    "T-ONEOF-PLAIN": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type '{ iban string; }' is missing the following properties from type 'CardPayment' cardNumber, cvc"
+    },
+    "T-ANYOF": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'string' is not assignable to type 'Note'. Type 'number' is not assignable to type 'Note'."
+    },
+    "T-RECURSIVE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-CIRCULAR": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-INLINE-OBJECT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-INLINE-ENUM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-PATH-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-PATH-TYPES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-ENUM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-ARRAY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-HEADER": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-RESERVED-PARAM": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Property 'reservedParamNames' does not exist on type 'ParamsClient'."
+    },
+    "T-BODY-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARTIAL-BODY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-FORM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-MULTIPART": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'string' does not satisfy the constraint '\"Expected string, Actual undefined\"'. Type 'Blob' does not satisfy the constraint '\"Expected ..., Actual undefined\" | \"Expected ..., Actual ...\"'. Type 'Blob[] | undefined' does not satisfy the constraint '\"Expected ..., Actual ...\" | \"Expected undefined, Actual ...\"'."
+    },
+    "T-BODY-OCTET": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-200": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-204": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-MULTI-2XX": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Expected 1 arguments, but got 0."
+    },
+    "T-RESP-BINARY": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'Blob' does not satisfy the constraint '{ headers \"Expected never, Actual undefined\" | \"Expected never, Actual ...\"; text \"Expected function, Actual never\"; fileName \"Expected never, Actual undefined\" | \"Expected never, Actual string\"; ... 7 more ...; stream \"Expected function, Actual never\"; }'.   Type 'Blob' is missing the following properties from type '{ headers \"Expected never, Actual un"
+    },
+    "T-RESP-TEXT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-PRIMITIVE-ARRAY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-MAP": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-CONTENT-NEGOTIATION": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type '\"application/json\" | \"application/pdf\"' does not satisfy the constraint '\"Expected literal string application/json, Actual undefined\" | \"Expected literal string application/json, Actual ...\" | \"Expected literal string application/pdf, Actual undefined\" | \"Expected literal string application/pdf, Actual ...\"'.   Type '\"application/json\"' is not assignable to type '\"Expected literal string app"
+    },
+    "T-ERROR-MODEL": {
+      "status": "fail",
+      "suite": "types",
+      "note": "This expression is not callable. Type 'Inverted<ExpectAny<any>>' has no call signatures."
+    },
+    "T-NAME-SPECIAL-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-RESERVED-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-SCHEMA-COLLISION": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-SCHEMA-SANITIZE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-OPERATION-ID-SANITIZE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NO-OPERATION-ID": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-UNTAGGED-OP": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-UNREFERENCED-SCHEMA": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "S-DEPRECATED-OP": {
+      "status": "pass",
+      "suite": "static"
+    },
+    "S-DEPRECATED-PROP": {
+      "status": "fail",
+      "suite": "static",
+      "note": "AssertionError: expected '    /** Veraltet, wird entfernt */' to match /@deprecated/     at /Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/nswag/tests/generated.static.test.ts:25:46     at file:///Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js"
+    },
+    "S-JSDOC-DESCRIPTION": {
+      "status": "pass",
+      "suite": "static"
+    },
+    "R-PATH-MULTI": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-PATH-ENCODE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-EXPLODE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-NOEXPLODE": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected [ 'a', 'b' ] to deeply equal [ 'a,b' ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/nswag/tests/runtime.spec.ts?import&browserv=1790970335334:2455:48     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=3c1ed435:302:11"
+    },
+    "R-QUERY-ARRAY-PIPE": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected [ 'a', 'b' ] to deeply equal [ 'a|b' ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/nswag/tests/runtime.spec.ts?import&browserv=1790970335334:2462:49     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=3c1ed435:302:11"
+    },
+    "R-QUERY-ARRAY-SPACE": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected [ '1', '2' ] to deeply equal [ '1 2' ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/nswag/tests/runtime.spec.ts?import&browserv=1790970335334:2469:50     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=3c1ed435:302:11"
+    },
+    "R-QUERY-DEEPOBJECT": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected [] to deeply equal [ 'rex' ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/nswag/tests/runtime.spec.ts?import&browserv=1790970335334:2476:53     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=3c1ed435:302:11"
+    },
+    "R-QUERY-FORM-OBJECT": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected [] to deeply equal [ '1' ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/nswag/tests/runtime.spec.ts?import&browserv=1790970335334:2484:42     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=3c1ed435:302:11"
+    },
+    "R-QUERY-DATE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-BOOLEAN": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-HEADER-PARAM": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-COOKIE-PARAM": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected null to be 'session=abc' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/nswag/tests/runtime.spec.ts?import&browserv=1790970335334:2525:22     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=3c1ed4"
+    },
+    "R-NAME-RESERVED-PARAM": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected 'undefined' to be 'function' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/nswag/tests/runtime.spec.ts?import&browserv=1790970335334:2528:64     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=3c1ed435"
+    },
+    "R-QUERY-PRIMITIVES": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-OPTIONAL-OMITTED": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-JSON": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-NULL-SEND": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-MERGE-PATCH": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-204": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-ERROR-BODY": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-FORM-URLENCODED": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-MULTIPART": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "Error: The parameter 'meta' cannot be null.     at _BodiesClient.uploadFiles (http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/nswag/tests/runtime.spec.ts?import&browserv=1790970335334:728:13)     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/nswag/tests"
+    },
+    "R-BODY-MULTIPART-JSON-PART": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-OCTET": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-TEXT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-TEXT": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected 'blob' to be 'text' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/nswag/tests/runtime.spec.ts?import&browserv=1790970335334:2675:28     at async http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=3c1ed435:19"
+    },
+    "R-RESP-BLOB": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected { fileName: undefined, …(3) } to be an instance of Blob     at Proxy.<anonymous> (http://localhost:63315/node_modules/.pnpm/@vitest+expect@4.1.11/node_modules/@vitest/expect/dist/index.js?v=3c1ed435:1386:15)     at Proxy.<anonymous> (http://localhost:63315/node_modules/.pnpm/@vitest+expect@4.1.11/node_modules/@vitest/expect/dist/index.js?v=3c1ed435:1156:15)"
+    },
+    "R-RESP-VENDOR-JSON": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-ACCEPT-HEADER": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-DATE-CONSISTENT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-POLYMORPHIC": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-NAME-SPECIAL-PROPS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-PROVIDE-FN": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-BASEURL": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-INJECT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-HTTPCLIENT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-HTTPCONTEXT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-OBSERVABLE-COLD": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-ZONELESS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-INTERCEPTORS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-201-LOCATION": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-RESP-201-LOCATION] — unsupported: Status/Header nur über wrapResponses (global, ändert alle Signaturen auf SwaggerResponse<T>), kein per-Aufruf observe"
+    },
+    "A-OBSERVE-RESPONSE": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-OBSERVE-RESPONSE] — unsupported: keine observe-Option pro Aufruf; nur global wrapResponses (SwaggerResponse<T>, kein HttpResponse)"
+    },
+    "A-REPORT-PROGRESS": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-REPORT-PROGRESS] — unsupported: options_ fest verdrahtet (observe: response, responseType: blob), kein reportProgress"
+    },
+    "A-HTTPRESOURCE": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[A-HTTPRESOURCE] — unsupported: keine Signal-/httpResource-API, nur Observables"
+    },
+    "R-AUTH-BEARER": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-BEARER] — unsupported: TS-Client ignoriert securitySchemes, keine generierte Auth-Konfiguration"
+    },
+    "R-AUTH-APIKEY-HEADER": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-APIKEY-HEADER] — unsupported: keine generierte Auth-Konfiguration"
+    },
+    "R-AUTH-APIKEY-QUERY": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-APIKEY-QUERY] — unsupported: keine generierte Auth-Konfiguration"
+    },
+    "R-AUTH-BASIC": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-BASIC] — unsupported: keine generierte Auth-Konfiguration"
+    },
+    "R-AUTH-OAUTH2": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-OAUTH2] — unsupported: keine generierte Auth-Konfiguration"
+    },
+    "R-AUTH-NONE": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-NONE] — unsupported: ohne Token-Konfiguration nicht prüfbar (security: [] wird nicht ausgewertet)"
+    },
+    "A-TREESHAKE": {
+      "status": "fail",
+      "note": "fremde Operationen im one-op-Bundle: /polymorphism/shapes, /bodies/multipart, /auth/basic, /responses/download, /naming/special-properties; one-op/all-ops = 99.7%",
+      "suite": "measured"
+    },
+    "S-NO-ANY-MODELS": {
+      "status": "fail",
+      "note": "67 any in Typdeklarationen, 510 gesamt",
+      "suite": "measured"
+    },
+    "S-STRICT-COMPILE": {
+      "status": "fail",
+      "suite": "workaround",
+      "note": "Workaround: Operation reservedParamNames per excludedOperationIds ausgeschlossen – NSwag erzeugt sonst Syntaxfehler (TS1390, Parameter 'class'), der die ganze Datei bricht"
+    },
+    "S-MAX-STRICT-COMPILE": {
+      "status": "fail",
+      "suite": "workaround",
+      "note": "Workaround: Operation reservedParamNames per excludedOperationIds ausgeschlossen – NSwag erzeugt sonst Syntaxfehler (TS1390, Parameter 'class'), der die ganze Datei bricht"
+    },
+    "S-NO-RUNTIME-DEPS": {
+      "status": "pass",
+      "note": "keine",
+      "suite": "measured"
+    }
+  },
+  "integrity": {
+    "duplicates": [],
+    "unknown": [],
+    "missing": []
+  },
+  "score": {
+    "overall": 64,
+    "dimensions": {
+      "types": {
+        "points": 95,
+        "max": 135,
+        "pass": 52,
+        "fail": 16,
+        "unsupported": 9,
+        "missing": 0,
+        "pct": 70.4
+      },
+      "runtime": {
+        "points": 49,
+        "max": 78,
+        "pass": 22,
+        "fail": 10,
+        "unsupported": 7,
+        "missing": 0,
+        "pct": 62.8
+      },
+      "angular": {
+        "points": 18,
+        "max": 25,
+        "pass": 8,
+        "fail": 1,
+        "unsupported": 3,
+        "missing": 0,
+        "pct": 72
+      },
+      "static": {
+        "points": 3,
+        "max": 10,
+        "pass": 3,
+        "fail": 4,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 30
+      }
+    },
+    "categories": {
+      "types-models": {
+        "points": 41,
+        "max": 46,
+        "pass": 22,
+        "fail": 3,
+        "unsupported": 1,
+        "missing": 0,
+        "pct": 89.1
+      },
+      "types-poly": {
+        "points": 6,
+        "max": 17,
+        "pass": 3,
+        "fail": 5,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 35.3
+      },
+      "types-ops": {
+        "points": 37,
+        "max": 46,
+        "pass": 19,
+        "fail": 5,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 80.4
+      },
+      "types-naming": {
+        "points": 11,
+        "max": 12,
+        "pass": 8,
+        "fail": 1,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 91.7
+      },
+      "types-31": {
+        "points": 0,
+        "max": 14,
+        "pass": 0,
+        "fail": 2,
+        "unsupported": 8,
+        "missing": 0,
+        "pct": 0
+      },
+      "runtime-params": {
+        "points": 21,
+        "max": 31,
+        "pass": 8,
+        "fail": 7,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 67.7
+      },
+      "runtime-bodies": {
+        "points": 18,
+        "max": 21,
+        "pass": 9,
+        "fail": 1,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 85.7
+      },
+      "runtime-responses": {
+        "points": 10,
+        "max": 17,
+        "pass": 5,
+        "fail": 2,
+        "unsupported": 1,
+        "missing": 0,
+        "pct": 58.8
+      },
+      "runtime-auth": {
+        "points": 0,
+        "max": 9,
+        "pass": 0,
+        "fail": 0,
+        "unsupported": 6,
+        "missing": 0,
+        "pct": 0
+      },
+      "angular": {
+        "points": 18,
+        "max": 25,
+        "pass": 8,
+        "fail": 1,
+        "unsupported": 3,
+        "missing": 0,
+        "pct": 72
+      },
+      "static": {
+        "points": 3,
+        "max": 10,
+        "pass": 3,
+        "fail": 4,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 30
+      }
+    }
+  }
+}

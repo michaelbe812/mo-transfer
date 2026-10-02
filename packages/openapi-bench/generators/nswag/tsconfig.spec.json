@@ -1,0 +1,17 @@
+{
+  "$comment": "Runtime-Build. Zus\u00e4tzlich tests/anonymous2-shim.d.ts: generierter Code referenziert undefinierten Typ Anonymous2 (TS2552) \u2014 siehe NOTES.md.",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "../../../../dist/out-tsc/openapi-bench/nswag",
+    "types": [
+      "vitest/globals"
+    ]
+  },
+  "include": [
+    "tests/**/*.spec.ts",
+    "tests/anonymous2-shim.d.ts",
+    "client/**/*.ts",
+    "../../testing/**/*.ts"
+  ]
+}

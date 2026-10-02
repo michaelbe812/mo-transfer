@@ -1,0 +1,62 @@
+{
+  "id": "orval",
+  "name": "Orval",
+  "package": "orval",
+  "version": "8.39.0",
+  "runtime": "node",
+  "license": "MIT",
+  "repo": "https://github.com/orval-labs/orval",
+  "docs": "https://orval.dev/guides/angular",
+  "outputStyle": "class-services",
+  "config": {
+    "client": "angular — HttpClient-Services (@Injectable providedIn root, inject())",
+    "mode": "tags-split — ein Service + Resource-Datei pro Tag, Modelle einzeln unter model/ (Tree-Shaking auf Tag-Ebene)",
+    "override.angular.retrievalClient": "both — GET-Operationen zusätzlich als httpResource-Funktionen (*Resource), Services bleiben vollständig",
+    "override.angular.baseUrl": "{ apiId: 'bench' } — Base-URL via DI-Token BENCH_BASE_URL + provideBenchBaseUrl() statt hartkodierter Server-URL",
+    "override.enumGenerationType": "const — as-const-Objekt + Literal-Union-Typ: Union-Typsicherheit UND benannte Member (Priority.LOW)",
+    "override.preserveReadonlyRequestBodies": "strip — readOnly-Felder (id, createdAt) im Request-Body nicht Pflicht (NonReadonly<Pet>)",
+    "headers": "true — Header-Parameter werden typisiert generiert (sonst fehlen sie komplett)",
+    "urlEncodeParameters": "true — Pfadparameter mit encodeURIComponent",
+    "namingConvention": "kebab-case — Angular-Dateistil",
+    "useDates": "aus — Angular-Client hat keinen Date-Transformer (useDatesTransform nur fetch/query), Date-Typ wäre Lüge",
+    "input.unsafeDisableValidation": "true (nur 3.0-Spec) — Orvals Spec-Validator bricht an Property namens '$ref' ab (INVALID_REFERENCE), Spec ist valide"
+  },
+  "angular": {
+    "httpClient": true,
+    "injectFn": true,
+    "provideFn": "provideBenchBaseUrl(url) / provideBenchBaseUrlResolver(fn)",
+    "httpResource": true,
+    "httpContext": true,
+    "observeResponse": true,
+    "minAngular": "≥ 19.2 (httpResource), Services ≥ 17"
+  },
+  "validation": "none (optional zod via override.angular.runtimeValidation + schemas.type zod — nicht gewählt, Runtime-Dep zod)",
+  "generation31": "ok (type-Arrays, const, prefixItems-Tupel, enum mit null; webhooks werden ignoriert)",
+  "runtimeDeps": [],
+  "highlights": [
+    "httpResource-Funktionen pro GET mit Signal-Parametern, defaultValue-Overload, HttpContext/Header-Extension",
+    "observe body/response/events als typisierte Overloads, HttpContext/reportProgress via options",
+    "Content-Negotiation: reportByAccept('application/json'|'application/pdf') mit korrekten Overloads",
+    "deepObject/form-explode-Objekt-Query korrekt, 0/false werden gesendet",
+    "readOnly-Strip für Request-Bodies, const-Enums mit x-enum-varnames, Discriminator-Mapping-Literale",
+    "OpenAPI 3.1 sehr gut (Tupel, const, null-Unions)"
+  ],
+  "issues": [
+    "Strict-Compile-Fehler: integer-Header-Parameter (X-Retry-Count: number) wird ungecastet an HttpClient-headers übergeben (TS2322/TS2769) — Service + Resource",
+    "Strict-Compile-Fehler: reportByAcceptResource (httpResource bei Content-Negotiation) — parse-Typ Report vs Blob inkompatibel",
+    "x-www-form-urlencoded als URLSearchParams ohne Content-Type → Angular sendet Content-Type: application/json",
+    "merge-patch+json / octet-stream / Vendor-Accept: Content-Type bzw. Accept werden nicht gesetzt",
+    "Query-Arrays immer explode (form explode:false, pipeDelimited, spaceDelimited ignoriert)",
+    "securitySchemes komplett ignoriert (keine Auth-Konfiguration), Cookie-Parameter fehlen",
+    "writeOnly nicht berücksichtigt (secretChipCode im Response-Typ), keine operationsgebundenen Error-Typen",
+    "TData-Generic mit Default auf jeder Methode — Aufrufer kann Response-Typ beliebig umdeklarieren",
+    "options.headers/params als HttpHeaders/HttpParams-Instanz werden per Object-Spread zerstört",
+    "Spec-Validator-Fehlalarm bei Property '$ref' erzwingt unsafeDisableValidation"
+  ],
+  "workarounds": [
+    {
+      "description": "tsconfig.spec.json noCheck: true – generierter Code kompiliert nicht strict (Header-Param number an HttpHeaders, reportByAcceptResource), Angular-Test-Build bräche sonst ab",
+      "forceFail": []
+    }
+  ]
+}

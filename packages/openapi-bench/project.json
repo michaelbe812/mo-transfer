@@ -1,0 +1,17 @@
+{
+  "name": "openapi-bench",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "packages/openapi-bench",
+  "tags": ["scope:bench"],
+  "targets": {
+    "bench": {
+      "executor": "nx:run-commands",
+      "options": { "command": "node scripts/run-bench.mjs", "cwd": "{projectRoot}" }
+    },
+    "matrix": {
+      "executor": "nx:run-commands",
+      "options": { "command": "node scripts/build-matrix.mjs", "cwd": "{projectRoot}" }
+    }
+  }
+}

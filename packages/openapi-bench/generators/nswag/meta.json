@@ -1,0 +1,71 @@
+{
+  "id": "nswag",
+  "name": "NSwag (TypeScript, Template Angular)",
+  "package": "nswag",
+  "version": "14.7.1 (NJsonSchema 11.6.1, .NET-Runtime Net80)",
+  "runtime": "dotnet",
+  "license": "MIT",
+  "repo": "https://github.com/RicoSuter/NSwag",
+  "docs": "https://github.com/RicoSuter/NSwag/wiki/TypeScriptClientGenerator",
+  "outputStyle": "class-services",
+  "config": {
+    "file": "nswag.json (openApiToTypeScriptClient); Input/Output per /variables: aus generate.mjs",
+    "template": "Angular – @Injectable({ providedIn: 'root' })-Clients, HttpClient, rxjs-Observables",
+    "rxJsVersion/typeScriptVersion": "7.0 / 5.0 – moderne Imports, `override`, `??`",
+    "injectionTokenType": "InjectionToken – API_BASE_URL als DI-Token (statt OpaqueToken)",
+    "useSingletonProvider": "true – providedIn: 'root' → inject() ohne Providen",
+    "operationGenerationMode": "MultipleClientsFromFirstTagAndOperationId – ein Client pro Tag (PetsClient, ParamsClient, …; untagged → Client)",
+    "typeStyle": "Interface – Class-Variante evaluiert und verworfen: init() setzt fehlende optionale Felder auf null (Typ sagt undefined), toJSON() sendet jedes ungesetzte Feld als null (z. B. id: null bei createPet), Request-Bodies müssen per new Pet({...}) gebaut werden",
+    "dateTimeType": "String – konsistent mit Interface-Style (keine Laufzeit-Konvertierung). Date bei Interface wäre Typ-Lüge (JSON.parse liefert string)",
+    "enumStyle": "StringLiteral – Union-Literale. Enum würde x-enum-varnames ebenfalls ignorieren (_1/_2/_3) und Literal-Zuweisung verbieten",
+    "nullValue": "Null – nötig, damit nullable: true als `| null` typisiert wird (Undefined macht daraus `| undefined`)",
+    "markOptionalProperties": "true – nicht-required → `?`",
+    "generateOptionalParameters": "true – optionale Parameter ans Ende (listPets() ohne Argumente)",
+    "includeHttpContext": "true – HttpContext als letzter Parameter jeder Methode",
+    "wrapResponses": "false – true würde ALLE Rückgabetypen auf SwaggerResponse<T> ändern (Status/Header), aber T-RESP-200 brechen",
+    "wrapDtoExceptions/exceptionClass": "true / ApiException (Default-Name)",
+    "excludedOperationIds": "[reservedParamNames] – NOTLÖSUNG: NSwag erzeugt `reservedParamNames(class: string, default?: …)` → Syntaxfehler (TS1390) zerstört die gesamte Datei. Ohne Ausschluss kein kompilierbarer Client"
+  },
+  "angular": {
+    "httpClient": true,
+    "injectFn": true,
+    "provideFn": null,
+    "httpResource": false,
+    "httpContext": true,
+    "observeResponse": false,
+    "minAngular": "≥ 12.1 (HttpContext); Konstruktor-DI mit @Inject/@Optional"
+  },
+  "validation": "none",
+  "generation31": "failed: NJsonSchema JsonSerializationException bei `items: false` (Item31.coords, prefixItems) – kein Output",
+  "runtimeDeps": [],
+  "highlights": [
+    "Robuste Basis-Operationen: Pfad-Encoding, Query-Primitives inkl. 0/false, explode-Arrays, Header, JSON/merge-patch/urlencoded/text/octet-Bodies, Vendor-JSON, Multipart-JSON-Part",
+    "providedIn: 'root' + InjectionToken API_BASE_URL + HttpContext pro Aufruf; interceptor-fähig, cold Observables",
+    "Fehler-Responses werden als ApiException mit geparstem result (Problem) geworfen",
+    "readOnly-Felder als `readonly`, Enums als Literal-Unions, Sonder-Property-Namen korrekt gequotet",
+    "Nur @angular/* + rxjs, eine Datei"
+  ],
+  "issues": [
+    "Reservierte Parameternamen (class, default) nicht escaped → ungültiges TS, ganze Datei bricht (Operation ausgeschlossen)",
+    "Shape (oneOf + discriminator mapping): Circle wird nie generiert, listShapes referenziert undefiniertes Anonymous2 (TS2552) → Angular-Build bricht (Shim tests/anonymous2-shim.d.ts nötig); Shape = { [key: string]: any }",
+    "Jedes Modell ohne explizites additionalProperties: false bekommt `[key: string]: any` → Tippfehler in Keys werden nicht erkannt; oneOf/anyOf → leere any-Interfaces bzw. nur erste Variante (method: CardPayment)",
+    "Query-Styles ignoriert: csv/pipe/space als explode, deepObject/form-object als [object Object]; Cookie-Parameter angeboten aber verworfen",
+    "Multipart: optionale Parts (meta, attachments) werfen 'cannot be null' beim Weglassen; required title/file als optional typisiert, file als FileParameter { data: any }",
+    "multiStatus: 202 (Job) wird als ApiException geworfen statt Pet | Job; Content-Negotiation nur JSON",
+    "Keine securitySchemes-Unterstützung, kein observe/reportProgress pro Aufruf, kein httpResource; responseType immer 'blob' (eigener Parser)",
+    "x-enum-varnames ignoriert, deprecated an Properties ignoriert, writeOnly ignoriert, Fehler-Body ApiException.result: any"
+  ],
+  "workarounds": [
+    {
+      "description": "Operation reservedParamNames per excludedOperationIds ausgeschlossen – NSwag erzeugt sonst Syntaxfehler (TS1390, Parameter 'class'), der die ganze Datei bricht",
+      "forceFail": [
+        "S-STRICT-COMPILE",
+        "S-MAX-STRICT-COMPILE"
+      ]
+    },
+    {
+      "description": "tests/anonymous2-shim.d.ts (nur Runtime-Tests): NSwag referenziert nicht existierenden Typ Anonymous2 (listShapes)",
+      "forceFail": []
+    }
+  ]
+}

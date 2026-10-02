@@ -1,0 +1,27 @@
+{
+  "environment": {
+    "date": "2026-10-02T19:46:14.911Z",
+    "node": "v22.16.0",
+    "typescript": "6.0.3",
+    "angular": "22.0.8",
+    "vitest": "4.1.11",
+    "java": "openjdk version \"11.0.15\" 2022-04-19 LTS",
+    "dotnet": "9.0.203",
+    "platform": "darwin arm64"
+  },
+  "dimensionWeights": {
+    "types": 0.35,
+    "runtime": 0.35,
+    "angular": 0.2,
+    "static": 0.1
+  },
+  "generators": [
+    "ng-openapi-gen",
+    "openapi-generator",
+    "orval",
+    "hey-api",
+    "ng-openapi",
+    "nswag",
+    "openapi-fetch"
+  ]
+}

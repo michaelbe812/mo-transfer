@@ -1,0 +1,881 @@
+{
+  "id": "ng-openapi",
+  "meta": {
+    "id": "ng-openapi",
+    "name": "ng-openapi",
+    "package": "ng-openapi",
+    "version": "0.4.1",
+    "runtime": "node",
+    "license": "MIT",
+    "repo": "https://github.com/ng-openapi/ng-openapi",
+    "docs": "https://ng-openapi.dev/",
+    "outputStyle": "class-services",
+    "config": {
+      "dateType": "string — 'Date' wäre inkonsistent: Date-Transformer ist ein klassenbasierter HTTP_INTERCEPTORS-Interceptor (greift ohne withInterceptorsFromDi() nicht) und wandelt per Regex nur date-time, nicht format: date; zudem überschattet das Schema 'Date' im selben models/index.ts den globalen Date-Typ",
+      "enumStyle": "union — Literal-Union + gleichnamiges Konstanten-Objekt (Typ = exakte Werte, keine nominalen TS-enums); 'enum' liefert dieselben Member-Namen",
+      "useSingleRequestParameter": "false (Default) — true erzeugt request-params.ts mit fehlendem Import (PayParams.paymentRequest → globales DOM-PaymentRequest)",
+      "clientName": "Bench → provideBenchClient(), BASE_PATH_BENCH",
+      "emitAcceptHeader": "true (Default) — Accept aus Response-Content-Types",
+      "plugins": "HttpResourcePlugin (@ng-openapi/http-resource 0.2.0) → resources/*.resource.ts (httpResource für GET, Signal|Wert-Parameter); ZodPlugin nicht genutzt (nicht installiert, ändert Typen nicht)",
+      "generate.mjs": "ruft generateFromConfig() programmatisch auf (CLI kann .ts-Config wegen \"type\": \"module\" nicht laden); 3.0-Spec crasht unverändert (enum mit null) → dokumentierter In-Memory-Workaround: null aus nullable-Enums entfernen"
+    },
+    "angular": {
+      "httpClient": true,
+      "injectFn": true,
+      "provideFn": "provideBenchClient({ basePath, interceptors?, enableDateTransform? })",
+      "httpResource": true,
+      "httpContext": true,
+      "observeResponse": true,
+      "minAngular": "≥ 15 (peerDependency)"
+    },
+    "validation": "none",
+    "generation31": "ok",
+    "generation30": "failed ohne Workaround: TypeError in toEnumKey(null) bei NullableColor (enum: [red, green, blue, null]); mit Workaround (null aus enum entfernt, nullable bleibt) ok",
+    "runtimeDeps": [],
+    "highlights": [
+      "Angular-idiomatisch: providedIn-root-Services mit inject(), provideXxxClient(), observe body/response/events-Overloads, HttpContext/reportProgress/withCredentials pro Aufruf",
+      "httpResource-Plugin: Resource-Klassen (providedIn root) für alle GET-Operationen, Parameter als Signal oder Wert, defaultValue-Overload typisiert",
+      "Form-urlencoded und Multipart (FormData, kein manueller Content-Type) korrekt",
+      "Exakte Property-Namen (quoted), Schema-Namens-Sanitizing (user-profile → UserProfile), Kollision Date/Object korrekt typisiert (bei dateType string)",
+      "3.1: type-Arrays mit null, const, enum mit null, const-Discriminator funktionieren"
+    ],
+    "issues": [
+      "Crash bei enum mit null-Wert (3.0 nullable enum) — Generierung der Bench-Spec ohne Workaround unmöglich",
+      "Fehlende Imports in Services: Report und PaymentRequest werden nicht importiert → stillschweigend globale DOM-Typen (durch // @ts-nocheck verdeckt)",
+      "Bodies verworfen: application/merge-patch+json, application/octet-stream, text/plain → Methode ohne Body-Parameter, body: null",
+      "Header- und Cookie-Parameter werden komplett verworfen",
+      "Keine Security-Unterstützung (Bearer/API-Key/Basic/OAuth2)",
+      "Pfad-Parameter nicht encodiert; Query-Styles (form explode:false, pipe/space, deepObject) ignoriert — Arrays immer explode, deepObject flach ohne Präfix",
+      "Multipart-JSON-Part als String(meta) → '[object Object]'",
+      "Discriminator ignoriert (kind: string, kein Narrowing), readOnly/writeOnly ignoriert, x-enum-varnames ignoriert",
+      "Inline-Schemas von Operationen → Record<string, any>; 204/leere Responses → Observable<any>; mehrere 2xx → nur erstes",
+      "Alle generierten Dateien mit // @ts-nocheck — Strict-Compile-Ergebnis daher wenig aussagekräftig",
+      "package.json main zeigt auf nicht existierendes index.cjs"
+    ],
+    "workarounds": [
+      {
+        "description": "In-Memory-Spec-Patch in generate.mjs: null aus enum-Listen von Schemas mit nullable: true entfernt (NullableColor: [red, green, blue, null] → [red, green, blue]), weil ng-openapi 0.4.1 bei enum-Wert null in toEnumKey(null) mit TypeError abstürzt (beide enumStyles). Originalspec wird immer zuerst versucht.",
+        "forceFail": []
+      }
+    ]
+  },
+  "generation": {
+    "ms": 2416,
+    "runs": [
+      2416,
+      2409,
+      2524
+    ],
+    "error": null
+  },
+  "metrics": {
+    "source": {
+      "files": 24,
+      "tsFiles": 24,
+      "loc": 2442,
+      "bytes": 125996
+    },
+    "source31": {
+      "files": 14,
+      "tsFiles": 14,
+      "loc": 566,
+      "bytes": 24328
+    },
+    "any": {
+      "total": 176,
+      "inTypes": 1,
+      "tsNoCheckFiles": 21
+    },
+    "runtimeDeps": [],
+    "strict": {
+      "errors": 0,
+      "syntaxErrors": 0,
+      "byCode": {},
+      "sample": []
+    },
+    "maxStrict": {
+      "errors": 4,
+      "syntaxErrors": 0,
+      "byCode": {
+        "TS1484": 2,
+        "TS6133": 2
+      },
+      "sample": [
+        "generators/ng-openapi/client-31/tokens/index.ts(2,10): error TS1484: 'HttpInterceptor' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.",
+        "generators/ng-openapi/client-31/utils/file-download.ts(3,60): error TS6133: 'mimeType' is declared but its value is never read.",
+        "generators/ng-openapi/client/tokens/index.ts(2,10): error TS1484: 'HttpInterceptor' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.",
+        "generators/ng-openapi/client/utils/file-download.ts(3,60): error TS6133: 'mimeType' is declared but its value is never read."
+      ]
+    },
+    "bundle": {
+      "oneOp": {
+        "bytes": 4215,
+        "gzip": 1204,
+        "foreignPaths": []
+      },
+      "allOps": {
+        "bytes": 32024,
+        "gzip": 4969,
+        "foreignPaths": [
+          "/polymorphism/shapes",
+          "/bodies/multipart",
+          "/auth/basic",
+          "/responses/download",
+          "/naming/special-properties"
+        ]
+      }
+    }
+  },
+  "suites": {
+    "types": {
+      "ms": 1678,
+      "exitCode": 1,
+      "crashed": false
+    },
+    "static": {
+      "ms": 573,
+      "exitCode": 1,
+      "crashed": false
+    },
+    "runtime": {
+      "ms": 5037,
+      "exitCode": 1,
+      "crashed": false
+    }
+  },
+  "cases": {
+    "T31-TYPE-NULL-UNION": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-CONST": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-ENUM-NULL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-PREFIX-ITEMS": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type '[number, number]' does not satisfy the constraint '{ [x number] \"Expected number, Actual unknown\" | undefined; 0 \"Expected number, Actual never\"; 1 \"Expected number, Actual never\"; }'.   Types of property '0' are incompatible.     Type 'number' is not assignable to type '\"Expected number, Actual never\"'."
+    },
+    "T31-REF-SIBLINGS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-ONEOF-CONST-DISC": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-EXAMPLES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-DEPENDENT-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T31-BINARY-CONTENT-MEDIA-TYPE": {
+      "status": "fail",
+      "suite": "types",
+      "note": "No overload matches this call.   Overload 1 of 3, '(observe? \"body\" | undefined, options? RequestOptions<\"json\"> | undefined) Observable<any>', gave the following error.     Argument of type 'Blob' is not assignable to parameter of type '\"body\"'."
+    },
+    "T31-WEBHOOKS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-STRING": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-INT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-NUMBER": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PRIM-BOOLEAN": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-INT64": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-UUID": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-BYTE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-FORMAT-DATE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-STRING": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-INT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ENUM-VARNAMES": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Property 'LOW' does not exist on type '{ _1 Priority; _2 Priority; _3 Priority; }'. Property 'MEDIUM' does not exist on type '{ _1 Priority; _2 Priority; _3 Priority; }'. Property 'HIGH' does not exist on type '{ _1 Priority; _2 Priority; _3 Priority; }'."
+    },
+    "T-ENUM-NULLABLE": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'null' is not assignable to type 'NullableColor | undefined'."
+    },
+    "T-ENUM-SPECIAL-VALUES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NULLABLE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-READONLY": {
+      "status": "fail",
+      "suite": "types",
+      "note": "No overload matches this call.   Overload 1 of 3, '(pet Pet, observe? \"body\" | undefined, options? RequestOptions<\"json\"> | undefined) Observable<Pet>', gave the following error.     Argument of type '{ name string; status \"sold\"; photoUrls never[]; }' is not assignable to parameter of type 'Pet'."
+    },
+    "T-WRITEONLY": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Expected 2 arguments, but got 1."
+    },
+    "T-DEFAULTS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-REF": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-NESTED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ARRAY-UNIQUE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-SCHEMA": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-FALSE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-TRUE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ADDPROPS-WITH-PROPS": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Object literal may only specify known properties, and 'extra' does not exist in type '{ known string; }'."
+    },
+    "T-ALLOF-COMPOSE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-ONEOF-DISC": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Property 'radius' does not exist on type 'Shape'.   Property 'radius' does not exist on type 'Rectangle'."
+    },
+    "T-ONEOF-DISC-MAPPING": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type '\"circle\"' does not satisfy the constraint '\"Expected literal string circle, Actual string\"'."
+    },
+    "T-ALLOF-DISC-INHERITANCE": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'true' does not satisfy the constraint '\"Expected literal boolean true, Actual literal boolean false\"'."
+    },
+    "T-ONEOF-PLAIN": {
+      "status": "fail",
+      "suite": "types",
+      "note": "No overload matches this call.   Overload 1 of 3, '(paymentRequest PaymentRequest, observe? \"body\" | undefined, options? RequestOptions<\"json\"> | undefined) Observable<PaymentResult>', gave the following error.     Argument of type 'import(\"/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/ng-openapi/client/models/index\").PaymentRequest' is not assign"
+    },
+    "T-ANYOF": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RECURSIVE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-CIRCULAR": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-INLINE-OBJECT": {
+      "status": "fail",
+      "suite": "types",
+      "note": "This expression is not callable. Type 'Inverted<ExpectAny<any>>' has no call signatures. Type 'boolean' does not satisfy the constraint 'never'. Type 'string' does not satisfy the constraint 'never'."
+    },
+    "T-INLINE-ENUM": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Unused '@ts-expect-error' directive."
+    },
+    "T-PARAM-PATH-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-PATH-TYPES": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-ENUM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-QUERY-ARRAY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARAM-HEADER": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Expected 0-2 arguments, but got 3. Unused '@ts-expect-error' directive."
+    },
+    "T-NAME-RESERVED-PARAM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-REQUIRED": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-OPTIONAL": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-PARTIAL-BODY": {
+      "status": "fail",
+      "suite": "types",
+      "note": "No overload matches this call.   Overload 1 of 3, '(petId number, observe? \"body\" | undefined, options? RequestOptions<\"json\"> | undefined) Observable<Pet>', gave the following error.     Argument of type '{ nickname null; }' is not assignable to parameter of type '\"body\"'."
+    },
+    "T-BODY-FORM": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-MULTIPART": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-BODY-OCTET": {
+      "status": "fail",
+      "suite": "types",
+      "note": "No overload matches this call.   Overload 1 of 3, '(observe? \"body\" | undefined, options? RequestOptions<\"json\"> | undefined) Observable<any>', gave the following error.     Argument of type 'Blob' is not assignable to parameter of type '\"body\"'."
+    },
+    "T-RESP-200": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-204": {
+      "status": "fail",
+      "suite": "types",
+      "note": "This expression is not callable. Type 'Inverted<ExpectAny<any>>' has no call signatures."
+    },
+    "T-RESP-MULTI-2XX": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'Observable<Pet | Job>' does not satisfy the constraint '{ forEach \"Expected function, Actual never\"; source Observable<any> | undefined; operator \"Expected undefined, Actual never\" | \"Expected ..., Actual never\"; lift <R>(operator? Operator<...> | undefined) => Observable<...>; subscribe \"Expected function, Actual never\"; pipe { ...; }; toPromise { ...; }...'.   Types of property 'forEach' a"
+    },
+    "T-RESP-BINARY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-TEXT": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-PRIMITIVE-ARRAY": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-RESP-MAP": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'Observable<Record<string, number>>' does not satisfy the constraint '{ forEach \"Expected function, Actual never\"; source Observable<any> | undefined; operator \"Expected undefined, Actual never\" | \"Expected ..., Actual never\"; lift <R>(operator? Operator<...> | undefined) => Observable<...>; subscribe \"Expected function, Actual never\"; pipe { ...; }; toPromise { ...; }...'.   Types of propert"
+    },
+    "T-RESP-CONTENT-NEGOTIATION": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'Observable<Report>' does not satisfy the constraint '{ forEach \"Expected function, Actual function\"; source Observable<any> | undefined; operator \"Expected undefined, Actual ...\" | \"Expected ..., Actual ...\"; lift <R>(operator? Operator<...> | undefined) => Observable<...>; subscribe \"Expected function, Actual function\"; pipe { ...; }; toPromise { ...;...'.   Types of property 'forEach' are "
+    },
+    "T-ERROR-MODEL": {
+      "status": "fail",
+      "suite": "types",
+      "note": "Type 'Problem' does not satisfy the constraint 'never'."
+    },
+    "T-NAME-SPECIAL-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-RESERVED-PROPS": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-SCHEMA-COLLISION": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-SCHEMA-SANITIZE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NAME-OPERATION-ID-SANITIZE": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-NO-OPERATION-ID": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-UNTAGGED-OP": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "T-UNREFERENCED-SCHEMA": {
+      "status": "pass",
+      "suite": "types"
+    },
+    "S-DEPRECATED-OP": {
+      "status": "fail",
+      "suite": "static",
+      "note": "AssertionError: expected '' to contain '@deprecated'     at /Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/ng-openapi/tests/generated.static.test.ts:25:17     at file:///Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11"
+    },
+    "S-DEPRECATED-PROP": {
+      "status": "fail",
+      "suite": "static",
+      "note": "AssertionError: expected '/** Veraltet, wird entfernt */' to contain '@deprecated'     at /Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/ng-openapi/tests/generated.static.test.ts:32:17     at file:///Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact"
+    },
+    "S-JSDOC-DESCRIPTION": {
+      "status": "fail",
+      "suite": "static",
+      "note": "AssertionError: expected '' to contain 'Liste Pets (paginiert)'     at /Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/ng-openapi/tests/generated.static.test.ts:39:49     at file:///Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11"
+    },
+    "A-PROVIDE-FN": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-BASEURL": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-INJECT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-HTTPCLIENT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-INTERCEPTORS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-HTTPCONTEXT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-OBSERVE-RESPONSE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-REPORT-PROGRESS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-OBSERVABLE-COLD": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-HTTPRESOURCE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "A-ZONELESS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-PATH-MULTI": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-PATH-ENCODE": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected 'http://test.local/api/params/path/a/b…' to be 'http://test.local/api/params/path/a%2…' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/ng-openapi/tests/runtime.spec.ts?import&browserv=1790970314496:51:31     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11"
+    },
+    "R-QUERY-PRIMITIVES": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-OPTIONAL-OMITTED": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-EXPLODE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-ARRAY-NOEXPLODE": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected [ 'a', 'b' ] to deeply equal [ 'a,b' ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/ng-openapi/tests/runtime.spec.ts?import&browserv=1790970314496:80:48     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=bd0a15ba:302:11"
+    },
+    "R-QUERY-ARRAY-PIPE": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected [ 'a', 'b' ] to deeply equal [ 'a|b' ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/ng-openapi/tests/runtime.spec.ts?import&browserv=1790970314496:87:49     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=bd0a15ba:302:11"
+    },
+    "R-QUERY-ARRAY-SPACE": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected [ '1', '2' ] to deeply equal [ '1 2' ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/ng-openapi/tests/runtime.spec.ts?import&browserv=1790970314496:94:50     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=bd0a15ba:302:11"
+    },
+    "R-QUERY-DEEPOBJECT": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected [] to deeply equal [ 'rex' ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/ng-openapi/tests/runtime.spec.ts?import&browserv=1790970314496:101:53     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=bd0a15ba:302:11"
+    },
+    "R-QUERY-FORM-OBJECT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-DATE": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-QUERY-BOOLEAN": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-HEADER-PARAM": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: headerAndCookieParams() bietet keine Header-Parameter an: expected [ null, null, null ] to deeply equal [ …(3) ]     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/ng-openapi/tests/runtime.spec.ts?import&browserv=1790970314496:141:80"
+    },
+    "R-COOKIE-PARAM": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-COOKIE-PARAM] Cookie-Parameter — unsupported: ng-openapi verwirft in:cookie-Parameter (und Browser verbietet Cookie-Header)"
+    },
+    "R-NAME-RESERVED-PARAM": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-JSON": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-NULL-SEND": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-MERGE-PATCH": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected 'application/json' to be 'application/merge-patch+json' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/ng-openapi/tests/runtime.spec.ts?import&browserv=1790970314496:176:49     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/di"
+    },
+    "R-BODY-FORM-URLENCODED": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-MULTIPART": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-BODY-MULTIPART-JSON-PART": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "SyntaxError: \"[object Object]\" is not valid JSON     at JSON.parse (<anonymous>)     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/ng-openapi/tests/runtime.spec.ts?import&browserv=1790970314496:209:19"
+    },
+    "R-BODY-OCTET": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected null to be an instance of Blob     at Proxy.<anonymous> (http://localhost:63315/node_modules/.pnpm/@vitest+expect@4.1.11/node_modules/@vitest/expect/dist/index.js?v=bd0a15ba:1386:15)     at Proxy.<anonymous> (http://localhost:63315/node_modules/.pnpm/@vitest+expect@4.1.11/node_modules/@vitest/expect/dist/index.js?v=bd0a15ba:1156:15)"
+    },
+    "R-BODY-TEXT": {
+      "status": "fail",
+      "suite": "runtime",
+      "note": "AssertionError: expected null to be 'hello' // Object.is equality     at http://localhost:63315/Users/michaelberger/Documents/dev/_customer/tesla/mo-transfer/packages/openapi-bench/generators/ng-openapi/tests/runtime.spec.ts?import&browserv=1790970314496:225:43     at http://localhost:63315/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/dist/chunk-artifact.js?v=bd0a15ba:302:1"
+    },
+    "R-BODY-POLYMORPHIC": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-NAME-SPECIAL-PROPS": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-204": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-BLOB": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-TEXT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-VENDOR-JSON": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-ACCEPT-HEADER": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-DATE-CONSISTENT": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-RESP-201-LOCATION": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-ERROR-BODY": {
+      "status": "pass",
+      "suite": "runtime"
+    },
+    "R-AUTH-BEARER": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-BEARER] Bearer via Konfiguration — unsupported: keine Security-Konfiguration generiert"
+    },
+    "R-AUTH-APIKEY-HEADER": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-APIKEY-HEADER] API-Key-Header via Konfiguration — unsupported: keine Security-Konfiguration generiert"
+    },
+    "R-AUTH-APIKEY-QUERY": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-APIKEY-QUERY] API-Key-Query via Konfiguration — unsupported: keine Security-Konfiguration generiert"
+    },
+    "R-AUTH-BASIC": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-BASIC] Basic via Konfiguration — unsupported: keine Security-Konfiguration generiert"
+    },
+    "R-AUTH-OAUTH2": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-OAUTH2] OAuth2 via Konfiguration — unsupported: keine Security-Konfiguration generiert"
+    },
+    "R-AUTH-NONE": {
+      "status": "unsupported",
+      "suite": "runtime",
+      "note": "[R-AUTH-NONE] security: [] ohne Authorization — unsupported: ohne Token-Konfiguration nicht prüfbar (keine Security-Unterstützung)"
+    },
+    "A-TREESHAKE": {
+      "status": "pass",
+      "note": "keine fremden Operationen im one-op-Bundle; one-op/all-ops = 13.2%",
+      "suite": "measured"
+    },
+    "S-NO-ANY-MODELS": {
+      "status": "fail",
+      "note": "1 any in Typdeklarationen, 176 gesamt, 21 Dateien mit @ts-nocheck",
+      "suite": "measured"
+    },
+    "S-STRICT-COMPILE": {
+      "status": "fail",
+      "note": "0 Fehler (+ @ts-nocheck in 21 Dateien)",
+      "suite": "measured"
+    },
+    "S-MAX-STRICT-COMPILE": {
+      "status": "fail",
+      "note": "4 Fehler",
+      "suite": "measured"
+    },
+    "S-NO-RUNTIME-DEPS": {
+      "status": "pass",
+      "note": "keine",
+      "suite": "measured"
+    }
+  },
+  "integrity": {
+    "duplicates": [],
+    "unknown": [],
+    "missing": []
+  },
+  "score": {
+    "overall": 69.2,
+    "dimensions": {
+      "types": {
+        "points": 101,
+        "max": 135,
+        "pass": 56,
+        "fail": 21,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 74.8
+      },
+      "runtime": {
+        "points": 49,
+        "max": 78,
+        "pass": 22,
+        "fail": 10,
+        "unsupported": 7,
+        "missing": 0,
+        "pct": 62.8
+      },
+      "angular": {
+        "points": 25,
+        "max": 25,
+        "pass": 12,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "static": {
+        "points": 1,
+        "max": 10,
+        "pass": 1,
+        "fail": 6,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 10
+      }
+    },
+    "categories": {
+      "types-models": {
+        "points": 39,
+        "max": 46,
+        "pass": 21,
+        "fail": 5,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 84.8
+      },
+      "types-poly": {
+        "points": 8,
+        "max": 17,
+        "pass": 4,
+        "fail": 4,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 47.1
+      },
+      "types-ops": {
+        "points": 30,
+        "max": 46,
+        "pass": 14,
+        "fail": 10,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 65.2
+      },
+      "types-naming": {
+        "points": 12,
+        "max": 12,
+        "pass": 9,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "types-31": {
+        "points": 12,
+        "max": 14,
+        "pass": 8,
+        "fail": 2,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 85.7
+      },
+      "runtime-params": {
+        "points": 18,
+        "max": 31,
+        "pass": 8,
+        "fail": 6,
+        "unsupported": 1,
+        "missing": 0,
+        "pct": 58.1
+      },
+      "runtime-bodies": {
+        "points": 14,
+        "max": 21,
+        "pass": 6,
+        "fail": 4,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 66.7
+      },
+      "runtime-responses": {
+        "points": 17,
+        "max": 17,
+        "pass": 8,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "runtime-auth": {
+        "points": 0,
+        "max": 9,
+        "pass": 0,
+        "fail": 0,
+        "unsupported": 6,
+        "missing": 0,
+        "pct": 0
+      },
+      "angular": {
+        "points": 25,
+        "max": 25,
+        "pass": 12,
+        "fail": 0,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 100
+      },
+      "static": {
+        "points": 1,
+        "max": 10,
+        "pass": 1,
+        "fail": 6,
+        "unsupported": 0,
+        "missing": 0,
+        "pct": 10
+      }
+    }
+  }
+}

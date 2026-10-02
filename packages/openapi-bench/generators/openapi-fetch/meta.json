@@ -1,0 +1,48 @@
+{
+  "id": "openapi-fetch",
+  "name": "openapi-typescript + openapi-fetch",
+  "package": "openapi-typescript (+ openapi-fetch)",
+  "version": "7.13.0 (+ 0.17.0)",
+  "runtime": "node",
+  "license": "MIT",
+  "repo": "https://github.com/openapi-ts/openapi-typescript",
+  "docs": "https://openapi-ts.dev",
+  "outputStyle": "functions",
+  "config": {
+    "api": "Node-API (generate.mjs) statt CLI – nur dort gibt es `transform`",
+    "readWriteMarkers": "true – $Read/$Write; openapi-fetch wendet Readable/Writable an (readOnly raus aus Request, writeOnly raus aus Response)",
+    "rootTypes": "true – SchemaPet, SchemaUserProfile … als Root-Exports (mit Schema-Präfix, sonst Kollision mit Date/Object/Priority-Enum)",
+    "enum + conditionalEnums": "true – TS-Enum nur bei x-enum-varnames (Priority.LOW…), sonst Literal-Unions",
+    "defaultNonNullable": "false – Property mit default bleibt im Request optional (CLI-Default true machte vaccinated Pflicht)",
+    "arrayLength": "false – mit prefixItems + minItems falsches Tupel-Tupel (Bug), ohne Flag korrektes [number, number]",
+    "transform": "format: binary → Blob (dokumentiertes Rezept 'Blob types'); Date-Transform bewusst NICHT (Runtime konvertiert nicht)",
+    "enumValues": "false – nur Laufzeit-Arrays, kein Typgewinn; shadowt global ReadonlyArray im Output",
+    "excludeDeprecated": "false"
+  },
+  "angular": {
+    "httpClient": false,
+    "injectFn": false,
+    "provideFn": null,
+    "httpResource": false,
+    "httpContext": false,
+    "observeResponse": false,
+    "minAngular": "unabhängig (framework-agnostisch, fetch)"
+  },
+  "validation": "none",
+  "generation31": "ok",
+  "runtimeDeps": ["openapi-fetch", "openapi-typescript-helpers"],
+  "highlights": [
+    "Sehr hohe Typpräzision (75/77 Typ-Cases): Discriminator-Literale, readOnly/writeOnly getrennt, Fehler-Body pro Operation typisiert",
+    "3.1 vollständig: const, type-Arrays mit null, prefixItems-Tupel, Webhooks",
+    "Namen 1:1 (WeirdNames, user-profile, reserved params) – kein Umbenennen, nichts kaputt am Wire",
+    "Strict + max-strict-Compile fehlerfrei; ein generiertes File, Runtime = ein kleines Modul"
+  ],
+  "issues": [
+    "Runtime kennt Spec nicht: jeder Body JSON.stringify + Content-Type application/json (form, multipart, octet, text, merge-patch falsch)",
+    "Response immer JSON.parse ohne parseAs → Text/Binary werfen SyntaxError; kein Accept-Header",
+    "Query-Stile nicht pro Parameter: pipe/space/csv/form-object falsch (nur globaler querySerializer)",
+    "Readable<T> zerlegt Blob in Mapped Type → Binary-Response-Typ ist kein Blob",
+    "Keine Angular-Integration (kein HttpClient/Interceptor/DI/Resource), keine Auth-Konfiguration",
+    "--array-length erzeugt mit prefixItems falsches Tupel"
+  ]
+}

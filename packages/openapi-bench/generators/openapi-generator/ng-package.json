@@ -1,0 +1,5 @@
+{
+  "$schema": "../../../../node_modules/ng-packagr/ng-package.schema.json",
+  "dest": "../../../../dist/packages/openapi-bench/generators/openapi-generator",
+  "lib": { "entryFile": "bundle/all-ops.ts" }
+}

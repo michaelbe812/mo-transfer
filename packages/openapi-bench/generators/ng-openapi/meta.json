@@ -1,0 +1,59 @@
+{
+  "id": "ng-openapi",
+  "name": "ng-openapi",
+  "package": "ng-openapi",
+  "version": "0.4.1",
+  "runtime": "node",
+  "license": "MIT",
+  "repo": "https://github.com/ng-openapi/ng-openapi",
+  "docs": "https://ng-openapi.dev/",
+  "outputStyle": "class-services",
+  "config": {
+    "dateType": "string — 'Date' wäre inkonsistent: Date-Transformer ist ein klassenbasierter HTTP_INTERCEPTORS-Interceptor (greift ohne withInterceptorsFromDi() nicht) und wandelt per Regex nur date-time, nicht format: date; zudem überschattet das Schema 'Date' im selben models/index.ts den globalen Date-Typ",
+    "enumStyle": "union — Literal-Union + gleichnamiges Konstanten-Objekt (Typ = exakte Werte, keine nominalen TS-enums); 'enum' liefert dieselben Member-Namen",
+    "useSingleRequestParameter": "false (Default) — true erzeugt request-params.ts mit fehlendem Import (PayParams.paymentRequest → globales DOM-PaymentRequest)",
+    "clientName": "Bench → provideBenchClient(), BASE_PATH_BENCH",
+    "emitAcceptHeader": "true (Default) — Accept aus Response-Content-Types",
+    "plugins": "HttpResourcePlugin (@ng-openapi/http-resource 0.2.0) → resources/*.resource.ts (httpResource für GET, Signal|Wert-Parameter); ZodPlugin nicht genutzt (nicht installiert, ändert Typen nicht)",
+    "generate.mjs": "ruft generateFromConfig() programmatisch auf (CLI kann .ts-Config wegen \"type\": \"module\" nicht laden); 3.0-Spec crasht unverändert (enum mit null) → dokumentierter In-Memory-Workaround: null aus nullable-Enums entfernen"
+  },
+  "angular": {
+    "httpClient": true,
+    "injectFn": true,
+    "provideFn": "provideBenchClient({ basePath, interceptors?, enableDateTransform? })",
+    "httpResource": true,
+    "httpContext": true,
+    "observeResponse": true,
+    "minAngular": "≥ 15 (peerDependency)"
+  },
+  "validation": "none",
+  "generation31": "ok",
+  "generation30": "failed ohne Workaround: TypeError in toEnumKey(null) bei NullableColor (enum: [red, green, blue, null]); mit Workaround (null aus enum entfernt, nullable bleibt) ok",
+  "runtimeDeps": [],
+  "highlights": [
+    "Angular-idiomatisch: providedIn-root-Services mit inject(), provideXxxClient(), observe body/response/events-Overloads, HttpContext/reportProgress/withCredentials pro Aufruf",
+    "httpResource-Plugin: Resource-Klassen (providedIn root) für alle GET-Operationen, Parameter als Signal oder Wert, defaultValue-Overload typisiert",
+    "Form-urlencoded und Multipart (FormData, kein manueller Content-Type) korrekt",
+    "Exakte Property-Namen (quoted), Schema-Namens-Sanitizing (user-profile → UserProfile), Kollision Date/Object korrekt typisiert (bei dateType string)",
+    "3.1: type-Arrays mit null, const, enum mit null, const-Discriminator funktionieren"
+  ],
+  "issues": [
+    "Crash bei enum mit null-Wert (3.0 nullable enum) — Generierung der Bench-Spec ohne Workaround unmöglich",
+    "Fehlende Imports in Services: Report und PaymentRequest werden nicht importiert → stillschweigend globale DOM-Typen (durch // @ts-nocheck verdeckt)",
+    "Bodies verworfen: application/merge-patch+json, application/octet-stream, text/plain → Methode ohne Body-Parameter, body: null",
+    "Header- und Cookie-Parameter werden komplett verworfen",
+    "Keine Security-Unterstützung (Bearer/API-Key/Basic/OAuth2)",
+    "Pfad-Parameter nicht encodiert; Query-Styles (form explode:false, pipe/space, deepObject) ignoriert — Arrays immer explode, deepObject flach ohne Präfix",
+    "Multipart-JSON-Part als String(meta) → '[object Object]'",
+    "Discriminator ignoriert (kind: string, kein Narrowing), readOnly/writeOnly ignoriert, x-enum-varnames ignoriert",
+    "Inline-Schemas von Operationen → Record<string, any>; 204/leere Responses → Observable<any>; mehrere 2xx → nur erstes",
+    "Alle generierten Dateien mit // @ts-nocheck — Strict-Compile-Ergebnis daher wenig aussagekräftig",
+    "package.json main zeigt auf nicht existierendes index.cjs"
+  ],
+  "workarounds": [
+    {
+      "description": "In-Memory-Spec-Patch in generate.mjs: null aus enum-Listen von Schemas mit nullable: true entfernt (NullableColor: [red, green, blue, null] → [red, green, blue]), weil ng-openapi 0.4.1 bei enum-Wert null in toEnumKey(null) mit TypeError abstürzt (beide enumStyles). Originalspec wird immer zuerst versucht.",
+      "forceFail": []
+    }
+  ]
+}

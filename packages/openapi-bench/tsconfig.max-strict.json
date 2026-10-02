@@ -1,0 +1,11 @@
+{
+  "$comment": "Max-strict: Angular-CLI-strict + zusätzliche Flags. Nur für Messung S-MAX-STRICT-COMPILE.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  }
+}
