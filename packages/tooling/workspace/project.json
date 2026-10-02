@@ -1,0 +1,41 @@
+{
+  "name": "tooling-workspace",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/tooling/workspace/src",
+  "tags": ["type:tooling", "tooling:workspace"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "dependsOn": [],
+      "inputs": [
+        "default",
+        "^default",
+        {
+          "externalDependencies": ["typescript", "@nx/devkit"]
+        }
+      ],
+      "options": {
+        "command": "tsc -p packages/tooling/workspace/tsconfig.json"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^default",
+        {
+          "externalDependencies": ["vitest", "@nx/devkit", "typescript"]
+        }
+      ],
+      "options": {
+        "command": "vitest run --config packages/tooling/workspace/vitest.config.mts"
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@mo-transfer/tooling-workspace",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Generatoren domain/layer/feat/testing/move/rename/remove/component/service/store (schreiben/pflegen die expliziten Config-Dateien der Libs + tsconfig paths), Sync-Generator app-routes.",
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "generators": "./generators.json",
+  "dependencies": {
+    "@mo-transfer/tooling-conventions": "workspace:*",
+    "@mo-transfer/tooling-openapi": "workspace:*"
+  }
+}

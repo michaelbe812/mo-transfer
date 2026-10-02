@@ -2,7 +2,13 @@
   "name": "@mo-transfer/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "verify": "nx run tooling-verify:verify",
+    "verify:boundaries": "node packages/tooling/verify/scripts/verify-boundaries.mjs",
+    "verify:nx-internals": "node packages/tooling/verify/scripts/verify-nx-internals.mjs",
+    "openapi:generate": "nx run-many -t generate",
+    "test:ui": "sh -c 'nx run \"$0:test\" --ui \"$@\"'"
+  },
   "private": true,
   "dependencies": {
     "@angular/common": "~22.0.4",
@@ -21,6 +27,14 @@
     "@angular/compiler-cli": "~22.0.4",
     "@angular/language-service": "~22.0.4",
     "@eslint/js": "^9.8.0",
+    "@faker-js/faker": "10.6.0",
+    "@hey-api/openapi-ts": "0.83.1",
+    "@mo-transfer/tooling-ng-lib": "workspace:*",
+    "@mo-transfer/tooling-openapi": "workspace:*",
+    "@mo-transfer/tooling-workspace": "workspace:*",
+    "@nx-plugin-openapi/core": "1.0.0",
+    "@nx-plugin-openapi/plugin-hey-api": "1.0.0",
+    "@nx-plugin-openapi/plugin-openapi": "1.0.0",
     "@nx/angular": "23.1.0",
     "@nx/devkit": "23.1.0",
     "@nx/eslint": "23.1.0",
@@ -29,21 +43,45 @@
     "@nx/playwright": "23.1.0",
     "@nx/web": "23.1.0",
     "@nx/workspace": "23.1.0",
-    "@playwright/test": "^1.37.0",
+    "@openapitools/openapi-generator-cli": "2.41.0",
+    "@playwright/test": "^1.63.0",
     "@schematics/angular": "~22.0.4",
+    "@swc-node/register": "^1.12.0",
+    "@swc/core": "^1.15.43",
     "@swc/helpers": "~0.5.18",
+    "@types/node": "^22.20.4",
+    "@typescript-eslint/rule-tester": "8.70.1",
     "@typescript-eslint/utils": "^8.58.0",
+    "@vitest/browser-playwright": "~4.1.11",
+    "@vitest/coverage-v8": "~4.1.11",
+    "@vitest/ui": "~4.1.11",
     "angular-eslint": "^22.0.0",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-playwright": "^1.6.2",
-    "jsdom": "^27.1.0",
+    "msw": "^3.0.0",
+    "ng-packagr": "~22.0.2",
     "nx": "23.1.0",
+    "openapi-msw": "2.0.0",
+    "openapi-typescript": "7.13.0",
+    "orval": "8.38.0",
+    "playwright": "^1.63.0",
     "prettier": "~3.6.2",
     "tslib": "^2.3.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.58.0",
-    "vitest": "^4.0.8"
+    "vitest": "~4.1.11",
+    "yaml": "2.9.1"
   },
-  "packageManager": "pnpm@10.12.1+sha256.889bac470ec93ccc3764488a19d6ba8f9c648ad5e50a9a6e4be3768a5de387a3"
+  "packageManager": "pnpm@10.12.1+sha256.889bac470ec93ccc3764488a19d6ba8f9c648ad5e50a9a6e4be3768a5de387a3",
+  "pnpm": {
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "msw": "3",
+        "openapi-msw>msw": "3",
+        "openapi-typescript>typescript": "6",
+        "@nx/devkit>nx": "23"
+      }
+    }
+  }
 }

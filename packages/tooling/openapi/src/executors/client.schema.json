@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "outputCapture": "direct-nodejs",
+  "$schema": "https://json-schema.org/schema",
+  "title": "OpenAPI client",
+  "description": "Written into project.json by the client generator. Only the client path: adapter, options and url are read from openapi-clients.json at run time (a json input of generate), so an entry change never touches the project config.",
+  "type": "object",
+  "properties": {
+    "client": {
+      "type": "string",
+      "description": "Client path below libs/ = key in openapi-clients.json, e.g. generated/pet-client or booking/generated/booking-client."
+    }
+  },
+  "required": ["client"],
+  "additionalProperties": false
+}

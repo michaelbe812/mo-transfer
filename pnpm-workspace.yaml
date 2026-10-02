@@ -1,3 +1,6 @@
+packages:
+  - 'packages/tooling/*'
+
 autoInstallPeers: true
 onlyBuiltDependencies:
   - nx

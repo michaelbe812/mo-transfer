@@ -28,6 +28,7 @@ node_modules
 /.sass-cache
 /connect.lock
 /coverage
+/packages/tooling/*/coverage
 /libpeerconnection.log
 npm-debug.log
 yarn-error.log
@@ -46,4 +47,9 @@ Thumbs.db
 
 .angular
 
+# vitest browser mode: screenshots/attachments of failed tests
 __screenshots__/
+.vitest-attachments
+
+# generated OpenAPI clients (packages/tooling/openapi): per client lib only src/index.ts is committed
+**/src/generated/**

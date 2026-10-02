@@ -1,0 +1,6 @@
+{
+  "name": "@mo-transfer/tooling-verify",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Beweise des Blueprints: verify-boundaries (Target verify: Boundaries, explizite Config pro Lib, Tag-Schema, Clients), verify-nx-internals (nach nx migrate) mit dist-Snapshot."
+}

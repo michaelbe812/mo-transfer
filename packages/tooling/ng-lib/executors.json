@@ -1,0 +1,10 @@
+{
+  "executors": {
+    "test": {
+      "implementation": "./src/test.js",
+      "hasher": "./src/test-hasher.js",
+      "schema": "@nx/angular/src/executors/unit-test/schema.json",
+      "description": "@nx/angular:unit-test, unverändert durchgereicht. `--ui`: Vitest UI (watch, headed), nie aus dem Cache (eigener Hasher)."
+    }
+  }
+}

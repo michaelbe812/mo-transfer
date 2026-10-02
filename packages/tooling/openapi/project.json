@@ -1,0 +1,74 @@
+{
+  "name": "tooling-openapi",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/tooling/openapi/src",
+  "tags": ["type:tooling", "tooling:openapi"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "dependsOn": [],
+      "inputs": [
+        "default",
+        "^default",
+        {
+          "externalDependencies": ["typescript", "@nx/devkit"]
+        }
+      ],
+      "options": {
+        "command": "tsc -p packages/tooling/openapi/tsconfig.json"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/nx.json",
+        "{workspaceRoot}/openapitools.json",
+        "{workspaceRoot}/package.json",
+        "{workspaceRoot}/pnpm-lock.yaml",
+        "{workspaceRoot}/tsconfig.base.json",
+        {
+          "externalDependencies": [
+            "vitest",
+            "@vitest/coverage-v8",
+            "typescript",
+            "yaml",
+            "prettier",
+            "nx",
+            "@nx/devkit",
+            "@openapitools/openapi-generator-cli",
+            "@hey-api/openapi-ts",
+            "@nx-plugin-openapi/core",
+            "@nx-plugin-openapi/plugin-openapi",
+            "@nx-plugin-openapi/plugin-hey-api",
+            "openapi-typescript",
+            "orval",
+            "openapi-msw",
+            "msw",
+            "@faker-js/faker",
+            "@angular/core",
+            "@angular/common",
+            "rxjs"
+          ]
+        },
+        {
+          "runtime": "java -version 2>&1"
+        }
+      ],
+      "outputs": ["{projectRoot}/coverage"],
+      "metadata": {
+        "description": "All tests: unit + integration (jar/Java, hey-api, nx-plugin-openapi, orval, msw, tsc, nx in a fixture workspace) with coverage; fails below 95 %"
+      },
+      "options": {
+        "command": "vitest run --config packages/tooling/openapi/vitest.config.mts --coverage"
+      }
+    }
+  }
+}

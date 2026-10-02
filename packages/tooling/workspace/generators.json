@@ -1,0 +1,64 @@
+{
+  "generators": {
+    "domain": {
+      "factory": "./src/generators/domain/generator",
+      "schema": "./src/generators/domain/schema.json",
+      "description": "Neue Domain: libs/<d>/{types,data-access,state,ui,shell} + testing + Beispiel-Spec, je mit Config-Dateien + paths, Lazy-Route, Scope-Liste."
+    },
+    "layer": {
+      "factory": "./src/generators/layer/generator",
+      "schema": "./src/generators/layer/schema.json",
+      "description": "Eine Lib in einer bestehenden Domain: libs/<d>/<layer> mit Config-Dateien + paths."
+    },
+    "testing": {
+      "factory": "./src/generators/testing/generator",
+      "schema": "./src/generators/testing/schema.json",
+      "description": "Testing-Lib einer bestehenden Domain: fixtures, handlers, scenarios."
+    },
+    "feat": {
+      "factory": "./src/generators/feat/generator",
+      "schema": "./src/generators/feat/schema.json",
+      "description": "Feat: libs/<d>/feat-<x>/feature (+ state/ui), Lazy-Route in den Shell-Routes."
+    },
+    "move": {
+      "factory": "./src/generators/move/generator",
+      "schema": "./src/generators/move/schema.json",
+      "description": "Lib, Feat oder Domain verschieben, @mo-transfer/...-Importe (auch import()) umschreiben, Config-Dateien + paths nachziehen."
+    },
+    "rename": {
+      "factory": "./src/generators/rename/generator",
+      "schema": "./src/generators/rename/schema.json",
+      "description": "Lib, Feat oder Domain umbenennen (move an denselben Ort)."
+    },
+    "remove": {
+      "factory": "./src/generators/remove/generator",
+      "schema": "./src/generators/remove/schema.json",
+      "description": "Lib, Feat oder Domain löschen (inkl. Config-Dateien + paths), Routes + Scope austragen; bricht bei Importen ab (außer --force)."
+    },
+    "component": {
+      "factory": "./src/generators/component/generator",
+      "schema": "./src/generators/component/schema.json",
+      "description": "Standalone-Komponente in einer Lib: Layer-Prüfung, dann @nx/angular:component (inline, app-Präfix, ohne Spec, Export)."
+    },
+    "service": {
+      "factory": "./src/generators/service/generator",
+      "schema": "./src/generators/service/schema.json",
+      "description": "Injectable in einer Lib: Layer-Prüfung, dann @schematics/angular:service (ohne Spec, Export)."
+    },
+    "store": {
+      "factory": "./src/generators/store/generator",
+      "schema": "./src/generators/store/schema.json",
+      "description": "Signal-Store in einer Lib (eigenes Template, Nx hat keinen Store-Generator)."
+    },
+    "lib-tags": {
+      "factory": "./src/sync/lib-tags/generator",
+      "schema": "./src/sync/lib-tags/schema.json",
+      "description": "Sync-Generator (nx sync): Tags jeder Lib = aus dem Pfad abgeleitete Tags (deriveTags)."
+    },
+    "app-routes": {
+      "factory": "./src/sync/app-routes/generator",
+      "schema": "./src/sync/app-routes/schema.json",
+      "description": "Sync-Generator (nx sync): Slice-Shells in app.routes.ts registriert, keine Route auf fehlende Libs."
+    }
+  }
+}

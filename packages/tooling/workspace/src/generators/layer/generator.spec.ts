@@ -1,0 +1,79 @@
+import type { Tree } from '@nx/devkit';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { APP_ROUTES, createBlueprintTree, pathsOf, read } from '@mo-transfer/tooling-conventions/testing';
+import { addScope, readJsonFile } from '@mo-transfer/tooling-conventions/tree';
+import { findLazyRoutes } from '../shared/routes';
+import { layerGenerator } from './generator';
+
+describe('layer generator', () => {
+  let tree: Tree;
+  beforeEach(() => {
+    tree = createBlueprintTree();
+  });
+
+  it('adds a lib with an example to an existing domain', async () => {
+    await layerGenerator(tree, { domain: 'booking', layer: 'utils' });
+
+    expect(read(tree, 'libs/booking/utils/src/index.ts')).toBe("export * from './booking.utils';\n");
+    expect(read(tree, 'libs/booking/utils/src/booking.utils.ts')).toContain('export function normalizeBookingName');
+  });
+
+  it('writes the explicit config: project.json (tags from the path), build files, paths entry', async () => {
+    await layerGenerator(tree, { domain: 'booking', layer: 'ui' });
+
+    const root = 'libs/booking/ui';
+    expect(readJsonFile(tree, `${root}/project.json`)).toMatchObject({
+      name: 'booking-ui',
+      sourceRoot: `${root}/src`,
+      tags: ['scope:booking', 'type:ui', 'feat:none'],
+      targets: { build: {}, lint: {}, typecheck: {} },
+    });
+    expect(readJsonFile(tree, `${root}/package.json`)).toEqual({
+      name: '@mo-transfer/booking/ui',
+      version: '0.0.1',
+      private: true,
+      peerDependencies: { '@angular/core': '^22.0.0' },
+      sideEffects: false,
+    });
+    expect(readJsonFile(tree, `${root}/ng-package.json`)).toMatchObject({ dest: '../../../dist/libs/booking/ui' });
+    for (const file of ['tsconfig.json', 'tsconfig.lib.json', 'tsconfig.lib.prod.json'])
+      expect(tree.exists(`${root}/${file}`)).toBe(true);
+    expect(tree.exists(`${root}/tsconfig.spec.json`)).toBe(false);
+    expect(pathsOf(tree)['@mo-transfer/booking/ui']).toEqual(['./libs/booking/ui/src/index.ts']);
+  });
+
+  it('leaves an existing lib untouched', async () => {
+    await layerGenerator(tree, { domain: 'booking', layer: 'data-access' });
+
+    expect(read(tree, 'libs/booking/data-access/src/booking-api.ts')).toContain('all: Booking[] = [];');
+  });
+
+  it('validates domain and layer (layer list from the conventions)', async () => {
+    await expect(layerGenerator(tree, { domain: 'payment', layer: 'ui' })).rejects.toThrow('Unknown scope "payment"');
+    await expect(layerGenerator(tree, { domain: 'booking', layer: 'widgets' })).rejects.toThrow(
+      'allowed: types, utils, data-access, state, ui, shell, testing',
+    );
+    for (const removed of ['api', 'events', 'data'])
+      await expect(layerGenerator(tree, { domain: 'booking', layer: removed })).rejects.toThrow(`Unknown layer "${removed}"`);
+    await expect(layerGenerator(tree, { domain: 'booking', layer: 'feature' })).rejects.toThrow(
+      'only exists inside a feat',
+    );
+  });
+
+  it('checks the layers the example imports', async () => {
+    tree.write('libs/notes/types/src/index.ts', 'export {};\n');
+    addScope(tree, 'notes');
+
+    await expect(layerGenerator(tree, { domain: 'notes', layer: 'shell' })).rejects.toThrow(
+      'needs libs/notes/state, libs/notes/ui',
+    );
+  });
+
+  it('registers a new shell in the app routes', async () => {
+    addScope(tree, 'notes');
+    tree.write('libs/notes/types/src/index.ts', 'export interface Notes {\n  id: string;\n  name: string;\n}\n');
+    for (const layer of ['data-access', 'state', 'ui', 'shell']) await layerGenerator(tree, { domain: 'notes', layer });
+
+    expect(findLazyRoutes(read(tree, APP_ROUTES)).map((route) => route.specifier)).toContain('@mo-transfer/notes/shell');
+  });
+});
