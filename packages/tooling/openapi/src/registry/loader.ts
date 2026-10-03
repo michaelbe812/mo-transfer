@@ -102,26 +102,14 @@ function nearestPackageType(file: string): string | undefined {
 type Import = (specifier: string) => Promise<unknown>;
 /** A real `import()`: created at run time, so neither swc (Nx) nor tsc turns it into `require()`. */
 const functionImport = new Function('specifier', 'return import(specifier)') as Import;
-/**
- * Inside a vm context without an import callback (Vitest runs modules like that) a Function-created import()
- * fails; there Node's main-context loader is borrowed explicitly (experimental API, so only as fallback).
- */
-const vmImport = (): Import => {
-  const vm = nodeRequire('node:vm') as {
-    compileFunction(code: string, params: string[], options: object): Import;
-    constants: { USE_MAIN_CONTEXT_DEFAULT_LOADER: symbol };
-  };
-  return vm.compileFunction('return import(specifier)', ['specifier'], {
-    importModuleDynamically: vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
-  });
-};
 
 async function dynamicImport(specifier: string): Promise<unknown> {
   try {
     return await functionImport(specifier);
   } catch (error) {
+    // Vitest runs modules in a vm context without an import callback: there the module's own import() works
     if ((error as NodeJS.ErrnoException).code !== 'ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING') throw error;
-    return vmImport()(specifier);
+    return import(specifier);
   }
 }
 
