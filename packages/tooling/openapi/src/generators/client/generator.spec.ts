@@ -381,7 +381,7 @@ describe('syncTargetDefaults (L5)', () => {
     const after = read(tree, 'nx.json');
     syncTargetDefaults(tree, names);
     expect(read(tree, 'nx.json')).toBe(after);
-    updateJson(tree, 'nx.json', ({ targetDefaults: _, ...rest }) => rest);
+    updateJson(tree, 'nx.json', (nxJson) => ({ ...nxJson, targetDefaults: undefined }));
     expect(() => syncTargetDefaults(tree, names)).not.toThrow();
   });
 });
