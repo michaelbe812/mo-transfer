@@ -14,7 +14,7 @@ import {
   schemaPathFor,
   toolingMode,
 } from './project-config';
-import { DEFAULT_SETTINGS, resolveSettings } from './settings';
+import { resolveSettings } from './settings';
 
 const INDEX = "export * from './generated';\n";
 const REPO_ROOT = join(__dirname, '../../../..');
@@ -134,7 +134,7 @@ describe('client config (project.json of clients and parts, inferred targets)', 
     expect(target['outputs']).toEqual(['{projectRoot}/types/src/generated', '{projectRoot}/api/src/generated']);
   });
 
-  it('npm package adapter: externalDependency on the package; toolingInputs package / none / source', () => {
+  it('npm package adapter: externalDependency on the package; tooling inputs by location (source / package / none)', () => {
     client('generated/pet-client');
     write('node_modules/@acme/openapi-adapter/package.json', '{"name":"@acme/openapi-adapter"}');
     write('node_modules/@mo-transfer/tooling-openapi/package.json', '{}');
@@ -143,21 +143,19 @@ describe('client config (project.json of clients and parts, inferred targets)', 
     manifest.devDependencies['@mo-transfer/tooling-openapi'] = '1.0.0';
     write('package.json', JSON.stringify(manifest));
     const config: ClientsConfig = {
-      settings: { toolingInputs: 'package' },
       adapters: { acme: { module: '@acme/openapi-adapter/sub' } },
       clients: { 'generated/pet-client': { adapter: 'acme' } },
     };
     const inputs = generateTarget(context(config), 'generated/pet-client', 'libs/generated/pet-client/openapi.yaml')['inputs'];
     expect(inputs).toContainEqual({ externalDependencies: ['@acme/openapi-adapter', '@mo-transfer/tooling-openapi', 'typescript', 'yaml'] });
-    expect(toolingMode(resolveSettings({ toolingInputs: 'none' }), REPO_ROOT)).toBe('none');
-    expect(toolingMode(DEFAULT_SETTINGS, REPO_ROOT)).toBe('source');
+    expect(toolingMode(REPO_ROOT)).toBe('source');
     write('package.json', '{}');
-    expect(toolingMode(DEFAULT_SETTINGS, root)).toBe('none');
+    expect(toolingMode(root)).toBe('none');
     // a symlinked install outside the workspace: a registry version in the root manifest = npm package
     write('package.json', JSON.stringify({ devDependencies: { '@mo-transfer/tooling-openapi': '0.1.0' } }));
-    expect(toolingMode(DEFAULT_SETTINGS, root)).toBe('package');
+    expect(toolingMode(root)).toBe('package');
     write('package.json', JSON.stringify({ devDependencies: { '@mo-transfer/tooling-openapi': 'workspace:*' } }));
-    expect(toolingMode(DEFAULT_SETTINGS, root)).toBe('none');
+    expect(toolingMode(root)).toBe('none');
     expect(schemaPathFor(REPO_ROOT)).toBe(`./${relative(REPO_ROOT, join(__dirname, '..'))}/openapi-clients.schema.json`);
     expect(schemaPathFor('/does/not/exist')).toBe('./node_modules/@mo-transfer/tooling-openapi/openapi-clients.schema.json');
   });
@@ -205,7 +203,7 @@ describe('client config (project.json of clients and parts, inferred targets)', 
     write('node_modules/@mo-transfer/tooling-openapi/package.json', '{}');
     const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8'));
     write('package.json', JSON.stringify({ devDependencies: { ...manifest.devDependencies, '@mo-transfer/tooling-openapi': '1.0.0' } }));
-    const packageMode: ClientsConfig = { settings: { toolingInputs: 'package' }, clients: { 'generated/pet-client': {} } };
+    const packageMode: ClientsConfig = { clients: { 'generated/pet-client': {} } };
     expect(generateTarget(context(packageMode), 'generated/pet-client', 'x.yaml')['inputs']).toContainEqual({
       externalDependencies: ['@openapitools/openapi-generator-cli', '@mo-transfer/tooling-openapi', 'typescript', 'yaml'],
     });

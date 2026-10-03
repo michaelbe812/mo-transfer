@@ -200,7 +200,6 @@ describe.each([
     commitClient(fx.root, 'generated/w-client');
     commitClient(fx.root, 'generated/p-client');
     fx.clients({
-      settings: { toolingInputs: 'none' },
       adapters: { tsw: { module: './tools/tsw/adapter.ts' }, tsp: { module: '@acme/ts-adapter' } },
       clients: { 'generated/w-client': { adapter: 'tsw' }, 'generated/p-client': { adapter: 'tsp' } },
     });

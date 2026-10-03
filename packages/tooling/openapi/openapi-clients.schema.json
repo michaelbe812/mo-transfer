@@ -91,11 +91,6 @@
           "$ref": "#/definitions/moduleSpecifier",
           "description": "Lib scaffold of the client generator (defineScaffold). Default: built-in (project.json + tsconfig.json + paths)."
         },
-        "toolingInputs": {
-          "enum": ["auto", "source", "package", "none"],
-          "default": "auto",
-          "description": "source: globs of the tooling sources; package: externalDependencies on the npm package; auto: by location"
-        },
         "features": {
           "type": "object",
           "description": "Experimental features, off by default. A client using a disabled feature fails its generate target with a hint; verify reports it.",

@@ -115,9 +115,11 @@ function packageFolderIn(workspaceRoot: string): string | undefined {
   return fromRoot.split(sep).join('/');
 }
 
-/** How the tooling itself enters the hash (settings.toolingInputs, `auto` decided by where this package lives). */
-export function toolingMode(settings: OpenApiSettings, workspaceRoot: string): 'source' | 'package' | 'none' {
-  if (settings.toolingInputs !== 'auto') return settings.toolingInputs;
+/**
+ * How the tooling itself enters the hash, decided by where this package lives: `source` = globs of its sources
+ * (inside the workspace), `package` = externalDependencies on the npm package, `none` = a linked package outside.
+ */
+export function toolingMode(workspaceRoot: string): 'source' | 'package' | 'none' {
   if (realpath(PACKAGE_ROOT).split(sep).includes('node_modules')) return 'package';
   if (packageFolderIn(workspaceRoot) !== undefined) return 'source';
   // outside the workspace, not below node_modules (a symlinked install): a registry version in the root manifest
@@ -145,8 +147,8 @@ interface ToolingInputs {
   packages: string[];
 }
 
-function toolingInputs(settings: OpenApiSettings, workspaceRoot: string, extraSources: string[]): ToolingInputs {
-  const mode = toolingMode(settings, workspaceRoot);
+function toolingInputs(workspaceRoot: string, extraSources: string[]): ToolingInputs {
+  const mode = toolingMode(workspaceRoot);
   if (mode === 'package') return { files: [], packages: [PACKAGE_NAME, 'typescript', 'yaml'] };
   if (mode === 'none') return { files: [], packages: ['typescript', 'yaml'] };
   const src = `${packageFolderIn(workspaceRoot) ?? '.'}/src`;
@@ -238,7 +240,7 @@ export function generateTarget(context: InferenceContext, clientPath: string, sp
   const adapter = resolveAdapter(context.registry, adapterIdOf(config, clientPath), clientPath);
   const adapterInputs = adapterCacheInputs(adapter);
   const pipeline = pipelineInputs(entry, workspaceRoot);
-  const tooling = toolingInputs(settings, workspaceRoot, ['adapters/**/*']);
+  const tooling = toolingInputs(workspaceRoot, ['adapters/**/*']);
   return {
     executor: OPENAPI_EXECUTORS.generate,
     cache: true,
@@ -290,7 +292,7 @@ export function generateTestingTarget(context: InferenceContext, clientPath: str
   const entry = config.clients?.[clientPath];
   const pipeline = pipelineInputs(entry, workspaceRoot);
   // the testing preset reads the raw output with adapters/files.ts
-  const tooling = toolingInputs(settings, workspaceRoot, ['adapters/files.ts', 'pipeline/testing-preset.ts', 'pipeline/schema-faker/**/*']);
+  const tooling = toolingInputs(workspaceRoot, ['adapters/files.ts', 'pipeline/testing-preset.ts', 'pipeline/schema-faker/**/*']);
   return {
     executor: OPENAPI_EXECUTORS.generateTesting,
     cache: true,

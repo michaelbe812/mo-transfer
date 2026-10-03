@@ -101,8 +101,8 @@ describe('settings validation (H2)', () => {
     expect(problems({ outputDir: 'gen/x', sharedScope: 1 })).toThrow('settings.outputDir: must be one kebab-case folder name; settings.sharedScope');
     expect(problems({ specFiles: [] })).toThrow('settings.specFiles: plain file names only');
     expect(problems({ specFiles: 'x' })).toThrow('settings.specFiles');
-    expect(problems({ aliasPrefix: 1, clientTags: 'x', partTags: [1], header: { lint: 'x' }, toolingInputs: 'all', features: { overlays: 'yes' } })).toThrow(
-      'settings.aliasPrefix: must be a string; settings.clientTags: must be a list of strings; settings.partTags: must be a list of strings; settings.header: lint (strings) + banner (string); settings.toolingInputs: auto | source | package | none; settings.features.overlays: must be a boolean',
+    expect(problems({ aliasPrefix: 1, clientTags: 'x', partTags: [1], header: { lint: 'x' }, features: { overlays: 'yes' } })).toThrow(
+      'settings.aliasPrefix: must be a string; settings.clientTags: must be a list of strings; settings.partTags: must be a list of strings; settings.header: lint (strings) + banner (string); settings.features.overlays: must be a boolean',
     );
   });
 
