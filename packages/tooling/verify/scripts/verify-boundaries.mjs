@@ -224,9 +224,10 @@ const cases = [
   allowedInGenerated('generated code: core -> @angular/common/http', 'libs/generated/pet-client/core', '@angular/common/http'),
   allowedInGenerated('generated code: testing -> msw, faker, openapi-msw', 'libs/generated/pet-client/testing', 'openapi-msw'),
 
-  // tooling libs (packages/tooling/<lib>): explicit, acyclic package imports (conventions ← openapi ← workspace → ng-lib)
-  allowed('tooling: openapi -> conventions', 'packages/tooling/openapi', '@mo-transfer/tooling-conventions'),
-  allowed('tooling: openapi -> conventions/tree', 'packages/tooling/openapi', '@mo-transfer/tooling-conventions/tree'),
+  // tooling libs (packages/tooling/<lib>): explicit, acyclic package imports (conventions ← workspace → openapi, ng-lib)
+  // openapi is publishable (buildable): no workspace tooling in its sources — the lib scaffold is loaded at run time
+  blocked('tooling: openapi -> conventions (publishable)', 'packages/tooling/openapi', '@mo-transfer/tooling-conventions', 'Buildable libraries cannot import'),
+  blocked('tooling: openapi -> conventions/tree (publishable)', 'packages/tooling/openapi', '@mo-transfer/tooling-conventions/tree', 'Buildable libraries cannot import'),
   allowed('tooling: workspace -> conventions', 'packages/tooling/workspace', '@mo-transfer/tooling-conventions'),
   allowed('tooling: workspace -> openapi/clients', 'packages/tooling/workspace', '@mo-transfer/tooling-openapi/clients'),
   allowedInSpec('tooling: spec -> conventions/testing', 'packages/tooling/openapi', '@mo-transfer/tooling-conventions/testing'),
@@ -234,7 +235,7 @@ const cases = [
   // ng-lib and workspace export nothing to import (executor / generators only) — a module of theirs stands for "reuse it"
   blocked('tooling: conventions -> ng-lib', 'packages/tooling/conventions', '@mo-transfer/tooling-ng-lib/src/test.js', 'tooling:conventions'),
   blocked('tooling: openapi -> workspace', 'packages/tooling/openapi', '@mo-transfer/tooling-workspace/package.json', [CYCLE, 'tooling:openapi']),
-  blocked('tooling: openapi -> ng-lib', 'packages/tooling/openapi', '@mo-transfer/tooling-ng-lib/src/test.js', 'tooling:openapi'),
+  blocked('tooling: openapi -> ng-lib', 'packages/tooling/openapi', '@mo-transfer/tooling-ng-lib/src/test.js', ['tooling:openapi', 'Buildable libraries cannot import']),
   blocked('tooling: ng-lib -> openapi', 'packages/tooling/ng-lib', '@mo-transfer/tooling-openapi', 'tooling:ng-lib'),
   blocked('tooling: ng-lib -> conventions', 'packages/tooling/ng-lib', '@mo-transfer/tooling-conventions', 'tooling:ng-lib'),
   blocked('tooling: verify -> workspace', 'packages/tooling/verify', '@mo-transfer/tooling-workspace/package.json', 'tooling:verify'),

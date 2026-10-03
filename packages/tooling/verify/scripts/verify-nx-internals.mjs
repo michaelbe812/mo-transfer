@@ -75,9 +75,16 @@ function filesBelow(dir) {
     .sort();
 }
 
+/**
+ * App + lib dist only: dist/packages/** is the publishable tooling package (tooling-openapi:build), not built by an
+ * Nx internal the blueprint relies on — its own build + `npm pack --dry-run` check it, and it changes with every
+ * tooling commit (source maps), which would make the snapshot churn.
+ */
 function hashDist() {
   return Object.fromEntries(
-    filesBelow('dist').map((file) => [file, createHash('sha256').update(readFileSync(join('dist', file))).digest('hex')]),
+    filesBelow('dist')
+      .filter((file) => !file.startsWith('packages/'))
+      .map((file) => [file, createHash('sha256').update(readFileSync(join('dist', file))).digest('hex')]),
   );
 }
 

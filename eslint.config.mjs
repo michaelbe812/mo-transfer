@@ -116,7 +116,8 @@ function deepImportPatterns() {
 /**
  * Tooling libs (packages/tooling/<lib>, tag tooling:<lib>), imported only via @mo-transfer/tooling-<lib>:
  *   conventions  path → tags, scope list, Tree helpers — the base, knows no other tooling lib
- *   openapi      clients (project config, facade, generator) — builds on the conventions only
+ *   openapi      clients (pipeline, plugin, generator) — publishable (buildable): no tooling import in its sources
+ *                (enforceBuildableLibDependency); specs may use the conventions' test fixtures
  *   workspace    generators — conventions, openapi (move/remove keep openapi-clients.json in step)
  *   ng-lib       test executor (Vitest UI flag) around an Nx internal — standalone, knows no conventions/openapi
  *   verify       proofs, read the project graph — standalone
