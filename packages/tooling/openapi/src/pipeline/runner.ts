@@ -9,7 +9,7 @@
  * client and adapter (errors.ts). Deterministic: same spec + entry + tooling → byte-identical files.
  */
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import type { ClientDefinition, ClientPart, PipelineFile } from '../adapter';
 import { OpenApiError, type OpenApiPhase } from '../errors';
 import { generatedHeader, type OpenApiSettings, partAlias, partRoot } from '../settings';
@@ -183,7 +183,9 @@ function writeParts(
     rmSync(targetDir, { recursive: true, force: true });
     mkdirSync(targetDir, { recursive: true });
     for (const { path, content } of files) {
-      const target = join(targetDir, path);
+      const target = resolve(targetDir, path);
+      // last line of defence: never write outside <part>/src/<outputDir>
+      if (!target.startsWith(`${targetDir}${sep}`)) throw new OpenApiError(`${path}: outside ${root}/src/${settings.outputDir}`, { phase: 'write' });
       mkdirSync(dirname(target), { recursive: true });
       writeFileSync(target, content);
     }

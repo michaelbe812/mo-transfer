@@ -7,6 +7,7 @@ import type { ClientPart, PipelineFile, TransformContext } from '../adapter';
 import { type TransformEntry, transformsOf } from '../config';
 import { loadTransform } from '../registry/load';
 import { validateOptions } from '../registry/validate';
+import { isSafeRelativePath } from '../settings';
 
 export interface TransformInput {
   files: PipelineFile[];
@@ -25,6 +26,9 @@ export async function applyTransforms({ files, transforms, parts, context }: Tra
     const input = current.map((file) => ({ ...file }));
     const result = (await transform.transform(input, { ...context, options })) ?? input;
     for (const file of result) {
+      if (typeof file?.path === 'string' && !isSafeRelativePath(file.path)) {
+        throw new Error(`transform ${transform.id}: invalid file path "${file.path}" (relative, inside its part)`);
+      }
       if (typeof file?.path !== 'string' || typeof file.content !== 'string' || !parts.includes(file.part)) {
         throw new Error(`transform ${transform.id}: returned an invalid file ${JSON.stringify(file?.path)} (part one of ${parts.join(', ')})`);
       }

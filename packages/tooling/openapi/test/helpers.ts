@@ -4,7 +4,7 @@
  * to the workspace root, the jar lies in node_modules/.cache), a copy of openapitools.json, libs/ and
  * openapi-clients.json. Generated code resolves @angular/*, msw … through the link.
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   copyFileSync,
@@ -218,13 +218,14 @@ export function createNxFixture(name: string, options: { ownNodeModules?: boolea
       env: env(),
       stdio: 'pipe',
     });
+  /** stdout + stderr (plugin warnings) */
   const tryNx = (...args: string[]) => {
-    try {
-      return { ok: true, output: nx(...args) };
-    } catch (error) {
-      const { stdout = '', stderr = '' } = error as { stdout?: string; stderr?: string };
-      return { ok: false, output: `${stdout}${stderr}` };
-    }
+    const result = spawnSync(options.node ?? process.execPath, [join(repoRoot, 'node_modules/nx/dist/bin/nx.js'), ...args], {
+      cwd: root,
+      encoding: 'utf-8',
+      env: env(),
+    });
+    return { ok: result.status === 0, output: `${result.stdout}${result.stderr}` };
   };
   return {
     root,

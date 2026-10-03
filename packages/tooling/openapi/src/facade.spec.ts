@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ClientDefinition } from './adapter';
-import { readClientsConfig, transformsOf } from './config';
+import { overlayFiles, readClientsConfig, transformsOf } from './config';
 import { formatError, OpenApiError } from './errors';
 import { resolveClient, serializeSpec, updateSpec } from './facade';
 import { camelCase, clientRoot, DEFAULT_SETTINGS, generatedHeader, parseClientPath, partAlias, resolveSettings } from './settings';
@@ -86,6 +86,30 @@ describe('config shapes (H1)', () => {
     ]);
     expect(() => transformsOf({ pipeline: { transforms: [{} as never] } })).toThrow('pipeline.transforms[0]: module missing');
     expect(() => transformsOf({ pipeline: { transforms: 'x' as never } })).toThrow('pipeline.transforms: must be an array');
+  });
+});
+
+describe('settings validation (H2)', () => {
+  it('every path-like setting stays inside the workspace / the part', () => {
+    expect(() => resolveSettings({})).not.toThrow();
+    expect(() => resolveSettings({ libsDir: 'packages/clients' })).not.toThrow();
+    const problems = (partial: object) => () => resolveSettings(partial as never);
+    expect(problems({ libsDir: 'a/../b' })).toThrow('settings.libsDir: must be a relative path inside the workspace');
+    expect(problems({ libsDir: 'C:/x' })).toThrow('settings.libsDir');
+    expect(problems({ libsDir: 'a\\b' })).toThrow('settings.libsDir');
+    expect(problems({ libsDir: 'a//b' })).toThrow('settings.libsDir');
+    expect(problems({ outputDir: 'gen/x', sharedScope: 1 })).toThrow('settings.outputDir: must be one kebab-case folder name; settings.sharedScope');
+    expect(problems({ specFiles: [] })).toThrow('settings.specFiles: plain file names only');
+    expect(problems({ specFiles: 'x' })).toThrow('settings.specFiles');
+    expect(problems({ aliasPrefix: 1, clientTags: 'x', partTags: [1], header: { lint: 'x' }, toolingInputs: 'all', features: { overlays: 'yes' } })).toThrow(
+      'settings.aliasPrefix: must be a string; settings.clientTags: must be a list of strings; settings.partTags: must be a list of strings; settings.header: lint (strings) + banner (string); settings.toolingInputs: auto | source | package | none; settings.features.overlays: must be a boolean',
+    );
+  });
+
+  it('overlays and transform files must be relative, without ..', () => {
+    expect(() => overlayFiles(resolveSettings({ features: { overlays: true } }), 'generated/a', ['../x.yaml'])).toThrow(
+      'pipeline.overlays: "../x.yaml" must be relative to the client folder, without ..',
+    );
   });
 });
 

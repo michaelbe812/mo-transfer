@@ -15,6 +15,7 @@ import { OpenApiError } from './errors';
 import {
   type ClientPart,
   clientRoot,
+  isSafeRelativePath,
   MOCK_ENGINES,
   type MockEngine,
   type OpenApiSettings,
@@ -155,8 +156,13 @@ export function transformsOf(entry: ClientEntry | null | undefined): { module: s
  * Workspace-relative overlay files of a client (cache inputs of both generate targets) — only with the feature
  * flag settings.features.overlays; disabled, they are no input (the target fails, see disabledFeaturesOf).
  */
-export const overlayFiles = (settings: OpenApiSettings, clientPath: string, overlays: readonly string[] = []): string[] =>
-  settings.features.overlays ? overlays.map((overlay) => `${clientRoot(settings, clientPath)}/${overlay}`) : [];
+export function overlayFiles(settings: OpenApiSettings, clientPath: string, overlays: readonly string[] = []): string[] {
+  if (!settings.features.overlays) return [];
+  return overlays.map((overlay) => {
+    if (!isSafeRelativePath(overlay)) throw new OpenApiError(`pipeline.overlays: "${overlay}" must be relative to the client folder, without ..`, { phase: 'config' });
+    return `${clientRoot(settings, clientPath)}/${overlay}`;
+  });
+}
 
 export const OVERLAYS_DISABLED_HINT =
   'experimental feature flag "overlays" disabled: set openapi-clients.json → settings.features.overlays: true, or remove pipeline.overlays';

@@ -34,9 +34,9 @@ describe('H1: a malformed openapi-clients.json never breaks the graph', () => {
   it.each(shapes)('%s: graph computes, the client project stays', (_, config) => {
     write(fx.root, 'openapi-clients.json', JSON.stringify(config));
     const result = fx.tryNx('show', 'projects', '--json');
-    expect(result.output).not.toMatch(/Error|error/);
+    expect(result.output).not.toMatch(/Failed to process|threw an error/);
     expect(result.ok).toBe(true);
-    expect(JSON.parse(result.output)).toContain('generated-a-client');
+    expect(fx.nx('show', 'projects', '--json')).toContain('generated-a-client');
   });
 
   it('the problem lands in the metadata (verify reports it)', () => {
@@ -92,6 +92,7 @@ describe('H2: paths from settings, transforms and classify cannot escape', () =>
     const result = fx.tryNx('show', 'projects', '--json');
     expect(result.ok).toBe(true);
     expect(result.output).toContain(message);
+    expect(fx.project('generated-b-client').targets['generate-api-client']).toBeUndefined();
   });
 
   it('a transform returning a path outside its part fails; nothing is written outside src/generated', () => {

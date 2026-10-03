@@ -85,8 +85,47 @@ export const DEFAULT_SETTINGS: OpenApiSettings = {
   testing: { mocks: 'schema-faker' },
 };
 
-/** Settings of a parsed openapi-clients.json: its `settings` over the defaults (`header` merged per field). */
+/** A relative posix path without `.`/`..` segments: stays inside the workspace. */
+export const isSafeRelativePath = (path: unknown): path is string =>
+  typeof path === 'string' &&
+  path.length > 0 &&
+  !path.startsWith('/') &&
+  !/^[A-Za-z]:/.test(path) &&
+  !path.includes('\\') &&
+  path.split('/').every((segment) => segment !== '' && segment !== '.' && segment !== '..');
+
+const isStringList = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === 'string');
+
+/**
+ * Violations of the settings — they become paths (libsDir, clientFolder, outputDir, specFiles; the pipeline deletes
+ * <part>/src/<outputDir> before writing), so nothing may point outside the workspace or the part's src/.
+ */
+export function settingsProblems(settings: OpenApiSettings): string[] {
+  const problems: string[] = [];
+  if (!isSafeRelativePath(settings.libsDir)) problems.push('settings.libsDir: must be a relative path inside the workspace');
+  for (const key of ['clientFolder', 'outputDir', 'sharedScope'] as const) {
+    if (typeof settings[key] !== 'string' || !KEBAB_CASE.test(settings[key])) problems.push(`settings.${key}: must be one kebab-case folder name`);
+  }
+  if (!isStringList(settings.specFiles) || !settings.specFiles.length || !settings.specFiles.every((file) => /^[\w-]+(\.[\w-]+)+$/.test(file))) {
+    problems.push('settings.specFiles: plain file names only');
+  }
+  if (typeof settings.aliasPrefix !== 'string') problems.push('settings.aliasPrefix: must be a string');
+  for (const key of ['clientTags', 'partTags'] as const) if (!isStringList(settings[key])) problems.push(`settings.${key}: must be a list of strings`);
+  if (!isStringList(settings.header.lint) || typeof settings.header.banner !== 'string') problems.push('settings.header: lint (strings) + banner (string)');
+  if (!['auto', 'source', 'package', 'none'].includes(settings.toolingInputs)) problems.push('settings.toolingInputs: auto | source | package | none');
+  if (typeof settings.features.overlays !== 'boolean') problems.push('settings.features.overlays: must be a boolean');
+  return problems;
+}
+
+/** Settings of a parsed openapi-clients.json: its `settings` over the defaults (`header` merged per field). Throws for invalid ones. */
 export function resolveSettings(partial: Partial<OpenApiSettings> | undefined): OpenApiSettings {
+  const settings = mergeSettings(partial);
+  const problems = settingsProblems(settings);
+  if (problems.length) throw new Error(`openapi-clients.json → ${problems.join('; ')}`);
+  return settings;
+}
+
+function mergeSettings(partial: Partial<OpenApiSettings> | undefined): OpenApiSettings {
   return {
     ...DEFAULT_SETTINGS,
     ...partial,
@@ -123,6 +162,7 @@ export interface ClientLocation {
 /** `<clientFolder>/<name>` or `<domain>/<clientFolder>/<name>`; undefined for any other shape. */
 export function parseClientPath(clientPath: string, settings: OpenApiSettings = DEFAULT_SETTINGS): ClientLocation | undefined {
   const segments = clientPath.split('/');
+  if (!segments.every((segment) => KEBAB_CASE.test(segment))) return undefined;
   const shared = segments.length === 2 && segments[0] === settings.clientFolder;
   const domain = segments.length === 3 && segments[1] === settings.clientFolder && segments[0] !== settings.clientFolder;
   const name = segments.at(-1) ?? '';
