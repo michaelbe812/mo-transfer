@@ -21,7 +21,7 @@ import { classifyHeyApi, defaults as heyApiDefaults } from './hey-api';
 import { classifyOpenApiTools, defaults as openapiToolsDefaults } from './openapi-tools';
 
 // CommonJS package, resolved lazily (only this adapter needs it); __filename: works under swc (Nx) and Vitest
-const require = createRequire(__filename);
+const packageRequire = createRequire(__filename);
 
 type PluginId = 'openapi-tools' | 'hey-api';
 
@@ -72,7 +72,7 @@ const nxPluginOpenapiAdapter = defineAdapter<Record<string, unknown>>({
       generatorOptions.configFile = configFile;
     }
     const { GeneratorRegistry, loadPlugin } =
-      require('@nx-plugin-openapi/core') as typeof import('@nx-plugin-openapi/core');
+      packageRequire('@nx-plugin-openapi/core') as typeof import('@nx-plugin-openapi/core');
     const registry = GeneratorRegistry.instance();
     if (!registry.has(pluginId)) registry.register(await loadPlugin(pluginId, { root: workspaceRoot }));
     const plugin = registry.get(pluginId);

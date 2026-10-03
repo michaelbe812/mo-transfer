@@ -23,6 +23,32 @@
         "command": "tsc -p packages/tooling/openapi/tsconfig.json"
       }
     },
+    "build": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/src/**/*",
+        "!{projectRoot}/src/**/*.spec.ts",
+        "{projectRoot}/scripts/**/*",
+        "{projectRoot}/*.json",
+        "{projectRoot}/README.md",
+        {
+          "externalDependencies": ["typescript"]
+        }
+      ],
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "metadata": {
+        "description": "Publishable package: tsc \u2192 dist (CommonJS + .d.ts), package.json exports .js, assets; then: cd dist/packages/tooling/openapi && npm pack --dry-run"
+      },
+      "options": {
+        "commands": [
+          "node --experimental-strip-types --no-warnings=ExperimentalWarning packages/tooling/openapi/scripts/prepare-dist.mts --clean",
+          "tsc -p packages/tooling/openapi/tsconfig.lib.json",
+          "node --experimental-strip-types --no-warnings=ExperimentalWarning packages/tooling/openapi/scripts/prepare-dist.mts"
+        ],
+        "parallel": false
+      }
+    },
     "test": {
       "executor": "nx:run-commands",
       "cache": true,
