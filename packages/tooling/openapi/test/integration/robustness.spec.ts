@@ -4,10 +4,10 @@
  * packages give a clear problem instead of a hasher failure, modules outside the workspace are rejected, renamed
  * targets keep dependsOn working.
  */
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createNxFixture, type NxFixture, removeWorkspace, THINGS_SPEC, write } from '../helpers';
+import { addFakePackage, createNxFixture, type NxFixture, removeWorkspace, THINGS_SPEC, write } from '../helpers';
 
 describe('H1: a malformed openapi-clients.json never breaks the graph', () => {
   let fx: NxFixture;
@@ -147,5 +147,72 @@ describe('M1: declared packages that are not installed', () => {
     const run = fx.tryNx('run', 'generated-c-client:generate-api-client', '--skip-nx-cache');
     expect(run.output).not.toContain('could not be found');
     expect(run.ok).toBe(true);
+  });
+});
+
+/** a Node ≥ 22.18 (native type stripping) from nvm, if installed */
+const TYPE_STRIPPING_NODE = (() => {
+  const base = join(process.env.HOME ?? '', '.nvm/versions/node');
+  if (!existsSync(base)) return undefined;
+  const version = (name: string) => name.slice(1).split('.').map(Number);
+  const candidates = readdirSync(base)
+    .filter((name) => /^v\d+\.\d+\.\d+$/.test(name))
+    .filter((name) => {
+      const [major, minor] = version(name);
+      return major > 22 || (major === 22 && minor >= 18);
+    })
+    .sort((a, b) => version(a)[0] - version(b)[0] || version(a)[1] - version(b)[1]);
+  return candidates[0] && join(base, candidates[0], 'bin/node');
+})();
+
+const TS_WORKSPACE_ADAPTER = `
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { label } from './label';
+export default {
+  apiVersion: 1 as const,
+  id: 'tsw',
+  generate({ outDir }: { outDir: string }) {
+    mkdirSync(join(outDir, 'model'), { recursive: true });
+    writeFileSync(join(outDir, 'model/thing.ts'), 'export type Thing = ' + JSON.stringify(label) + ';\\n');
+  },
+  classify() {
+    return { models: ['model/thing.ts'], apis: [], core: [] };
+  },
+};
+`;
+
+describe.each([
+  ['Node (this process)', process.execPath],
+  ['Node ≥ 22.18 with native type stripping', TYPE_STRIPPING_NODE],
+])('M2: TypeScript adapters (workspace + npm package) load under %s', (_, node) => {
+  let fx: NxFixture;
+  beforeAll(() => {
+    if (!node) return;
+    fx = createNxFixture('m2', { ownNodeModules: true, node });
+    write(fx.root, 'tools/tsw/adapter.ts', TS_WORKSPACE_ADAPTER);
+    write(fx.root, 'tools/tsw/label.ts', "export const label: string = 'from-workspace-ts';\n");
+    addFakePackage(fx.root, '@acme/ts-adapter', {
+      'package.json': JSON.stringify({ name: '@acme/ts-adapter', version: '1.0.0', main: 'index.ts' }),
+      'index.ts': TS_WORKSPACE_ADAPTER.replace("'tsw'", "'tsp'"),
+      'label.ts': "export const label: string = 'from-npm-ts';\n",
+    });
+    commitClient(fx.root, 'generated/w-client');
+    commitClient(fx.root, 'generated/p-client');
+    fx.clients({
+      settings: { toolingInputs: 'none' },
+      adapters: { tsw: { module: './tools/tsw/adapter.ts' }, tsp: { module: '@acme/ts-adapter' } },
+      clients: { 'generated/w-client': { adapter: 'tsw' }, 'generated/p-client': { adapter: 'tsp' } },
+    });
+  });
+  afterAll(() => fx && removeWorkspace(fx.root));
+
+  it.skipIf(!node)('nx run generates through both', () => {
+    const run = fx.tryNx('run-many', '-t', 'generate-api-client', '-p', 'generated-w-client', 'generated-p-client', '--skip-nx-cache');
+    expect(run.output).not.toContain('could not be loaded');
+    if (!run.ok) console.log('M2-OUTPUT', run.output.slice(-2500));
+    expect(run.ok).toBe(true);
+    expect(readFileSync(join(fx.root, 'libs/generated/w-client/types/src/generated/model/thing.ts'), 'utf-8')).toContain('"from-workspace-ts"');
+    expect(readFileSync(join(fx.root, 'libs/generated/p-client/types/src/generated/model/thing.ts'), 'utf-8')).toContain('"from-npm-ts"');
   });
 });

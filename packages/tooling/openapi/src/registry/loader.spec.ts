@@ -3,13 +3,16 @@
  * time), .js/.cjs (CommonJS), .mjs and type:module .js (real dynamic import), npm packages incl. ESM-only ones
  * (exports read by hand), and the cache inputs that follow a module.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadModule, pickDefinition, resolvePackageEntry, resolvePackageExports } from './loader';
 import { findPackageDir, moduleCacheInputs, moduleProblem, parseModuleRef, splitPackageSpecifier } from './module-ref';
+
+/** the .ts handler before this file loaded anything (Node 22.16: none; ≥ 22.18: type stripping) */
+const ORIGINAL_TS_HANDLER = (createRequire(__filename)('node:module') as { _extensions: Record<string, unknown> })._extensions['.ts'];
 
 let root: string;
 const write = (path: string, content: string): void => {
@@ -134,24 +137,46 @@ describe('loading', () => {
     expect(pickDefinition(undefined)).toBeUndefined();
   });
 
-  it('the hook leaves .ts below node_modules to a previous handler (e.g. Nx\' swc hook)', async () => {
-    vi.resetModules();
-    const extensions = (createRequire(__filename)('node:module') as { _extensions: Record<string, unknown> })._extensions;
-    const saved = extensions['.ts'];
-    const previous = vi.fn((module: { _compile(code: string, file: string): void }, file: string) =>
-      module._compile("module.exports = { apiVersion: 1, id: 'by-previous' };", file),
-    );
-    extensions['.ts'] = previous;
-    try {
-      const fresh = await import('./loader.js');
-      fresh.ensureTsRequireHook();
-      fresh.ensureTsRequireHook();
-      write('node_modules/prev/package.json', JSON.stringify({ name: 'prev', main: 'index.ts' }));
-      write('node_modules/prev/index.ts', 'this is not even TypeScript');
-      expect(pickDefinition(await fresh.loadModule(parseModuleRef('prev', root), root))).toEqual({ apiVersion: 1, id: 'by-previous' });
-      expect(previous).toHaveBeenCalledTimes(1);
-    } finally {
-      extensions['.ts'] = saved;
-    }
+  describe('M2: the .ts hook is scoped to the module folder and restored (Node 22.16 and ≥ 22.18 type stripping)', () => {
+    type Loader = (module: { _compile(code: string, file: string): void }, file: string) => void;
+    const extensions = (createRequire(__filename)('node:module') as { _extensions: Record<string, Loader | undefined> })._extensions;
+    let saved: Loader | undefined;
+    beforeEach(() => {
+      saved = extensions['.ts'];
+    });
+    afterEach(() => {
+      if (saved) extensions['.ts'] = saved;
+      else delete extensions['.ts'];
+    });
+
+    it('after loading, the previous .ts handler (none, Nx swc, Node type stripping) is back', async () => {
+      write('tools/r/adapter.ts', "export default { apiVersion: 1, id: 'restored' };\n");
+      expect((await load('./tools/r/adapter.ts')).id).toBe('restored');
+      expect(extensions['.ts']).toBe(saved);
+      expect(extensions['.ts']).toBe(ORIGINAL_TS_HANDLER);
+    });
+
+    it('.ts below node_modules is transpiled by the hook, never handed to a refusing previous handler', async () => {
+      // like Node ≥ 22.18: type stripping refuses files below node_modules
+      const refusing = vi.fn<Loader>(() => {
+        throw Object.assign(new Error('Stripping types is currently unsupported for files under node_modules'), { code: 'ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING' });
+      });
+      extensions['.ts'] = refusing;
+      write('node_modules/ts-pkg/package.json', JSON.stringify({ name: 'ts-pkg', main: 'index.ts' }));
+      write('node_modules/ts-pkg/index.ts', "import { id } from './id';\nexport default { apiVersion: 1 as const, id };\n");
+      write('node_modules/ts-pkg/id.ts', "export const id: string = 'from-node-modules';\n");
+      expect((await load('ts-pkg')).id).toBe('from-node-modules');
+      expect(refusing).not.toHaveBeenCalled();
+      expect(extensions['.ts']).toBe(refusing);
+    });
+
+    it('a .ts outside the module folder goes to the previous handler', async () => {
+      const previous = vi.fn<Loader>((module, file) => module._compile("module.exports = { shared: 'by-previous' };", file));
+      extensions['.ts'] = previous;
+      write('tools/s/adapter.ts', "import { shared } from '../shared/helper';\nexport default { apiVersion: 1, id: shared };\n");
+      write('tools/shared/helper.ts', "export const shared: string = 'by-hook';\n");
+      expect((await load('./tools/s/adapter.ts')).id).toBe('by-previous');
+      expect(previous).toHaveBeenCalledWith(expect.anything(), join(realpathSync(root), 'tools/shared/helper.ts'));
+    });
   });
 });
