@@ -2,14 +2,16 @@
  * Build step 2 of @mo-transfer/tooling-openapi (step 1: tsc -p tsconfig.lib.json → dist/packages/tooling/openapi):
  * the publishable package.json (exports .ts → .js + types, no `private`, no devDependencies) and the assets Nx
  * reads at run time (executors.json, generators.json, JSON schemas, README). Run by Node's type stripping:
- *   node --experimental-strip-types scripts/prepare-dist.mts [--clean]
+ *   node --experimental-strip-types scripts/prepare-dist.mts [--clean] [--out <dir>]
+ * (`--out`: another target folder, e.g. the dist smoke test; default dist/packages/tooling/openapi)
  */
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const distRoot = join(packageRoot, '../../../dist/packages/tooling/openapi');
+const outIndex = process.argv.indexOf('--out');
+const distRoot = outIndex > 0 ? process.argv[outIndex + 1] : join(packageRoot, '../../../dist/packages/tooling/openapi');
 
 if (process.argv.includes('--clean')) {
   rmSync(distRoot, { recursive: true, force: true });

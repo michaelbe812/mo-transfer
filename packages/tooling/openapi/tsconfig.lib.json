@@ -5,9 +5,16 @@
     "rootDir": ".",
     "outDir": "../../../dist/packages/tooling/openapi",
     "declaration": true,
-    "sourceMap": true,
-    "types": ["node"]
+    "sourceMap": false,
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.spec.ts", "src/pipeline/schema-faker/runtime/**"]
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.spec.ts",
+    "src/pipeline/schema-faker/runtime/**"
+  ]
 }

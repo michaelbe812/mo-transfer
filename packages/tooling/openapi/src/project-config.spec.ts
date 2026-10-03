@@ -40,7 +40,7 @@ describe('client config (project.json of clients and parts, inferred targets)', 
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'openapi-config-'));
     // installed packages (only those become externalDependencies, M1)
-    const installed = ['typescript', 'yaml', 'orval', 'openapi-typescript', 'prettier', '@acme/transform', '@openapitools/openapi-generator-cli', '@hey-api/openapi-ts', '@mo-transfer/tooling-openapi'];
+    const installed = ['typescript', 'yaml', 'orval', 'openapi-typescript', 'prettier', '@acme/transform', '@openapitools/openapi-generator-cli', '@hey-api/openapi-ts'];
     for (const name of installed) write(`node_modules/${name}/package.json`, '{}');
     write('package.json', JSON.stringify({ devDependencies: Object.fromEntries(installed.map((name) => [name, '1.0.0'])) }));
   });
@@ -137,8 +137,10 @@ describe('client config (project.json of clients and parts, inferred targets)', 
   it('npm package adapter: externalDependency on the package; toolingInputs package / none / source', () => {
     client('generated/pet-client');
     write('node_modules/@acme/openapi-adapter/package.json', '{"name":"@acme/openapi-adapter"}');
+    write('node_modules/@mo-transfer/tooling-openapi/package.json', '{}');
     const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8'));
     manifest.devDependencies['@acme/openapi-adapter'] = '1.0.0';
+    manifest.devDependencies['@mo-transfer/tooling-openapi'] = '1.0.0';
     write('package.json', JSON.stringify(manifest));
     const config: ClientsConfig = {
       settings: { toolingInputs: 'package' },
@@ -149,6 +151,12 @@ describe('client config (project.json of clients and parts, inferred targets)', 
     expect(inputs).toContainEqual({ externalDependencies: ['@acme/openapi-adapter', '@mo-transfer/tooling-openapi', 'typescript', 'yaml'] });
     expect(toolingMode(resolveSettings({ toolingInputs: 'none' }), REPO_ROOT)).toBe('none');
     expect(toolingMode(DEFAULT_SETTINGS, REPO_ROOT)).toBe('source');
+    write('package.json', '{}');
+    expect(toolingMode(DEFAULT_SETTINGS, root)).toBe('none');
+    // a symlinked install outside the workspace: a registry version in the root manifest = npm package
+    write('package.json', JSON.stringify({ devDependencies: { '@mo-transfer/tooling-openapi': '0.1.0' } }));
+    expect(toolingMode(DEFAULT_SETTINGS, root)).toBe('package');
+    write('package.json', JSON.stringify({ devDependencies: { '@mo-transfer/tooling-openapi': 'workspace:*' } }));
     expect(toolingMode(DEFAULT_SETTINGS, root)).toBe('none');
     expect(schemaPathFor(REPO_ROOT)).toBe(`./${relative(REPO_ROOT, join(__dirname, '..'))}/openapi-clients.schema.json`);
     expect(schemaPathFor('/does/not/exist')).toBe('./node_modules/@mo-transfer/tooling-openapi/openapi-clients.schema.json');
@@ -172,6 +180,9 @@ describe('client config (project.json of clients and parts, inferred targets)', 
     const config: ClientsConfig = { clients: { 'generated/pet-client': {} } };
     const inputs = generateTestingTarget(context(config, REPO_ROOT), 'generated/pet-client', 'x.yaml')['inputs'] as unknown[];
     expect(inputs).toContain(`{workspaceRoot}/${SRC}/adapters/files.ts`);
+    write('node_modules/@mo-transfer/tooling-openapi/package.json', '{}');
+    const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8'));
+    write('package.json', JSON.stringify({ devDependencies: { ...manifest.devDependencies, '@mo-transfer/tooling-openapi': '1.0.0' } }));
     const packageMode: ClientsConfig = { settings: { toolingInputs: 'package' }, clients: { 'generated/pet-client': {} } };
     expect(generateTarget(context(packageMode), 'generated/pet-client', 'x.yaml')['inputs']).toContainEqual({
       externalDependencies: ['@openapitools/openapi-generator-cli', '@mo-transfer/tooling-openapi', 'typescript', 'yaml'],

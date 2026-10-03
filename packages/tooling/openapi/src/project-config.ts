@@ -124,7 +124,19 @@ function packageFolderIn(workspaceRoot: string): string | undefined {
 export function toolingMode(settings: OpenApiSettings, workspaceRoot: string): 'source' | 'package' | 'none' {
   if (settings.toolingInputs !== 'auto') return settings.toolingInputs;
   if (realpath(PACKAGE_ROOT).split(sep).includes('node_modules')) return 'package';
-  return packageFolderIn(workspaceRoot) === undefined ? 'none' : 'source';
+  if (packageFolderIn(workspaceRoot) !== undefined) return 'source';
+  // outside the workspace, not below node_modules (a symlinked install): a registry version in the root manifest
+  // makes it an npm package (an external node), workspace:/link:/file: links stay without tooling input
+  return /^(workspace|link|file|portal):/.test(declaredSpecifier(workspaceRoot, PACKAGE_NAME) ?? 'link:') ? 'none' : 'package';
+}
+
+function declaredSpecifier(workspaceRoot: string, name: string): string | undefined {
+  try {
+    const manifest = JSON.parse(readFileSync(join(workspaceRoot, 'package.json'), 'utf-8')) as Record<string, Record<string, string> | undefined>;
+    return manifest.dependencies?.[name] ?? manifest.devDependencies?.[name];
+  } catch {
+    return undefined;
+  }
 }
 
 /** `$schema` of a new openapi-clients.json: the package's schema, in the workspace or below node_modules. */
