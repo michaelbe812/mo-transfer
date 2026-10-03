@@ -108,6 +108,9 @@ describe('openapi-clients.json on the Tree', () => {
     expect(renameClientExports(tree, 'booking/data-access', 'booking/generated/x-client')).toEqual([]);
     expect(renameClientExports(tree, 'generated/demo-client', 'booking/data-access')).toEqual([]);
     expect(read(tree, 'libs/booking/data-access/src/a.ts')).toBe('demoClientHttp;\n');
+    // a workspace without apps/: only libs/
+    tree.delete('apps');
+    expect(renameClientExports(tree, 'generated/demo-client', 'generated/other-client')).toEqual(['libs/booking/data-access/src/a.ts']);
   });
 
   it('relocateClientProject: name, $schema, scope tag, paths in the targets; no-op without project.json', () => {
