@@ -117,3 +117,35 @@ describe('H2: paths from settings, transforms and classify cannot escape', () =>
     expect(run.output).toContain('../outside.ts: classified, but no .ts file of the raw output');
   });
 });
+
+describe('M1: declared packages that are not installed', () => {
+  let fx: NxFixture;
+  beforeAll(() => {
+    fx = createNxFixture('m1');
+    write(fx.root, 'tools/gen.mjs', GENERATOR);
+    commitClient(fx.root, 'generated/c-client');
+  });
+  afterAll(() => removeWorkspace(fx.root));
+
+  it('never reach externalDependencies (no hasher failure); the problem is named in the metadata and as warning', () => {
+    fx.clients({ adapters: { cmd: { ...COMMAND_ADAPTER, packages: ['not-installed-generator'] } }, clients: { 'generated/c-client': { adapter: 'cmd' } } });
+    const first = fx.tryNx('run', 'generated-c-client:generate-api-client', '--skip-nx-cache');
+    expect(first.output).not.toContain('could not be found');
+    expect(first.ok).toBe(true);
+    fx.clients({
+      adapters: { cmd: { ...COMMAND_ADAPTER, packages: ['not-installed-generator'] } },
+      clients: { 'generated/c-client': { adapter: 'cmd', pipeline: { transforms: ['@acme/not-installed-hook'] } } },
+    });
+    const graph = fx.tryNx('show', 'projects', '--json');
+    expect(graph.output).toContain('not installed: not-installed-generator');
+    const client = fx.project('generated-c-client');
+    const external = client.targets['generate-api-client'].inputs.find((input: { externalDependencies?: string[] }) => input.externalDependencies);
+    expect(external.externalDependencies).not.toContain('not-installed-generator');
+    expect(external.externalDependencies).not.toContain('@acme/not-installed-hook');
+    expect(client.metadata.openapi.missingPackages).toEqual(['not-installed-generator', '@acme/not-installed-hook']);
+    fx.clients({ adapters: { cmd: { ...COMMAND_ADAPTER, packages: ['not-installed-generator'] } }, clients: { 'generated/c-client': { adapter: 'cmd' } } });
+    const run = fx.tryNx('run', 'generated-c-client:generate-api-client', '--skip-nx-cache');
+    expect(run.output).not.toContain('could not be found');
+    expect(run.ok).toBe(true);
+  });
+});
