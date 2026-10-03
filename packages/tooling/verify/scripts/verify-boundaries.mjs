@@ -781,7 +781,9 @@ const AFFECTED_PROBES = [
   { file: 'packages/tooling/openapi/src/facade.ts', expected: ['generated-pet-client', 'booking-data-access', 'booking-state', 'client'] },
   // the plugin shapes the client targets: an input of every client's generate-api-client (no tooling fallback in CI)
   { file: 'packages/tooling/openapi/src/plugin/openapi-clients.ts', expected: ['generated-pet-client', 'booking-generated-booking-client', 'booking-data-access', 'client'] },
-  { file: 'packages/tooling/openapi/src/pipeline/testing-preset.ts', expected: ['booking-generated-booking-client-testing'] },
+  { file: 'packages/tooling/openapi/src/pipeline/testing-preset.ts', expected: ['booking-generated-booking-client-testing'], notExpected: ['booking-generated-booking-client'] },
+  // testing-only code (schema-faker) never reaches the client code generation
+  { file: 'packages/tooling/openapi/src/pipeline/schema-faker/mocks.ts', expected: ['generated-pet-client-testing'], notExpected: ['generated-pet-client'] },
   // the adapter registry decides the client targets' inputs: every client
   { file: 'packages/tooling/openapi/src/registry/registry.ts', expected: ['generated-pet-client', 'booking-generated-booking-client', 'client'] },
   { file: 'openapi-clients.json', expected: ['generated-pet-client-api', 'booking-generated-booking-client-testing', 'client'] },

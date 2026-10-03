@@ -175,6 +175,28 @@ describe('client config (project.json of clients and parts, inferred targets)', 
     });
   });
 
+  it('L6: narrow tooling inputs — testing-only code (schema-faker, testing preset) never re-generates the client code, adapters never the testing lib', () => {
+    client('generated/pet-client');
+    const config: ClientsConfig = { clients: { 'generated/pet-client': {} } };
+    const ctx = context(config, REPO_ROOT);
+    const files = (inputs: unknown) => (inputs as unknown[]).filter((input): input is string => typeof input === 'string' && input.includes(SRC));
+    const client = files(generateTarget(ctx, 'generated/pet-client', 'x.yaml')['inputs']);
+    const testing = files(generateTestingTarget(ctx, 'generated/pet-client', 'x.yaml')['inputs']);
+    const covers = (inputs: string[], file: string) =>
+      inputs.some((input) => !input.startsWith('!') && new RegExp(`^${input.replace('{workspaceRoot}/', '').replace(/[.]/g, '\\.').replace('**/*', '.*')}$`).test(`${SRC}/${file}`));
+    for (const file of ['pipeline/schema-faker/mocks.ts', 'pipeline/schema-faker/runtime/mock-runtime.ts', 'pipeline/testing-preset.ts']) {
+      expect(covers(client, file)).toBe(false);
+      expect(covers(testing, file)).toBe(true);
+    }
+    for (const file of ['pipeline/runner.ts', 'pipeline/split.ts', 'registry/registry.ts', 'facade.ts']) {
+      expect(covers(client, file)).toBe(true);
+      expect(covers(testing, file)).toBe(true);
+    }
+    expect(covers(client, 'adapters/hey-api.ts')).toBe(true);
+    expect(covers(testing, 'adapters/hey-api.ts')).toBe(false);
+    expect(covers(client, 'pipeline/client-preset.ts')).toBe(true);
+  });
+
   it('M3: testing target runs adapters/files.ts (readRawFiles) — an input; package mode includes yaml', () => {
     client('generated/pet-client');
     const config: ClientsConfig = { clients: { 'generated/pet-client': {} } };
