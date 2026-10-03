@@ -2,12 +2,12 @@ import { formatFiles, type GeneratorCallback, logger, readNxJson, type Tree, upd
 import { readFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-import { addClientEntry, clientExportPrefix, readClientsJson } from '../../clients';
+import { addClientEntry, readClientsJson } from '../../clients';
 import { type ClientEntry, clientPartsOf, DEFAULT_ADAPTER, type Layout, settingsOf } from '../../config';
 import { targetNamesOf, type OpenApiPluginOptions } from '../../plugin/openapi-clients';
 import { clientPartConfig, clientProjectJson, DEFAULT_TARGET_NAMES, PACKAGE_NAME, type TargetNames } from '../../project-config';
 import { resolveAdapterRegistry } from '../../registry/registry';
-import { clientRoot, fillTemplate, parseClientPath, PART_LAYERS, projectNameFor, TESTING_PART } from '../../settings';
+import { camelCase, clientRoot, fillTemplate, parseClientPath, PART_LAYERS, projectNameFor, TESTING_PART } from '../../settings';
 import { assertKebabCase, writeJsonFile } from '../../tree-helpers';
 import { resolveScaffold } from './scaffold';
 
@@ -162,7 +162,7 @@ export async function clientGenerator(tree: Tree, options: ClientGeneratorSchema
 
   if (!options.skipFormat) await formatFiles(tree);
   const alias = `${settings.aliasPrefix}${clientPath}`;
-  const prefix = clientExportPrefix(options.name);
+  const prefix = camelCase(options.name);
   return () => {
     logger.info(
       `Client ${projectName}: ${root}/{${spec.file},project.json,${parts.join(',')}}, paths in tsconfig.base.json, entry in openapi-clients.json.`,

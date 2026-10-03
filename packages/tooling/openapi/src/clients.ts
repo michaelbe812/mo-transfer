@@ -77,9 +77,6 @@ export function relocateClientProject(tree: Tree, from: string, to: string, move
   return name;
 }
 
-/** `pet-client` → `petClient` (prefix of the generated testing exports: petClientHttp, petClientHandlers …). */
-export const clientExportPrefix = camelCase;
-
 /**
  * A renamed client renames its generated testing exports (`<client>Http`, `<client>Handlers`,
  * `<client>BaseUrl`): rewrite their usages in apps/ and the libs. Returns the changed files.
@@ -89,10 +86,10 @@ export function renameClientExports(tree: Tree, fromClientPath: string, toClient
   const from = parseClientPath(fromClientPath, settings);
   const to = parseClientPath(toClientPath, settings);
   if (!from || !to || from.name === to.name) return [];
-  const pattern = new RegExp(`\\b${clientExportPrefix(from.name)}(Http|Handlers|BaseUrl)\\b`, 'g');
+  const pattern = new RegExp(`\\b${camelCase(from.name)}(Http|Handlers|BaseUrl)\\b`, 'g');
   const changed: string[] = [];
   forEachSourceFile(tree, ['apps', settings.libsDir], (file, content) => {
-    const updated = content.replace(pattern, `${clientExportPrefix(to.name)}$1`);
+    const updated = content.replace(pattern, `${camelCase(to.name)}$1`);
     if (updated !== content) {
       tree.write(file, updated);
       changed.push(file);

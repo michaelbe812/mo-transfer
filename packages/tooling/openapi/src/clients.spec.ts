@@ -3,7 +3,6 @@ import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   addClientEntry,
-  clientExportPrefix,
   readClientsJson,
   relocateClientProject,
   renameClientExports,
@@ -80,11 +79,6 @@ describe('openapi-clients.json on the Tree', () => {
     expect(clients(tree)).toEqual({ 'booking/generated/a-client': {} });
     writeClientsJson(tree, {});
     expect(updateClientEntries(tree, 'generated')).toEqual([]);
-  });
-
-  it('client name → export prefix', () => {
-    expect(clientExportPrefix('pet-client')).toBe('petClient');
-    expect(clientExportPrefix('v2-api-client')).toBe('v2ApiClient');
   });
 
   it('a renamed client renames <client>Http/Handlers/BaseUrl in apps/ and libs/', () => {

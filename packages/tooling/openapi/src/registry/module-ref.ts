@@ -39,7 +39,7 @@ export function findModuleFile(absolute: string): string | undefined {
   return MODULE_EXTENSIONS.map((extension) => join(absolute, `index${extension}`)).find((file) => existsSync(file));
 }
 
-export const isWorkspaceSpecifier = (specifier: string): boolean =>
+const isWorkspaceSpecifier = (specifier: string): boolean =>
   specifier.startsWith('./') || specifier.startsWith('../') || isAbsolute(specifier);
 
 /** `@scope/name/sub/path` → { name: '@scope/name', subpath: './sub/path' } */

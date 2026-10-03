@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { OpenApiError } from '../errors';
 import { loadAdapter, loadScaffold, loadTransform } from './load';
-import { adapterCacheInputs, BUILTIN_ADAPTERS, resolveAdapter, resolveAdapterRegistry, resolveClientAdapter } from './registry';
+import { adapterCacheInputs, BUILTIN_ADAPTERS, resolveAdapter, resolveAdapterRegistry } from './registry';
 import { definitionProblem, satisfiesMinimum, unmetRequirements, validateOptions } from './validate';
 
 let root: string;
@@ -61,9 +61,8 @@ describe('adapter registry', () => {
       alias: 'adapters.alias: unknown built-in "builtin:nswag" (known: builtin:openapi-tools, builtin:hey-api, builtin:nx-plugin-openapi, builtin:command)',
     });
     expect(() => resolveAdapter(registry, 'swagger')).toThrow('unknown adapter "swagger" (known: openapi-tools');
-    expect(() => resolveClientAdapter(root, config, 'generated/a')).toThrow('package @acme/ghost not installed');
-    expect(() => resolveClientAdapter(root, config, 'generated/b')).toThrow(OpenApiError);
-    expect(resolveClientAdapter(root, {}, 'generated/c').id).toBe('openapi-tools');
+    expect(() => resolveAdapter(registry, 'ghost', 'generated/a')).toThrow('package @acme/ghost not installed');
+    expect(() => resolveAdapter(registry, 'gone')).toThrow(OpenApiError);
   });
 
   it('malformed registrations become problems, never exceptions (H1)', () => {

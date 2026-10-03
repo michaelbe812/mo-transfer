@@ -147,7 +147,7 @@ const transpile: Loader = (module, file) => {
  * The previous handlers are restored afterwards: a module must import its .ts helpers statically (top level) — a
  * lazy require() of further .ts files at run time is not supported (the same rule Nx sets for this package).
  */
-export function withTsRequireHook<T>(roots: readonly string[], load: () => T): T {
+function withTsRequireHook<T>(roots: readonly string[], load: () => T): T {
   const extensions = (nodeRequire('node:module') as { _extensions: Record<string, Loader | undefined> })._extensions;
   const saved = TS_EXTENSIONS.map((extension) => [extension, extensions[extension]] as const);
   for (const [extension, previous] of saved) {

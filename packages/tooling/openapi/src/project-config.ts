@@ -66,19 +66,13 @@ export const DEFAULT_TARGET_NAMES: TargetNames = {
   testing: 'generate-api-testing',
   updateSpec: 'update-spec',
 };
-/** Target of the client project (inferred): adapter code of types/api/core. */
-export const CLIENT_GENERATE_TARGET = DEFAULT_TARGET_NAMES.client;
-/** Target of the client's testing lib (inferred): openapi-typescript + msw. */
-export const TESTING_GENERATE_TARGET = DEFAULT_TARGET_NAMES.testing;
-/** dependsOn of every lib target: the generated code of all dependencies (both target kinds). */
-export const GENERATED_DEPENDS_ON = [`^${CLIENT_GENERATE_TARGET}`, `^${TESTING_GENERATE_TARGET}`];
 
 /** Root of this package (src/.. — the same in the sources and in the built dist). */
 const PACKAGE_ROOT = resolve(__dirname, '..');
 export const PACKAGE_NAME = (JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf-8')) as { name: string }).name;
 
 /** Executors of this package (executors.json). */
-export const OPENAPI_EXECUTORS = {
+const OPENAPI_EXECUTORS = {
   generate: `${PACKAGE_NAME}:generate`,
   generateTesting: `${PACKAGE_NAME}:generate-testing`,
   updateSpec: `${PACKAGE_NAME}:update-spec`,
@@ -337,13 +331,6 @@ export function clientProjectJson(clientPath: string, settings: OpenApiSettings 
     projectType: 'library',
     tags: settings.clientTags.map((tag) => fillTemplate(tag, { scope: client.scope })),
   };
-}
-
-export interface InferredClientNodes {
-  /** project root → targets */
-  projects: Record<string, Record<string, TargetJson>>;
-  /** client path → metadata the plugin attaches (verify reads it from the graph) */
-  metadata: Record<string, ClientMetadata>;
 }
 
 /** What verify reads from the graph instead of re-implementing the registry (project metadata `openapi`). */

@@ -18,8 +18,6 @@ import { prepareSpec } from './spec';
 import { splitIntoParts } from './split';
 import { applyTransforms } from './transform';
 
-export const PIPELINE_STAGES = ['spec', 'generate', 'classify', 'transform', 'split', 'barrel', 'finalize', 'write'] as const;
-
 export interface PipelineContext {
   client: ClientDefinition;
   workspaceRoot: string;

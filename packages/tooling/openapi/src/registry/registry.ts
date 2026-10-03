@@ -4,7 +4,7 @@
  * verify reads), the client generator (known id), the facade (what to load) and the contract test helper.
  * Re-read on every call (no memo): createNodes always sees the current file.
  */
-import { type ClientsConfig, adapterIdOf } from '../config';
+import type { ClientsConfig } from '../config';
 import { OpenApiError } from '../errors';
 import { type ModuleRef, moduleCacheInputs, moduleProblem, parseModuleRef } from './module-ref';
 
@@ -109,11 +109,6 @@ export function resolveAdapter(registry: AdapterRegistry, id: string, client?: s
     throw new OpenApiError(registry.problems[id], { phase: 'registry', client, adapter: id });
   }
   return adapter;
-}
-
-/** Adapter of a client entry (its own, the default, openapi-tools), resolved. */
-export function resolveClientAdapter(workspaceRoot: string, config: ClientsConfig, clientPath: string): ResolvedAdapter {
-  return resolveAdapter(resolveAdapterRegistry(workspaceRoot, config), adapterIdOf(config, clientPath), clientPath);
 }
 
 /** Cache inputs of an adapter: its metadata + its module (folder or package). */
