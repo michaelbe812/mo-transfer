@@ -266,3 +266,36 @@ describe('M4: client and testing generation in parallel with overlays do not sha
     expect(existsSync(join(fx.root, 'tmp/openapi/generated/r-client/testing/spec/openapi.yaml'))).toBe(true);
   });
 });
+
+describe('L5: renamed targets (plugin options) keep dependsOn working', () => {
+  let fx: NxFixture;
+  beforeAll(() => {
+    fx = createNxFixture('l5');
+    const nxJson = JSON.parse(readFileSync(join(fx.root, 'nx.json'), 'utf-8'));
+    nxJson.plugins = nxJson.plugins.map((plugin: unknown) =>
+      plugin === '@mo-transfer/tooling-openapi/plugin'
+        ? { plugin, options: { clientTargetName: 'codegen', testingTargetName: 'codegen-testing', updateSpecTargetName: 'refresh-spec' } }
+        : plugin,
+    );
+    write(fx.root, 'nx.json', JSON.stringify(nxJson, null, 2));
+    write(fx.root, 'specs/things.yaml', THINGS_SPEC);
+    fx.clients({ clients: {} });
+    fx.nx('g', '@mo-transfer/tooling-openapi:client', 'l-client', '--spec=specs/things.yaml', '--adapter=hey-api');
+  });
+  afterAll(() => removeWorkspace(fx.root));
+
+  it('the generator rewrites the targetDefaults dependsOn (^generate-api-client → ^codegen); every lib target waits for the renamed ones', () => {
+    const nxJson = JSON.parse(readFileSync(join(fx.root, 'nx.json'), 'utf-8'));
+    for (const target of ['lint', 'typecheck', 'build', 'test']) {
+      expect(nxJson.targetDefaults[target].dependsOn).toEqual(expect.arrayContaining(['^codegen', '^codegen-testing']));
+      expect(nxJson.targetDefaults[target].dependsOn).not.toContain('^generate-api-client');
+    }
+    const api = fx.project('generated-l-client-api');
+    expect(api.targets.typecheck.dependsOn).toEqual(['^codegen', '^codegen-testing']);
+    expect(fx.project('generated-l-client-testing').targets.lint.dependsOn).toEqual(['codegen-testing', '^codegen', '^codegen-testing']);
+    expect(Object.keys(fx.project('generated-l-client').targets).sort()).toEqual(['codegen', 'refresh-spec']);
+    // the task graph: typecheck of the api lib runs the client's codegen first
+    const graph = JSON.parse(fx.nx('run', 'generated-l-client-api:typecheck', '--graph=stdout'));
+    expect(Object.keys(graph.tasks.tasks)).toContain('generated-l-client:codegen');
+  });
+});
