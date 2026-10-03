@@ -57,6 +57,8 @@ export interface AdapterRegistry {
 
 const builtin = (id: string, module = `builtin:${id}`): ModuleRef => ({ specifier: module, kind: 'builtin', builtinId: id });
 
+const strings = (value: unknown): string[] => (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []);
+
 export function resolveAdapterRegistry(workspaceRoot: string, config: ClientsConfig): AdapterRegistry {
   const adapters: Record<string, ResolvedAdapter> = {};
   const problems: Record<string, string> = {};
@@ -65,6 +67,11 @@ export function resolveAdapterRegistry(workspaceRoot: string, config: ClientsCon
   }
   for (const [id, registration] of Object.entries(config.adapters ?? {})) {
     if (id.startsWith('$')) continue;
+    if (!registration || typeof registration !== 'object' || typeof registration.module !== 'string') {
+      problems[id] = `adapters.${id}: module missing (a workspace path, package or builtin:<id>)`;
+      adapters[id] = { id, module: { specifier: '', kind: 'workspace' }, packages: [], inputs: [], runtime: [], options: {}, custom: true };
+      continue;
+    }
     const module = parseModuleRef(registration.module, workspaceRoot);
     const base = module.kind === 'builtin' ? BUILTIN_ADAPTERS[module.builtinId as string] : undefined;
     const problem =
@@ -77,10 +84,10 @@ export function resolveAdapterRegistry(workspaceRoot: string, config: ClientsCon
     adapters[id] = {
       id,
       module,
-      packages: [...(base?.packages ?? []), ...(registration.packages ?? [])],
-      inputs: [...(base?.inputs ?? []), ...(registration.inputs ?? [])],
-      runtime: [...(base?.runtime ?? []), ...(registration.runtime ?? [])],
-      options: registration.options ?? {},
+      packages: [...(base?.packages ?? []), ...strings(registration.packages)],
+      inputs: [...(base?.inputs ?? []), ...strings(registration.inputs)],
+      runtime: [...(base?.runtime ?? []), ...strings(registration.runtime)],
+      options: registration.options && typeof registration.options === 'object' ? registration.options : {},
       custom: true,
     };
   }

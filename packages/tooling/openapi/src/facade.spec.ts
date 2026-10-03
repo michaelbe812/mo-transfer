@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ClientDefinition } from './adapter';
-import { readClientsConfig } from './config';
+import { readClientsConfig, transformsOf } from './config';
 import { formatError, OpenApiError } from './errors';
 import { resolveClient, serializeSpec, updateSpec } from './facade';
 import { camelCase, clientRoot, DEFAULT_SETTINGS, generatedHeader, parseClientPath, partAlias, resolveSettings } from './settings';
@@ -69,6 +69,23 @@ describe('resolveClient', () => {
     write('libs/generated/two-client/openapi.json', '');
     expect(() => resolveClient(dir, 'generated/two-client')).toThrow('found openapi.yaml, openapi.json');
     expect(() => readClientsConfig(dir)).not.toThrow();
+  });
+});
+
+describe('config shapes (H1)', () => {
+  it('wrong sections become empty, transforms are validated with their index', () => {
+    write('openapi-clients.json', JSON.stringify({ settings: 'x', adapters: [1], clients: 'y' }));
+    expect(readClientsConfig(dir)).toEqual({ settings: undefined, adapters: undefined, clients: undefined });
+    write('openapi-clients.json', '[]');
+    expect(() => readClientsConfig(dir)).toThrow('openapi-clients.json: must be an object');
+    expect(transformsOf(null)).toEqual([]);
+    expect(transformsOf({ pipeline: { transforms: ['./a.ts', { module: 'b', options: 'x' as never }, { module: 'c', options: { o: 1 } }] } })).toEqual([
+      { module: './a.ts', options: {} },
+      { module: 'b', options: {} },
+      { module: 'c', options: { o: 1 } },
+    ]);
+    expect(() => transformsOf({ pipeline: { transforms: [{} as never] } })).toThrow('pipeline.transforms[0]: module missing');
+    expect(() => transformsOf({ pipeline: { transforms: 'x' as never } })).toThrow('pipeline.transforms: must be an array');
   });
 });
 

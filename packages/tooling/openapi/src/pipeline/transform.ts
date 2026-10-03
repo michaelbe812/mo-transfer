@@ -4,7 +4,7 @@
  * cache cannot see: a non-deterministic hook poisons the cache. Trade-off: docs/openapi-pipeline-architektur.md.
  */
 import type { ClientPart, PipelineFile, TransformContext } from '../adapter';
-import { normalizeTransform, type TransformEntry } from '../config';
+import { type TransformEntry, transformsOf } from '../config';
 import { loadTransform } from '../registry/load';
 import { validateOptions } from '../registry/validate';
 
@@ -17,8 +17,7 @@ export interface TransformInput {
 
 export async function applyTransforms({ files, transforms, parts, context }: TransformInput): Promise<PipelineFile[]> {
   let current = files;
-  for (const entry of transforms) {
-    const { module, options } = normalizeTransform(entry);
+  for (const { module, options } of transformsOf({ pipeline: { transforms: [...transforms] } })) {
     const transform = await loadTransform(module, context.workspaceRoot, context.client.path);
     const errors = transform.optionsSchema ? validateOptions(transform.optionsSchema, options) : [];
     if (errors.length) throw new Error(`transform ${transform.id}: invalid options\n  ${errors.join('\n  ')}`);

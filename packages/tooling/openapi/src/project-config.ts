@@ -29,7 +29,7 @@ import {
   findSpecFile,
   hasTesting,
   mockEngineOf,
-  normalizeTransform,
+  transformsOf,
   overlayFiles,
   settingsOf,
 } from './config';
@@ -183,8 +183,8 @@ export function createInferenceContext(
 function pipelineInputs(entry: ClientEntry | undefined, workspaceRoot: string): { files: string[]; packages: string[] } {
   const files: string[] = [];
   const packages: string[] = [];
-  for (const transform of entry?.pipeline?.transforms ?? []) {
-    const inputs = moduleCacheInputs(parseModuleRef(normalizeTransform(transform).module, workspaceRoot));
+  for (const transform of transformsOf(entry)) {
+    const inputs = moduleCacheInputs(parseModuleRef(transform.module, workspaceRoot));
     files.push(...inputs.files);
     packages.push(...inputs.packages);
   }

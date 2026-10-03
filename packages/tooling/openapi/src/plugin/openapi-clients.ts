@@ -25,11 +25,13 @@ import {
 } from '@nx/devkit';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { adapterIdOf, CLIENTS_CONFIG_FILE, type ClientsConfig, normalizeTransform, readClientsConfig, settingsOf } from '../config';
+import { adapterIdOf, CLIENTS_CONFIG_FILE, type ClientsConfig, readClientsConfig, settingsOf, transformsOf } from '../config';
 import {
   type ClientMetadata,
   createInferenceContext,
+  type InferenceContext,
   inferClientTargets,
+  updateSpecTarget,
   type TargetJson,
   type TargetNames,
 } from '../project-config';
@@ -53,19 +55,19 @@ type ProjectNode = { targets: Record<string, TargetJson>; metadata?: { openapi: 
 
 /** Projects (root → targets, metadata) of one openapi-clients.json. */
 export function inferClientNodes(workspaceRoot: string, options?: OpenApiPluginOptions): { projects?: Record<string, ProjectNode> } {
-  let config: ClientsConfig;
+  let context: InferenceContext;
   try {
-    config = readClientsConfig(workspaceRoot);
+    const config = readClientsConfig(workspaceRoot);
+    context = createInferenceContext(workspaceRoot, config, (path) => existsSync(join(workspaceRoot, path)), targetNamesOf(options));
   } catch (error) {
     logger.warn(`${(error as Error).message} — no OpenAPI client targets`);
     return {};
   }
-  const context = createInferenceContext(workspaceRoot, config, (path) => existsSync(join(workspaceRoot, path)), targetNamesOf(options));
   const projects: Record<string, ProjectNode> = {};
-  for (const clientPath of Object.keys(config.clients ?? {})) {
+  for (const clientPath of Object.keys(context.config.clients ?? {})) {
     const root = clientRoot(context.settings, clientPath);
     if (!context.exists(`${root}/project.json`)) continue;
-    const { targets, metadata } = inferClientTargets(context, clientPath);
+    const { targets, metadata } = safeInfer(context, clientPath);
     if (metadata.problem) {
       logger.warn(`${CLIENTS_CONFIG_FILE} → "${clientPath}": ${metadata.problem} — no ${context.targetNames.client} target (verify reports it)`);
     }
@@ -77,6 +79,18 @@ export function inferClientNodes(workspaceRoot: string, options?: OpenApiPluginO
     }
   }
   return { projects };
+}
+
+/** inferClientTargets that never throws: an unexpected error becomes the client's problem (update-spec only). */
+function safeInfer(context: InferenceContext, clientPath: string): ReturnType<typeof inferClientTargets> {
+  try {
+    return inferClientTargets(context, clientPath);
+  } catch (error) {
+    return {
+      targets: { [clientRoot(context.settings, clientPath)]: { [context.targetNames.updateSpec]: updateSpecTarget(clientPath) } },
+      metadata: { adapter: '', layout: 'default', testing: false, parts: [], problem: (error as Error).message },
+    };
+  }
 }
 
 /** Only the root file: the client paths in it are relative to the workspace root. */
@@ -96,12 +110,17 @@ export const createNodes: CreateNodes<OpenApiPluginOptions> = [
  * a lockfile change of such a package reaches the client in `nx affected`. Only existing external nodes.
  */
 export const createDependencies: CreateDependencies<OpenApiPluginOptions> = (_options, context) => {
-  let config: ClientsConfig;
   try {
-    config = readClientsConfig(context.workspaceRoot);
-  } catch {
+    return clientDependencies(context);
+  } catch (error) {
+    // never break the graph: the edges are an affected optimisation, createNodes reports the problem
+    logger.warn(`${CLIENTS_CONFIG_FILE}: no OpenAPI dependencies (${(error as Error).message})`);
     return [];
   }
+};
+
+function clientDependencies(context: Parameters<CreateDependencies<OpenApiPluginOptions>>[1]): RawProjectGraphDependency[] {
+  const config: ClientsConfig = readClientsConfig(context.workspaceRoot);
   const settings = settingsOf(config);
   const registry = resolveAdapterRegistry(context.workspaceRoot, config);
   const dependencies: RawProjectGraphDependency[] = [];
@@ -112,8 +131,14 @@ export const createDependencies: CreateDependencies<OpenApiPluginOptions> = (_op
     const source = project[1].name ?? project[0];
     const adapter = registry.adapters[adapterIdOf(config, clientPath)];
     const packages = new Set<string>(adapter?.custom ? [...(adapter.module.packageName ? [adapter.module.packageName] : []), ...adapter.packages] : []);
-    for (const transform of entry.pipeline?.transforms ?? []) {
-      const ref = parseModuleRef(normalizeTransform(transform).module, context.workspaceRoot);
+    let transforms: { module: string }[] = [];
+    try {
+      transforms = transformsOf(entry);
+    } catch {
+      // malformed transforms: reported by createNodes (metadata problem)
+    }
+    for (const transform of transforms) {
+      const ref = parseModuleRef(transform.module, context.workspaceRoot);
       if (ref.packageName) packages.add(ref.packageName);
     }
     for (const name of [...packages].sort()) {
@@ -122,4 +147,4 @@ export const createDependencies: CreateDependencies<OpenApiPluginOptions> = (_op
     }
   }
   return dependencies;
-};
+}

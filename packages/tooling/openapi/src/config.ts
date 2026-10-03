@@ -83,8 +83,9 @@ export interface ClientsConfig {
 
 /** openapi-clients.json of a workspace (fs). Throws a config error with the file name. */
 export function readClientsConfig(workspaceRoot: string): ClientsConfig {
+  let parsed: unknown;
   try {
-    return JSON.parse(readFileSync(join(workspaceRoot, CLIENTS_CONFIG_FILE), 'utf-8')) as ClientsConfig;
+    parsed = JSON.parse(readFileSync(join(workspaceRoot, CLIENTS_CONFIG_FILE), 'utf-8'));
   } catch (error) {
     throw new OpenApiError(`${CLIENTS_CONFIG_FILE}: not readable (${(error as Error).message})`, {
       phase: 'config',
@@ -92,6 +93,15 @@ export function readClientsConfig(workspaceRoot: string): ClientsConfig {
       hint: `create ${CLIENTS_CONFIG_FILE} in the workspace root: { "clients": {} }`,
     });
   }
+  // a hand-edited file may have any shape: wrong sections become empty, never a crash downstream
+  if (!isRecord(parsed)) throw new OpenApiError(`${CLIENTS_CONFIG_FILE}: must be an object`, { phase: 'config' });
+  const config = parsed as ClientsConfig;
+  return {
+    ...config,
+    settings: isRecord(config.settings) ? config.settings : undefined,
+    adapters: isRecord(config.adapters) ? config.adapters : undefined,
+    clients: isRecord(config.clients) ? config.clients : undefined,
+  };
 }
 
 export const settingsOf = (config: ClientsConfig): OpenApiSettings => resolveSettings(config.settings);
@@ -125,9 +135,21 @@ export const clientPartsOf = (entry: ClientEntry | undefined): ClientPart[] => [
 export const adapterIdOf = (config: ClientsConfig, clientPath: string): string =>
   config.clients?.[clientPath]?.adapter ?? config.defaultAdapter ?? DEFAULT_ADAPTER;
 
-/** Transform entry → { module, options } */
-export const normalizeTransform = (entry: TransformEntry): { module: string; options: Record<string, unknown> } =>
-  typeof entry === 'string' ? { module: entry, options: {} } : { module: entry.module, options: entry.options ?? {} };
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+
+/** Transform hooks of an entry → [{ module, options }]; throws (config) for a malformed list or entry. */
+export function transformsOf(entry: ClientEntry | null | undefined): { module: string; options: Record<string, unknown> }[] {
+  const transforms: unknown = entry?.pipeline?.transforms ?? [];
+  if (!Array.isArray(transforms)) throw new OpenApiError('pipeline.transforms: must be an array', { phase: 'config' });
+  return transforms.map((item: unknown, index) => {
+    if (typeof item === 'string') return { module: item, options: {} };
+    if (!isRecord(item) || typeof item.module !== 'string') {
+      throw new OpenApiError(`pipeline.transforms[${index}]: module missing`, { phase: 'config' });
+    }
+    return { module: item.module, options: isRecord(item.options) ? item.options : {} };
+  });
+}
 
 /**
  * Workspace-relative overlay files of a client (cache inputs of both generate targets) — only with the feature

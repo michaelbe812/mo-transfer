@@ -66,6 +66,16 @@ describe('adapter registry', () => {
     expect(resolveClientAdapter(root, {}, 'generated/c').id).toBe('openapi-tools');
   });
 
+  it('malformed registrations become problems, never exceptions (H1)', () => {
+    const registry = resolveAdapterRegistry(root, { adapters: { a: {}, b: null, c: { module: 1, packages: 'x', options: 'y' } } as never });
+    expect(registry.problems).toEqual({
+      a: 'adapters.a: module missing (a workspace path, package or builtin:<id>)',
+      b: 'adapters.b: module missing (a workspace path, package or builtin:<id>)',
+      c: 'adapters.c: module missing (a workspace path, package or builtin:<id>)',
+    });
+    expect(() => resolveAdapter(registry, 'b')).toThrow('adapters.b: module missing');
+  });
+
   it('loadAdapter: built-ins, workspace TS adapter, apiVersion/id/functions checked, load errors wrapped', async () => {
     write('tools/a/orval.ts', ADAPTER_TS('orval'));
     write('tools/b/wrong-id.ts', ADAPTER_TS('other'));
