@@ -133,7 +133,7 @@ async function finalize(
   context: PipelineContext,
   preset: PipelinePreset,
 ): Promise<PipelineFile[]> {
-  const header = generatedHeader(context.settings, preset.source, context.client.spec.file);
+  const header = generatedHeader(preset.source, context.client.spec.file);
   const all: PipelineFile[] = [
     ...files,
     ...Object.entries(barrels).map(([part, barrel]) => ({ path: 'index.ts', part: part as ClientPart, content: `${barrel}\n` })),

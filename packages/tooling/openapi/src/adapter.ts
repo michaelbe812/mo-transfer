@@ -160,7 +160,7 @@ export interface ScaffoldLib {
   libPath: string;
   clientPath: string;
   part: ClientPart;
-  /** tags from settings.partTags (the built-in scaffold writes them, a workspace scaffold may derive its own) */
+  /** default tags (scope, layer, generated): the built-in scaffold writes them, a workspace scaffold may derive its own */
   tags: string[];
   /** part → client (→ parts below): the generated code is gitignored, Nx sees no import edges */
   implicitDependencies: string[];

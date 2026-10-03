@@ -38,8 +38,8 @@ import { adapterCacheInputs, type AdapterRegistry, resolveAdapter, resolveAdapte
 import {
   type ClientPart,
   clientRoot,
+  clientTags,
   DEFAULT_SETTINGS,
-  fillTemplate,
   type MockEngine,
   type OpenApiSettings,
   parseClientPath,
@@ -331,7 +331,7 @@ export function clientProjectJson(clientPath: string, settings: OpenApiSettings 
     name: projectNameFor(clientPath),
     $schema: `${'../'.repeat(root.split('/').length)}node_modules/nx/schemas/project-schema.json`,
     projectType: 'library',
-    tags: settings.clientTags.map((tag) => fillTemplate(tag, { scope: client.scope })),
+    tags: clientTags(client.scope),
   };
 }
 

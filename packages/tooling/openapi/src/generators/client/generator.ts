@@ -7,7 +7,7 @@ import { type ClientEntry, clientPartsOf, DEFAULT_ADAPTER, type Layout, settings
 import { targetNamesOf, type OpenApiPluginOptions } from '../../plugin/openapi-clients';
 import { clientPartConfig, clientProjectJson, DEFAULT_TARGET_NAMES, PACKAGE_NAME, type TargetNames } from '../../project-config';
 import { resolveAdapterRegistry } from '../../registry/registry';
-import { camelCase, clientRoot, fillTemplate, parseClientPath, PART_LAYERS, projectNameFor, TESTING_PART } from '../../settings';
+import { camelCase, clientRoot, parseClientPath, partTags, projectNameFor, TESTING_PART } from '../../settings';
 import { assertKebabCase, writeJsonFile } from '../../tree-helpers';
 import { resolveScaffold } from './scaffold';
 
@@ -153,7 +153,7 @@ export async function clientGenerator(tree: Tree, options: ClientGeneratorSchema
       libPath: `${clientPath}/${part}`,
       clientPath,
       part,
-      tags: settings.partTags.map((tag) => fillTemplate(tag, { scope: client.scope, layer: PART_LAYERS[part] })),
+      tags: partTags(client.scope, part),
       implicitDependencies,
       targets: targets ?? {},
       buildable: part !== TESTING_PART,

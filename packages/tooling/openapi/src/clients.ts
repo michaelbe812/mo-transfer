@@ -5,7 +5,7 @@
 import type { Tree } from '@nx/devkit';
 import { CLIENTS_CONFIG_FILE, type ClientEntry, type ClientsConfig, DEFAULT_ADAPTER, settingsOf } from './config';
 import { schemaPathFor } from './project-config';
-import { camelCase, clientRoot, fillTemplate, parseClientPath, projectNameFor } from './settings';
+import { camelCase, clientRoot, clientTags, parseClientPath, projectNameFor } from './settings';
 import { forEachSourceFile, offsetFromRoot, readJsonFile, replacePaths, writeJsonFile } from './tree-helpers';
 
 export type { ClientEntry, ClientsConfig } from './config';
@@ -72,7 +72,7 @@ export function relocateClientProject(tree: Tree, from: string, to: string, move
     ...project,
     name,
     $schema: `${offsetFromRoot(clientRoot(settings, to))}node_modules/nx/schemas/project-schema.json`,
-    tags: settings.clientTags.map((tag) => fillTemplate(tag, { scope: client.scope })),
+    tags: clientTags(client.scope),
   });
   return name;
 }

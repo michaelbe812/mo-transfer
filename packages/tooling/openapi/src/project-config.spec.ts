@@ -14,7 +14,6 @@ import {
   schemaPathFor,
   toolingMode,
 } from './project-config';
-import { resolveSettings } from './settings';
 
 const INDEX = "export * from './generated';\n";
 const REPO_ROOT = join(__dirname, '../../../..');
@@ -46,16 +45,16 @@ describe('client config (project.json of clients and parts, inferred targets)', 
   });
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-  it('client project.json: name + tags only (settings.clientTags)', () => {
+  it('client project.json: name + tags only', () => {
     expect(clientProjectJson('generated/pet-client')).toEqual({
       name: 'generated-pet-client',
       $schema: '../../../node_modules/nx/schemas/project-schema.json',
       projectType: 'library',
       tags: ['scope:shared', 'generated'],
     });
-    const booking = clientProjectJson('booking/generated/booking-client', resolveSettings({ clientTags: ['scope:{scope}', 'api'] }));
+    const booking = clientProjectJson('booking/generated/booking-client');
     expect(booking['$schema']).toBe('../../../../node_modules/nx/schemas/project-schema.json');
-    expect(booking['tags']).toEqual(['scope:booking', 'api']);
+    expect(booking['tags']).toEqual(['scope:booking', 'generated']);
     expect(() => clientProjectJson('pet-client')).toThrow(
       'openapi-clients.json → "pet-client": not a client path (generated/<client> or <domain>/generated/<client>)',
     );

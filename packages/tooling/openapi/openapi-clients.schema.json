@@ -65,28 +65,6 @@
           "$ref": "#/definitions/stringList",
           "default": ["openapi.yaml", "openapi.json"]
         },
-        "clientTags": {
-          "$ref": "#/definitions/stringList",
-          "default": ["scope:{scope}", "generated"]
-        },
-        "partTags": {
-          "$ref": "#/definitions/stringList",
-          "default": ["scope:{scope}", "type:{layer}", "feat:none", "generated"],
-          "description": "tags of the part libs, built-in scaffold only"
-        },
-        "header": {
-          "type": "object",
-          "properties": {
-            "lint": {
-              "$ref": "#/definitions/stringList"
-            },
-            "banner": {
-              "type": "string",
-              "description": "placeholders {source}, {spec}"
-            }
-          },
-          "additionalProperties": false
-        },
         "scaffold": {
           "$ref": "#/definitions/moduleSpecifier",
           "description": "Lib scaffold of the client generator (defineScaffold). Default: built-in (project.json + tsconfig.json + paths)."

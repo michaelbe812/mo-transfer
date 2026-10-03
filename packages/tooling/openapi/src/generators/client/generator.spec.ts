@@ -316,7 +316,7 @@ describe('client generator', () => {
 });
 
 describe('client generator with the built-in scaffold (no settings.scaffold)', () => {
-  it('project.json (settings.partTags, edges, testing dependsOn) + tsconfig.json + paths; domain = an existing folder', async () => {
+  it('project.json (tags, edges, testing dependsOn) + tsconfig.json + paths; domain = an existing folder', async () => {
     const tree = createTreeWithEmptyWorkspace();
     tree.write('tsconfig.base.json', JSON.stringify({ compilerOptions: { paths: { '@x/z': ['./z.ts'] } } }));
     tree.write('libs/booking/README.md', '');
