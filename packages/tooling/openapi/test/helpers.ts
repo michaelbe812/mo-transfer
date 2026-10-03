@@ -4,6 +4,7 @@
  * to the workspace root, the jar lies in node_modules/.cache), a copy of openapitools.json, libs/ and
  * openapi-clients.json. Generated code resolves @angular/*, msw … through the link.
  */
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   copyFileSync,
@@ -166,5 +167,71 @@ export function executorContext(root: string, projectName: string, targetName: s
     projectsConfigurations: { version: 2, projects: {} },
     nxJsonConfiguration: {},
     projectGraph: { nodes: {}, dependencies: {} },
+  };
+}
+
+/** Exact paths of the repo's tooling exports (Nx loads generators with swc + these paths), absolute. */
+export const toolingPaths = (): Record<string, string[]> =>
+  Object.fromEntries(
+    Object.entries(
+      JSON.parse(readFileSync(join(repoRoot, 'tsconfig.base.json'), 'utf-8')).compilerOptions.paths as Record<string, string[]>,
+    )
+      .filter(([alias]) => alias.startsWith('@mo-transfer/tooling-'))
+      .map(([alias, [target]]) => [alias, [join(repoRoot, target)]]),
+  );
+
+export interface NxFixture {
+  root: string;
+  env: () => NodeJS.ProcessEnv;
+  /** nx with an own cache/db, no daemon, plain output; throws with stdout+stderr on failure */
+  nx: (...args: string[]) => string;
+  /** like nx, never throws: { ok, output } */
+  tryNx: (...args: string[]) => { ok: boolean; output: string };
+  project: (name: string) => any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  clients: (config: Record<string, unknown>) => void;
+}
+
+/**
+ * A fixture workspace configured like the repo (manifest, lockfile, nx.json, tooling paths), ready for `nx`.
+ * `node`: another Node binary (e.g. ≥ 22.18 with native type stripping) for the nx process.
+ */
+export function createNxFixture(name: string, options: { ownNodeModules?: boolean; node?: string } = {}): NxFixture {
+  const root = createWorkspace(name, options);
+  write(root, 'package.json', readFileSync(join(repoRoot, 'package.json'), 'utf-8'));
+  write(root, 'pnpm-lock.yaml', readFileSync(join(repoRoot, 'pnpm-lock.yaml'), 'utf-8'));
+  write(root, 'nx.json', readFileSync(join(repoRoot, 'nx.json'), 'utf-8'));
+  write(root, 'lib-scopes.json', JSON.stringify({ scopes: ['shared'] }));
+  write(root, 'tsconfig.base.json', JSON.stringify({ compilerOptions: { paths: toolingPaths() } }));
+  const env = (): NodeJS.ProcessEnv => ({
+    ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('NX_'))),
+    NX_DAEMON: 'false',
+    NX_NO_CLOUD: 'true',
+    NX_CACHE_DIRECTORY: join(root, '.nx/cache'),
+    NX_WORKSPACE_DATA_DIRECTORY: join(root, '.nx/workspace-data'),
+    FORCE_COLOR: '0',
+    NO_COLOR: '1',
+  });
+  const nx = (...args: string[]): string =>
+    execFileSync(options.node ?? process.execPath, [join(repoRoot, 'node_modules/nx/dist/bin/nx.js'), ...args], {
+      cwd: root,
+      encoding: 'utf-8',
+      env: env(),
+      stdio: 'pipe',
+    });
+  const tryNx = (...args: string[]) => {
+    try {
+      return { ok: true, output: nx(...args) };
+    } catch (error) {
+      const { stdout = '', stderr = '' } = error as { stdout?: string; stderr?: string };
+      return { ok: false, output: `${stdout}${stderr}` };
+    }
+  };
+  return {
+    root,
+    env,
+    nx,
+    tryNx,
+    project: (projectName) => JSON.parse(nx('show', 'project', projectName, '--json')),
+    clients: (config) => write(root, 'openapi-clients.json', `${JSON.stringify({ settings: { scaffold: SCAFFOLD }, ...config }, null, 2)}\n`),
   };
 }
