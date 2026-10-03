@@ -33,7 +33,7 @@ import {
   overlayFiles,
   settingsOf,
 } from './config';
-import { findPackageDir, moduleCacheInputs, parseModuleRef } from './registry/module-ref';
+import { findPackageDir, moduleCacheInputs, moduleProblem, parseModuleRef } from './registry/module-ref';
 import { adapterCacheInputs, type AdapterRegistry, resolveAdapter, resolveAdapterRegistry } from './registry/registry';
 import {
   type ClientPart,
@@ -140,7 +140,7 @@ interface ToolingInputs {
 
 function toolingInputs(settings: OpenApiSettings, workspaceRoot: string, extraSources: string[]): ToolingInputs {
   const mode = toolingMode(settings, workspaceRoot);
-  if (mode === 'package') return { files: [], packages: [PACKAGE_NAME, 'typescript'] };
+  if (mode === 'package') return { files: [], packages: [PACKAGE_NAME, 'typescript', 'yaml'] };
   if (mode === 'none') return { files: [], packages: ['typescript', 'yaml'] };
   const src = `${packageFolderIn(workspaceRoot) ?? '.'}/src`;
   return {
@@ -184,7 +184,10 @@ function pipelineInputs(entry: ClientEntry | undefined, workspaceRoot: string): 
   const files: string[] = [];
   const packages: string[] = [];
   for (const transform of transformsOf(entry)) {
-    const inputs = moduleCacheInputs(parseModuleRef(transform.module, workspaceRoot));
+    const ref = parseModuleRef(transform.module, workspaceRoot);
+    const problem = moduleProblem(ref, workspaceRoot, 'pipeline.transforms');
+    if (problem && ref.absoluteFile) throw new Error(problem);
+    const inputs = moduleCacheInputs(ref);
     files.push(...inputs.files);
     packages.push(...inputs.packages);
   }
@@ -279,7 +282,8 @@ export function generateTestingTarget(context: InferenceContext, clientPath: str
   const { config, settings, workspaceRoot } = context;
   const entry = config.clients?.[clientPath];
   const pipeline = pipelineInputs(entry, workspaceRoot);
-  const tooling = toolingInputs(settings, workspaceRoot, []);
+  // the testing preset reads the raw output with adapters/files.ts
+  const tooling = toolingInputs(settings, workspaceRoot, ['adapters/files.ts']);
   return {
     executor: OPENAPI_EXECUTORS.generateTesting,
     cache: true,

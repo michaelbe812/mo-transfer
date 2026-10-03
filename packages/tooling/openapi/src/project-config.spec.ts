@@ -146,7 +146,7 @@ describe('client config (project.json of clients and parts, inferred targets)', 
       clients: { 'generated/pet-client': { adapter: 'acme' } },
     };
     const inputs = generateTarget(context(config), 'generated/pet-client', 'libs/generated/pet-client/openapi.yaml')['inputs'];
-    expect(inputs).toContainEqual({ externalDependencies: ['@acme/openapi-adapter', '@mo-transfer/tooling-openapi', 'typescript'] });
+    expect(inputs).toContainEqual({ externalDependencies: ['@acme/openapi-adapter', '@mo-transfer/tooling-openapi', 'typescript', 'yaml'] });
     expect(toolingMode(resolveSettings({ toolingInputs: 'none' }), REPO_ROOT)).toBe('none');
     expect(toolingMode(DEFAULT_SETTINGS, REPO_ROOT)).toBe('source');
     expect(toolingMode(DEFAULT_SETTINGS, root)).toBe('none');

@@ -10,8 +10,14 @@ import { type ModuleRef, moduleProblem, parseModuleRef } from './module-ref';
 import type { ResolvedAdapter } from './registry';
 import { definitionProblem } from './validate';
 
-async function loadDefinition(ref: ModuleRef, workspaceRoot: string, what: string, phaseDetails: { client?: string; adapter?: string }) {
-  const problem = moduleProblem(ref, workspaceRoot, what);
+async function loadDefinition(
+  ref: ModuleRef,
+  workspaceRoot: string,
+  what: string,
+  phaseDetails: { client?: string; adapter?: string },
+  allowOutside = false,
+) {
+  const problem = moduleProblem(ref, workspaceRoot, what, allowOutside);
   if (problem) throw new OpenApiError(problem, { phase: 'load', ...phaseDetails });
   try {
     return pickDefinition(await loadModule(ref, workspaceRoot));
@@ -51,7 +57,8 @@ export async function loadTransform(specifier: string, workspaceRoot: string, cl
 }
 
 export async function loadScaffold(specifier: string, workspaceRoot: string): Promise<LibScaffold> {
-  const definition = await loadDefinition(parseModuleRef(specifier, workspaceRoot), workspaceRoot, `scaffold ${specifier}`, {});
+  // the scaffold runs in the generator only (no cache): it may live outside the workspace
+  const definition = await loadDefinition(parseModuleRef(specifier, workspaceRoot), workspaceRoot, `scaffold ${specifier}`, {}, true);
   const problem = definitionProblem(definition, `scaffold ${specifier}`, undefined, ['writeLib']);
   if (problem) throw new OpenApiError(problem, { phase: 'scaffold', hint: 'export default defineScaffold({ apiVersion: 1, id, writeLib })' });
   return definition as LibScaffold;

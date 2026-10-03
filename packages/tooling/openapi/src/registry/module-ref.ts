@@ -80,9 +80,13 @@ export function findPackageDir(workspaceRoot: string, packageName: string): stri
   }
 }
 
-/** Why a module cannot be loaded (undefined = fine); `what` names it in the message. */
-export function moduleProblem(ref: ModuleRef, workspaceRoot: string, what: string): string | undefined {
+/**
+ * Why a module cannot be loaded (undefined = fine); `what` names it in the message. Cache-relevant modules (adapters,
+ * transforms) must live inside the workspace — a file outside cannot be a cache input; the scaffold may (`allowOutside`).
+ */
+export function moduleProblem(ref: ModuleRef, workspaceRoot: string, what: string, allowOutside = false): string | undefined {
   if (ref.kind === 'workspace' && !ref.absoluteFile) return `${what}: ${ref.specifier} not found (relative to the workspace root)`;
+  if (ref.kind === 'workspace' && !ref.file && !allowOutside) return `${what}: ${ref.specifier} is outside the workspace (no cache input possible)`;
   if (ref.kind === 'package' && !findPackageDir(workspaceRoot, ref.packageName as string)) {
     return `${what}: package ${ref.packageName} not installed (pnpm add -D ${ref.packageName})`;
   }
