@@ -534,7 +534,7 @@ libs/<domain>/generated/<client>/          scope:<domain>  Client-Projekt <domai
 | `layout` | `merged-core`: core in der api-Lib (keine core-Lib). Default types/api/core |
 | `pipeline` | `overlays` (experimentell, Flag `settings.features.overlays`), `transforms` (Code-Hooks), `format` (prettier), `testing` (`msw` \| `false`) |
 | `adapters` (Datei-Ebene) | eigene Adapter: `module` (Workspace-Pfad, npm-Paket, `builtin:<id>`), `packages`, `inputs`, `runtime`, `options` |
-| `settings` (Datei-Ebene) | Workspace-Annahmen mit Defaults (`libsDir`, `clientFolder`, `outputDir`, `aliasPrefix`, `header`, `scaffold`, `toolingInputs`, `features`); hier nur `scaffold` gesetzt |
+| `settings` (Datei-Ebene) | Workspace-Annahmen mit Defaults (`libsDir`, `clientFolder`, `outputDir`, `aliasPrefix`, `sharedScope`, `specFiles`, `scaffold`, `features`, `testing`); hier nur `scaffold` gesetzt |
 
 Die Datei liest zur Laufzeit die Executoren (`resolveClient`), bei jeder Graph-Berechnung das Plugin, beim Anlegen der Generator und `tooling-verify:verify`. Die `project.json` des Clients und seiner Teile schreibt der Generator `client` (Vorlage `packages/tooling/openapi/src/project-config.ts`): Client-Projekt mit Name + Tags (`generate-api-client` + `update-spec` inferiert das Plugin), Teil-Libs mit `implicitDependencies` und die Testing-Lib mit eigenem `generate-api-testing` (`lint`/`typecheck` mit `dependsOn: ['generate-api-testing', '^generate-api-client', '^generate-api-testing']`). Eintrag, Ordner und Spec müssen zusammenpassen: `tooling-verify:verify` prüft Eintrag ↔ Ordner ↔ eine Spec ↔ vier Libs, bekannter Adapter, keine expliziten Client-Targets, Kanten und dass die vier `index.ts` genau `export * from './generated';` enthalten.
 

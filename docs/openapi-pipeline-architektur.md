@@ -1,6 +1,6 @@
 # OpenAPI-Tooling: Pipeline-Architektur
 
-Zielarchitektur von `@mo-transfer/tooling-openapi` (Branch `feat/openapi-pipeline-architecture`) zur Freigabe. Umsetzung der Owner-Entscheidungen 1–8 + Feature-Flag für Overlays. Bedienung und Consumer-Guide: [`packages/tooling/openapi/README.md`](../packages/tooling/openapi/README.md), Einbettung in den Blueprint: [`docs/nx-umsetzung.md` → OpenAPI-Clients](nx-umsetzung.md#openapi-clients).
+Architektur von `@mo-transfer/tooling-openapi`: Owner-Entscheidungen 1–8 + Feature-Flag für Overlays. Bedienung und Consumer-Guide: [`packages/tooling/openapi/README.md`](../packages/tooling/openapi/README.md), Einbettung in den Blueprint: [`docs/nx-umsetzung.md` → OpenAPI-Clients](nx-umsetzung.md#openapi-clients).
 
 ## Architektur
 
@@ -27,7 +27,7 @@ flowchart LR
 
 | Baustein | Datei | Aufgabe |
 |---|---|---|
-| Settings | `src/settings.ts`, `openapi-clients.json → settings` | Workspace-Annahmen als Werte mit Defaults = heutige Werte: `libsDir`, `clientFolder`, `outputDir`, `aliasPrefix`, `sharedScope`, `specFiles`, `clientTags`, `partTags`, `header`, `scaffold`, `toolingInputs`, `features` |
+| Settings | `src/settings.ts`, `openapi-clients.json → settings` | Workspace-Annahmen mit Defaults: `libsDir`, `clientFolder`, `outputDir`, `aliasPrefix`, `sharedScope`, `specFiles`, `scaffold`, `features`, `testing`. Header, Tags und Tooling-Inputs sind fest (YAGNI; eigene Tags über den Scaffold) |
 | Config | `src/config.ts` | Typen + Lesen von `openapi-clients.json` (frisch pro Aufruf), Layout, Parts, Overlay-/Feature-Helfer |
 | Registry | `src/registry/registry.ts` | **ein** Resolver: Built-ins (`openapi-tools`, `hey-api`, `nx-plugin-openapi`, `command`) + `adapters`-Map; liefert Modul-Referenz, Pakete, Inputs, Runtime, Optionen, Probleme. Kein Memo |
 | Modul-Referenz / Loader | `src/registry/module-ref.ts`, `loader.ts`, `load.ts` | wohin ein Specifier zeigt + Cache-Inputs (leicht, im Plugin); Laden für Adapter, Transforms, Scaffold (`.ts` via eigenem Require-Hook, `.mjs`/ESM via echtem `import()`, CJS via `require`, npm-`exports` von Hand) + SPI-Prüfung |
@@ -42,13 +42,13 @@ flowchart LR
 
 | # | Entscheidung | Umsetzung | Begründung |
 |---|---|---|---|
-| 1 | Publishable Library | `build`-Target (tsc → `dist/packages/tooling/openapi`, CJS + `.d.ts`), `scripts/prepare-dist.mts` schreibt `package.json` (Exports `.js` + `types`, ohne `private`/devDependencies), `peerDependencies` nx/@nx/devkit/typescript, `dependencies` yaml. `npm pack --dry-run` grün (124 Dateien, 92,7 kB) | Quellen bleiben im Workspace ohne Build ladbar (Nx/swc), dist für npm |
+| 1 | Publishable Library | `build`-Target (tsc → `dist/packages/tooling/openapi`, CJS + `.d.ts`), `scripts/prepare-dist.mts` schreibt `package.json` (Exports `.js` + `types`, ohne `private`/devDependencies), `peerDependencies` nx/@nx/devkit/typescript, `dependencies` yaml. `npm pack --dry-run` grün | Quellen bleiben im Workspace ohne Build ladbar (Nx/swc), dist für npm |
 | 1 | Settings-Ort: `openapi-clients.json → settings` | Defaults = heutige Werte, `json`-Feld `settings` ist Input jedes Generate-Targets | Executoren, Generator, verify lesen sie zur Laufzeit (Plugin-Optionen sehen sie nicht); jede `nx.json`-Änderung invalidiert den ganzen Cache. In `nx.json` (Plugin-Optionen) nur Graph-Form: Target-Namen |
 | 1 | Keine Abhängigkeit auf tooling-conventions | eigene Pfad-/Tree-Helfer parametrisiert über Settings; Lib-Config per **Scaffold-SPI** (`settings.scaffold`), hier `@mo-transfer/tooling-conventions/openapi-scaffold` (strukturell, ohne Import des openapi-Pakets) | Lib-Konventionen (ng-packagr, tsconfig*, Tags) sind Workspace-Sache. ESLint erzwingt es: tooling-openapi ist buildable, Import nicht-buildable Libs blockiert |
-| 1 | Tooling als Cache-Input | `toolingInputs: auto` → im Workspace Globs der Quellen, unter `node_modules` `externalDependencies: [<paket>]`, außerhalb (Fixture) keine | Kein hartcodierter `packages/tooling/openapi`-Pfad mehr |
+| 1 | Tooling als Cache-Input | nach Ort: im Workspace Globs der Quellen (je Target eng), unter `node_modules` `externalDependencies: [<paket>]`, verlinkt außerhalb keine | Kein hartcodierter `packages/tooling/openapi`-Pfad mehr |
 | 2 | Alles TypeScript strict | Spike übernommen; Build-Skript `.mts` per Node-Type-Stripping | — |
 | 3 | Consumer-Adapter | `adapters`-Map (Workspace-Pfad, npm-Paket inkl. ESM-only, `builtin:<id>`-Alias mit eigenen Defaults), deklarativ `packages`/`inputs`/`runtime`/`options`; Cache-Inputs: Modul-Ordner bzw. Paket + Kante → `npm:<pkg>`; `apiVersion`/`id` geprüft, Optionen gegen `optionsSchema` vor `generate`, `requires` (Pakete, Node) | Plugin importiert nie Adapter-Code (Graph schnell + robust); eine Registry statt zwei Kopien (Spike-Problem) |
-| 3 | `.ts`-Adapter laden | eigener Require-Hook (TypeScript `transpileModule` → CJS) für `.ts` außerhalb `node_modules`, einmal installiert und behalten; ESM per Function-erzeugtem `import()` (Fallback `vm`-Main-Loader in Vitest) | Nx entfernt seinen swc-Hook nach dem Laden des Executors und macht aus `import()` ein `require()` (Spike-Befund). Getestet: `.ts`-Workspace-Adapter mit Helfer + SPI-Import, ESM-only Fake-npm-Paket, `.mjs`, CJS, TLA |
+| 3 | `.ts`-Adapter laden | eigener Require-Hook (TypeScript `transpileModule` → CJS) nur für den Modulordner und nur während des Ladens (M2); ESM per Function-erzeugtem `import()` (in Vitest: eigenes `import()` als Fallback) | Nx entfernt seinen swc-Hook nach dem Laden des Executors und macht aus `import()` ein `require()` (Spike-Befund). Getestet: `.ts`-Workspace-Adapter mit Helfer + SPI-Import, ESM-only Fake-npm-Paket, `.mjs`, CJS, TLA |
 | 3 | Schema | `adapter`: `anyOf` (Built-in-`enum` ∪ Pattern) → Autocomplete + eigene IDs | — |
 | 4 | Pipeline | `spec[] → generate → classify → transform[] → split → barrel → finalize[] → write`, Datei-Liste sortiert, Barrel aus In-Memory-Dateien (Compiler-Host), nur generate/write auf Platte | Determinismus, testbare Stages, ein Ort für Fehler |
 | 4 | Overlays | OpenAPI Overlay 1.0, JSONPath-Teilmenge ohne Dependency, **hinter Feature-Flag** `settings.features.overlays` (Default aus). Aus + `pipeline.overlays` → Generate scheitert mit Hinweis, Plugin warnt, verify meldet (`metadata.openapi.disabledFeatures`); Overlay-Dateien nur mit Flag Cache-Input | Owner-Vorgabe: experimentell, nie stilles Ignorieren |
@@ -110,34 +110,24 @@ Verworfene Alternativen (Spike): hey-api-Faker/msw-Plugins (ignoriert `example`,
 | Workspace-Adapter: der ganze Ordner ist Input | ein Ordner pro Adapter |
 | `node_modules`-Auflösung von npm-Adaptern ab Workspace-Root, Conditions `node`/`require`/`import`/`default` | — |
 | Projektnamen-Regel `/` → `-` und Part-Ordner `types`/`api`/`core`/`testing` sind fest | dokumentiert |
-| ESM-Import in Vitest nutzt `vm.USE_MAIN_CONTEXT_DEFAULT_LOADER` (experimentell, nur Fallback) | in Nx-Executoren nicht genutzt |
 | Datei-Name `openapi-clients.json` fest (Plugin-Glob ist statisch) | — |
 | schema-faker: nur lokale `$ref`s (externe Refs → Fehler beim Generieren) | Spec vorher bündeln (z. B. `@redocly/cli bundle`); Bündeln im spec-Stage ist eine mögliche Erweiterung |
 
-## Migration (main → Branch)
+## Vereinfachung (Branch `refactor/openapi-simplify`)
 
-- `openapi-clients.json`: neu `settings.scaffold: "@mo-transfer/tooling-conventions/openapi-scaffold"` (sonst schreibt der Generator nur project.json + tsconfig.json).
-- Testing-`project.json` der drei Clients: `generate-api-testing` entfernt (Plugin). `lint`/`typecheck`-`dependsOn` bleiben.
-- Inputs der Generate-Targets geändert (Tooling-Globs neu, `settings`-Feld, Testing mit `clients.<pfad>.pipeline`): einmalig laufen Clients und Abhängige neu.
-- Exporte: `.` → `src/index.ts`, neu `./adapter`, `./adapter-testing`; tsconfig-`paths` nachgezogen. `adapterRegistry`/`adapterOf`/`clientTargets` entfallen (→ `resolveAdapterRegistry`, `inferClientTargets`).
-- Fehlertexte der Executoren jetzt `[openapi:<phase>] <client> (adapter <id>): …` + `hint`.
-- `verify-nx-internals`: dist-Snapshot ohne `dist/packages/**` (Tooling-dist ändert sich mit jedem Commit); Snapshot selbst unverändert (526 Dateien identisch).
-- Generierter Client-Code (types/api/core) aller drei Clients **byte-identisch** zu main (50 Dateien, sha256). Testing-Libs bewusst geändert: `schema-faker` statt orval (7 statt 9–23 Dateien je Lib, `model.ts` statt `model/**`, `mock-runtime.ts`); Exporte gleich, Specs unverändert grün.
+| Kandidat | Entscheidung |
+|---|---|
+| toter Code (`PIPELINE_STAGES`, `GENERATED_DEPENDS_ON`, `CLIENT/TESTING_GENERATE_TARGET`, `resolveClientAdapter`, `clientExportPrefix`, …) | entfernt |
+| `settings.toolingInputs` (4 Modi) | entfernt, nur Erkennung nach Ort |
+| `settings.header`, `clientTags`, `partTags` | entfernt (feste Werte; eigene Tags über `settings.scaffold`), Output byte-identisch |
+| `vm`-Fallback des Loaders (nur Vitest) | ersetzt durch eigenes `import()` als Fallback |
+| Duplikate Facade/Generator/Plugin/Contract-Helper | zusammengelegt: `stringifySpec`, `prettierFormatter`, `clientLocationOf`, `isRecord`, ein Root-Manifest-Leser, `buildBarrels`, `safeInfer` in `inferClientTargets` |
+| JSONPath → Bibliothek | verworfen: `json-p3` ≥ 3 nur ESM (Plugin/Executor laden CJS), `jsonpath-plus` nicht RFC 9535, 3 Deps, stille Fehltreffer; Teilmenge bleibt (Overlays experimentell) |
+| Options-Validator → ajv | verworfen: ~45 Zeilen gegen eine Runtime-Dependency (+4 transitive) im publizierten Paket, schlechtere Meldungen |
+| eigener npm-`exports`-Resolver | bleibt: Node hat aus CJS keine API für `import`-only-Pakete eines fremden Roots |
 
-## Vorher / nachher
+`src/` 4 404 → 4 316 Zeilen, Specs 4 644 → 4 639, Coverage 99,08/96,68/99,75/99,57 → 99,35/97,07/100/99,78 (234 Tests). Generierter Code aller Clients (71 Dateien) byte-identisch.
 
-| | main | Branch |
-|---|---|---|
-| Code `src/` (ohne Specs) | 1 328 Zeilen (JS/MJS/TS gemischt) | 3 674 Zeilen TS strict |
-| Specs | 1 791 Zeilen, 97 Tests | ~3 700 Zeilen, 186 Tests |
-| Coverage (Stmts/Branches/Funcs/Lines) | 100 / 98,4 / 100 / 100 | 99,5 / 96,8 / 99,7 / 99,9 |
-| Testing-Mocks | orval (+15 `@orval/*`) | schema-faker (0 Deps), orval deprecated |
-| Erweiterungspunkte | Adapter nur im Paket (Modul + `registry.json` + 2 Schema-Enums) | Adapter (Workspace/npm/Built-in-Alias), Transform-Hooks, Overlays (Flag), Format, Scaffold, Target-Namen, Settings |
-| Neuer Generator | Paket ändern: Modul, `registry.json`, `adapters/index.ts`, 2 Schemas, Release | Consumer: `defineAdapter` in einer Datei + 1 Zeile `adapters` (oder `command` ohne JS), Contract-Test via `runAdapterContract` |
-| Wiederverwendung | nur dieser Workspace | npm-Paket, Workspace-Annahmen per Settings |
-| Laden | statische Built-ins, `.ts` zur Laufzeit unmöglich | Loader für `.ts`/ESM/CJS/npm |
-
-Mehr Code vor allem durch Loader, Registry-Validierung, JSONPath/Overlay, Contract-Helper und Settings — jeweils mit eigenen Tests.
 
 ## Offene Punkte für den Owner
 
