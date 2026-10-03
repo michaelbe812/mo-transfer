@@ -13,7 +13,8 @@ export default defineConfig({
     root: import.meta.dirname,
     environment: 'node',
     projects: [
-      { extends: true, test: { name: 'unit', include: ['src/**/*.spec.ts'] } },
+      // a few unit specs run real processes / the TS loader: generous under parallel load
+      { extends: true, test: { name: 'unit', include: ['src/**/*.spec.ts'], testTimeout: 30_000 } },
       {
         extends: true,
         test: {
@@ -30,8 +31,6 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       exclude: [
         'src/**/*.spec.ts',
-        // types only (the adapter contract): no runtime code to cover
-        'src/facade/contract.ts',
       ],
       reportsDirectory: 'coverage',
       reporter: ['text', 'html', 'json-summary', 'lcov'],

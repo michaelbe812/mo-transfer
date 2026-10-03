@@ -11,6 +11,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -27,11 +28,25 @@ export const THINGS_SPEC = fixture('things.yaml');
 
 let counter = 0;
 
-export function createWorkspace(name: string): string {
+/** The repo's lib scaffold (openapi-clients.json → settings.scaffold), so fixture clients get the blueprint config. */
+export const SCAFFOLD = join(repoRoot, 'packages/tooling/conventions/src/openapi-scaffold.ts');
+
+/**
+ * `ownNodeModules`: a real node_modules folder (entries linked to the repo's) the test can add fake packages to;
+ * otherwise node_modules is one link to the repo's.
+ */
+export function createWorkspace(name: string, options: { ownNodeModules?: boolean } = {}): string {
   const root = join(repoRoot, 'tmp/openapi-it', `${name}-${process.pid}-${counter++}`);
   rmSync(root, { recursive: true, force: true });
   mkdirSync(root, { recursive: true });
-  symlinkSync(join(repoRoot, 'node_modules'), join(root, 'node_modules'), 'dir');
+  if (options.ownNodeModules) {
+    mkdirSync(join(root, 'node_modules'));
+    for (const entry of readdirSync(join(repoRoot, 'node_modules'))) {
+      symlinkSync(realpathSync(join(repoRoot, 'node_modules', entry)), join(root, 'node_modules', entry));
+    }
+  } else {
+    symlinkSync(join(repoRoot, 'node_modules'), join(root, 'node_modules'), 'dir');
+  }
   copyFileSync(join(repoRoot, 'openapitools.json'), join(root, 'openapitools.json'));
   return root;
 }

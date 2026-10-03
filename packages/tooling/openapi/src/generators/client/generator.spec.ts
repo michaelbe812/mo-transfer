@@ -1,4 +1,5 @@
-import { logger, type Tree } from '@nx/devkit';
+import { logger, type Tree, updateJson } from '@nx/devkit';
+import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -18,11 +19,17 @@ paths:
         '200': { description: OK }
 `;
 const clients = (tree: Tree) => JSON.parse(read(tree, 'openapi-clients.json')).clients;
+/** the repo's lib scaffold (settings.scaffold) — loaded at run time like in the workspace */
+const SCAFFOLD = join(__dirname, '../../../../conventions/src/openapi-scaffold.ts');
+const SETTINGS = { scaffold: SCAFFOLD };
+const clientsJson = (tree: Tree, config: object) =>
+  tree.write('openapi-clients.json', JSON.stringify({ settings: SETTINGS, ...config }));
 
 describe('client generator', () => {
   let tree: Tree;
   beforeEach(() => {
     tree = createBlueprintTree();
+    clientsJson(tree, { defaultAdapter: 'openapi-tools', clients: {} });
     tree.write('specs/demo.yaml', SPEC_YAML);
   });
   afterEach(() => vi.unstubAllGlobals());
@@ -63,7 +70,8 @@ describe('client generator', () => {
       sideEffects: false,
     });
     const testing = readProject(tree, 'libs/generated/demo-client/testing/project.json');
-    expect(testing.targets['generate-api-testing'].executor).toBe('@mo-transfer/tooling-openapi:generate-testing');
+    // generate-api-testing: inferred by the plugin, lint/typecheck wait for it
+    expect(testing.targets['generate-api-testing']).toBeUndefined();
     expect(testing.targets.lint).toEqual({
       dependsOn: ['generate-api-testing', '^generate-api-client', '^generate-api-testing'],
     });
@@ -131,17 +139,17 @@ describe('client generator', () => {
   });
 
   it('an existing openapi-clients.json without defaultAdapter: openapi-tools is the default', async () => {
-    tree.write('openapi-clients.json', JSON.stringify({ clients: {} }));
+    clientsJson(tree, { clients: {} });
     await clientGenerator(tree, {
       name: 'd-client',
       spec: 'specs/demo.yaml',
       adapter: 'openapi-tools',
       skipFormat: true,
     });
-    expect(JSON.parse(read(tree, 'openapi-clients.json'))).toEqual({ clients: { 'generated/d-client': {} } });
+    expect(JSON.parse(read(tree, 'openapi-clients.json'))).toEqual({ settings: SETTINGS, clients: { 'generated/d-client': {} } });
   });
 
-  it.each(['openapi-tools', 'hey-api', 'nx-plugin-openapi'])(
+  it.each(['openapi-tools', 'hey-api', 'nx-plugin-openapi', 'command'])(
     'adapter %s: stored unless it is the default',
     async (adapter) => {
       await clientGenerator(tree, { name: 'a-client', spec: 'specs/demo.yaml', adapter, skipFormat: true });
@@ -166,7 +174,7 @@ describe('client generator', () => {
       '"generated" is reserved.',
     );
     // entry left over without folder
-    tree.write('openapi-clients.json', JSON.stringify({ clients: { 'generated/stale-client': {} } }));
+    clientsJson(tree, { clients: { 'generated/stale-client': {} } });
     await expect(clientGenerator(tree, { name: 'stale-client', spec: 'specs/demo.yaml' })).rejects.toThrow(
       'openapi-clients.json has an entry "generated/stale-client" already',
     );
@@ -196,7 +204,7 @@ describe('client generator', () => {
     tree.delete('lib-scopes.json');
     tree.write('libs/a/b/types/src/index.ts', 'export {};\n');
     await expect(clientGenerator(tree, { name: 'x-client', domain: 'a/b', spec: 'specs/demo.yaml' })).rejects.toThrow(
-      'libs/a/b/generated/x-client: not a client path',
+      'Domain "a/b" must be kebab-case',
     );
   });
 
@@ -210,6 +218,7 @@ describe('client generator', () => {
       // relative, not in the tree: read from disk below tree.root
       const relative = join('..', 'abs.yaml');
       const treeInTmp = createBlueprintTree();
+      clientsJson(treeInTmp, { clients: {} });
       Object.defineProperty(treeInTmp, 'root', { value: join(dir, 'ws') });
       await clientGenerator(treeInTmp, { name: 'rel-client', spec: relative, skipFormat: true });
       expect(read(treeInTmp, 'libs/generated/rel-client/openapi.yaml')).toBe(SPEC_YAML);
@@ -265,5 +274,87 @@ describe('client generator', () => {
     );
     expect(info).toHaveBeenLastCalledWith(expect.stringContaining('in the shared data-access layer'));
     info.mockRestore();
+  });
+  it('layout merged-core: no core lib, api edges without core; testing: false: no testing lib, entry pipeline.testing', async () => {
+    await clientGenerator(tree, { name: 'lean-client', spec: 'specs/demo.yaml', layout: 'merged-core', testing: false, skipFormat: true });
+    expect(listLibPaths(tree, 'generated')).toEqual(['generated/lean-client/api', 'generated/lean-client/types']);
+    expect(clients(tree)['generated/lean-client']).toEqual({ layout: 'merged-core', pipeline: { testing: false } });
+    expect(readProject(tree, 'libs/generated/lean-client/api/project.json').implicitDependencies).toEqual([
+      'generated-lean-client',
+      'generated-lean-client-types',
+    ]);
+    expect(Object.keys(pathsOf(tree)).filter((alias) => alias.includes('lean-client'))).toEqual([
+      '@mo-transfer/generated/lean-client/api',
+      '@mo-transfer/generated/lean-client/types',
+    ]);
+    const info = vi.spyOn(logger, 'info').mockImplementation(() => undefined);
+    (await clientGenerator(tree, { name: 'other-client', spec: 'specs/demo.yaml', testing: false, skipFormat: true }))();
+    expect(info).toHaveBeenLastCalledWith('Use: @mo-transfer/generated/other-client/api (services) + /types in the shared data-access layer.');
+    info.mockRestore();
+  });
+
+  it('consumer adapters (openapi-clients.json → adapters) are known; plugin options in nx.json rename the testing dependsOn', async () => {
+    clientsJson(tree, { adapters: { orval: { module: './tools/orval.ts' } }, clients: {} });
+    updateJson(tree, 'nx.json', (nxJson) => ({
+      ...nxJson,
+      plugins: [{ plugin: '@mo-transfer/tooling-openapi/plugin', options: { clientTargetName: 'codegen', testingTargetName: 'codegen-testing' } }],
+    }));
+    await clientGenerator(tree, { name: 'o-client', spec: 'specs/demo.yaml', adapter: 'orval', skipFormat: true });
+    expect(clients(tree)['generated/o-client']).toEqual({ adapter: 'orval' });
+    expect(readProject(tree, 'libs/generated/o-client/testing/project.json').targets.lint).toEqual({
+      dependsOn: ['codegen-testing', '^codegen', '^codegen-testing'],
+    });
+  });
+
+  it('a scaffold that cannot be loaded or is no scaffold: error before anything is written', async () => {
+    clientsJson(tree, { settings: { scaffold: './nowhere.ts' }, clients: {} });
+    await expect(clientGenerator(tree, { name: 'x-client', spec: 'specs/demo.yaml' })).rejects.toThrow('scaffold ./nowhere.ts: ./nowhere.ts not found');
+    clientsJson(tree, { settings: { scaffold: join(__dirname, 'schema.json') }, clients: {} });
+    await expect(clientGenerator(tree, { name: 'x-client', spec: 'specs/demo.yaml' })).rejects.toThrow('apiVersion undefined not supported (this package implements 1)');
+    expect(tree.exists('libs/generated/x-client')).toBe(false);
+  });
+});
+
+describe('client generator with the built-in scaffold (no settings.scaffold)', () => {
+  it('project.json (settings.partTags, edges, testing dependsOn) + tsconfig.json + paths; domain = an existing folder', async () => {
+    const tree = createTreeWithEmptyWorkspace();
+    tree.write('tsconfig.base.json', JSON.stringify({ compilerOptions: { paths: { '@x/z': ['./z.ts'] } } }));
+    tree.write('libs/booking/README.md', '');
+    tree.write('specs/demo.yaml', SPEC_YAML);
+    await clientGenerator(tree, { name: 'demo-client', domain: 'booking', spec: 'specs/demo.yaml', skipFormat: true });
+    expect(readJsonFile(tree, 'libs/booking/generated/demo-client/api/project.json')).toEqual({
+      name: 'booking-generated-demo-client-api',
+      $schema: '../../../../../node_modules/nx/schemas/project-schema.json',
+      projectType: 'library',
+      sourceRoot: 'libs/booking/generated/demo-client/api/src',
+      tags: ['scope:booking', 'type:data-access', 'feat:none', 'generated'],
+      implicitDependencies: ['booking-generated-demo-client', 'booking-generated-demo-client-types', 'booking-generated-demo-client-core'],
+    });
+    expect(readJsonFile(tree, 'libs/booking/generated/demo-client/testing/project.json')['targets']).toEqual({
+      lint: { dependsOn: ['generate-api-testing', '^generate-api-client', '^generate-api-testing'] },
+      typecheck: { dependsOn: ['generate-api-testing', '^generate-api-client', '^generate-api-testing'] },
+    });
+    expect(readJsonFile(tree, 'libs/booking/generated/demo-client/types/tsconfig.json')).toEqual({
+      extends: '../../../../../tsconfig.base.json',
+      include: ['src/**/*.ts'],
+    });
+    expect(Object.keys(pathsOf(tree))).toEqual([
+      '@mo-transfer/booking/generated/demo-client/api',
+      '@mo-transfer/booking/generated/demo-client/core',
+      '@mo-transfer/booking/generated/demo-client/testing',
+      '@mo-transfer/booking/generated/demo-client/types',
+      '@x/z',
+    ]);
+    expect(JSON.parse(read(tree, 'openapi-clients.json')).$schema).toMatch(/openapi-clients\.schema\.json$/);
+    await expect(clientGenerator(tree, { name: 'x-client', domain: 'payment', spec: 'specs/demo.yaml' })).rejects.toThrow(
+      'Domain "payment" has no folder libs/payment',
+    );
+    await expect(clientGenerator(tree, { name: 'x-client', domain: 'Pay', spec: 'specs/demo.yaml' })).rejects.toThrow(
+      'Domain "Pay" must be kebab-case',
+    );
+    // no tsconfig.base.json: no paths entry, no error
+    tree.delete('tsconfig.base.json');
+    await clientGenerator(tree, { name: 'y-client', spec: 'specs/demo.yaml', skipFormat: true });
+    expect(tree.exists('tsconfig.base.json')).toBe(false);
   });
 });

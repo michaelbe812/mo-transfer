@@ -8,6 +8,8 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { OpenApiError } from '../errors';
+import { ProcessError, runProcess } from '../pipeline/run-process';
 import { classifyHeyApi } from './hey-api';
 import nxPluginOpenapi from './nx-plugin-openapi';
 import openapiTools, { classifyOpenApiTools } from './openapi-tools';
@@ -42,10 +44,16 @@ describe('nx-plugin-openapi adapter (stub backend)', () => {
     workspaceRoot: root,
     client: {
       name: 'x',
+      path: 'generated/x',
       placement: 'shared' as const,
       spec: { file: 'libs/generated/x/openapi.yaml' },
-      generator: { adapter: 'nx-plugin-openapi' },
+      generator: { adapter: 'nx-plugin-openapi', options },
+      layout: 'default' as const,
+      pipeline: {},
     },
+    verbose: false,
+    log: () => undefined,
+    run: () => undefined,
   });
   let saved: Map<string, unknown>;
 
@@ -131,16 +139,23 @@ describe('openapi-tools adapter', () => {
   it('without the cli in the workspace: error with hint, no output of the (not started) process', async () => {
     const root = mkdtempSync(join(tmpdir(), 'no-cli-'));
     try {
-      await expect(
+      const generate = async () =>
         openapiTools.generate({
           specFile: join(root, 'x.yaml'),
           outDir: join(root, 'raw'),
           options: {},
           workspaceRoot: root,
-        } as never),
-      ).rejects.toThrow(
-        /^openapi-generator-cli failed \(Java 11\+ in PATH\? network for the first jar download\?\):\n$/,
-      );
+          run: (command: string, args: string[]) => runProcess(root, command, args),
+        } as never);
+      const error = await generate().catch((caught: OpenApiError) => caught);
+      expect(error).toBeInstanceOf(OpenApiError);
+      expect(error).toMatchObject({
+        message: 'openapi-generator-cli failed',
+        phase: 'generate',
+        hint: 'Java 11+ in PATH? network for the first jar download?',
+      });
+      expect((error as OpenApiError).cause).toBeInstanceOf(ProcessError);
+      expect(((error as OpenApiError).cause as Error).message).toMatch(/openapi-generator-cli failed \(spawnSync .* ENOENT\)$/);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

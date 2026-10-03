@@ -16,15 +16,15 @@ import { renameGenerator } from '../rename/generator';
 const SPEC_YAML = 'openapi: 3.0.3\ninfo: { title: Demo, version: 1.0.0 }\npaths:\n  /things: {}\n';
 const clients = (tree: Tree) => JSON.parse(read(tree, 'openapi-clients.json')).clients;
 
-function addClient(tree: Tree, clientPath: string, entry: ClientEntry = {}): void {
+function addClient(tree: Tree, clientPath: string, entry: ClientEntry = {}, parts = ['api', 'core', 'testing', 'types']): void {
   tree.write(`libs/${clientPath}/openapi.yaml`, SPEC_YAML);
-  for (const part of ['api', 'core', 'testing', 'types']) {
+  for (const part of parts) {
     tree.write(`libs/${clientPath}/${part}/src/index.ts`, "export * from './generated';\n");
   }
   addClientEntry(tree, clientPath, entry);
   const exists = (path: string): boolean => tree.exists(path);
   writeJsonFile(tree, `libs/${clientPath}/project.json`, clientProjectJson(clientPath));
-  for (const part of ['api', 'core', 'testing', 'types']) {
+  for (const part of parts) {
     writeLibConfig(tree, `${clientPath}/${part}`, clientPartConfig(exists, clientPath, part));
   }
 }
@@ -92,11 +92,30 @@ describe('move / rename / remove with OpenAPI clients', () => {
       'booking-generated-thing-client-core',
     ]);
     const testing = readProject(tree, 'libs/booking/generated/thing-client/testing/project.json');
-    expect(testing.targets['generate-api-testing'].options).toEqual({ client: 'booking/generated/thing-client' });
+    // generate-api-testing is inferred (plugin, follows the moved entry); lint/typecheck wait for it
+    expect(testing.targets['generate-api-testing']).toBeUndefined();
+    expect(testing.targets.lint.dependsOn).toEqual(['generate-api-testing', '^generate-api-client', '^generate-api-testing']);
     expect(pathsOf(tree)).toHaveProperty(['@mo-transfer/booking/generated/thing-client/api']);
     expect(read(tree, 'libs/booking/data-access/src/booking-api.spec.ts')).toBe(
       "import { thingClientHandlers, thingClientHttp } from '@mo-transfer/booking/generated/thing-client/testing';\nexport const h = [thingClientHandlers, thingClientHttp];\n",
     );
+  });
+
+  it('merged-core + testing: false: move / rename / remove keep layout and pipeline, edges without core', async () => {
+    const entry: ClientEntry = { layout: 'merged-core', pipeline: { testing: false } };
+    addClient(tree, 'generated/lean-client', entry, ['api', 'types']);
+    await moveGenerator(tree, { from: 'generated/lean-client', to: 'booking/generated/lean-client', skipFormat: true });
+    await renameGenerator(tree, { path: 'booking/generated/lean-client', name: 'slim-client', skipFormat: true });
+    expect(clients(tree)).toEqual({ 'booking/generated/slim-client': entry });
+    expect(readProject(tree, 'libs/booking/generated/slim-client/api/project.json').implicitDependencies).toEqual([
+      'booking-generated-slim-client',
+      'booking-generated-slim-client-types',
+    ]);
+    expect(tree.exists('libs/booking/generated/slim-client/core')).toBe(false);
+    expect(tree.exists('libs/booking/generated/slim-client/testing')).toBe(false);
+    await removeGenerator(tree, { path: 'booking/generated/slim-client', skipFormat: true });
+    expect(clients(tree)).toEqual({});
+    expect(Object.keys(pathsOf(tree)).some((alias) => alias.includes('slim-client'))).toBe(false);
   });
 
   it('removing a domain drops its clients', async () => {
@@ -113,10 +132,7 @@ describe('move / rename / remove with OpenAPI clients', () => {
     expect(testing.name).toBe('reservation-generated-demo-client-testing');
     expect(testing.tags).toEqual(['scope:reservation', 'type:testing', 'feat:none', 'generated']);
     expect(testing.implicitDependencies).toEqual(['reservation-generated-demo-client']);
-    expect(testing.targets['generate-api-testing'].options).toEqual({ client: 'reservation/generated/demo-client' });
-    expect(testing.targets['generate-api-testing'].inputs?.[0]).toBe(
-      '{workspaceRoot}/libs/reservation/generated/demo-client/openapi.yaml',
-    );
+    expect(testing.targets['generate-api-testing']).toBeUndefined();
     expect(readProject(tree, 'libs/reservation/generated/demo-client/project.json').tags).toEqual([
       'scope:reservation',
       'generated',

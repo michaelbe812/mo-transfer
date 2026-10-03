@@ -9,7 +9,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import generateExecutor from '../../src/executors/generate';
 import generateTestingExecutor from '../../src/executors/generate-testing';
 import updateSpecExecutor from '../../src/executors/update-spec';
-import { generateClient, resolveClient } from '../../src/facade/facade';
+import type { OpenApiError } from '../../src/errors';
+import { generateClient, resolveClient } from '../../src/facade';
 import {
   addClient,
   createWorkspace,
@@ -58,7 +59,9 @@ describe('executors', () => {
       executorContext(root, 'x', 'generate-api-client'),
     );
     expect(result).toEqual({ success: false });
-    expect(console.error).toHaveBeenCalledWith('openapi-clients.json has no entry "generated/missing-client"');
+    expect(console.error).toHaveBeenCalledWith(
+      '[openapi:config] generated/missing-client: openapi-clients.json has no entry "generated/missing-client"',
+    );
   });
 
   it('generate-testing: the testing lib from the spec only', async () => {
@@ -139,12 +142,14 @@ describe('executors', () => {
     expect(
       await updateSpecExecutor({ client: 'generated/remote-client' }, executorContext(root, 'p', 'update-spec')),
     ).toEqual({ success: false });
-    expect(console.error).toHaveBeenCalledWith(`GET ${server.url('/remote.json')}: 500`);
+    expect(console.error).toHaveBeenCalledWith(`[openapi:update-spec] generated/remote-client: GET ${server.url('/remote.json')}: 500`);
 
     expect(
       await updateSpecExecutor({ client: 'generated/things-client' }, executorContext(root, 'p', 'update-spec')),
     ).toEqual({ success: false });
-    expect(console.error).toHaveBeenCalledWith('things-client: no url (openapi-clients.json → clients → <path> → url)');
+    expect(console.error).toHaveBeenCalledWith(
+      '[openapi:update-spec] generated/things-client: no url\n  hint: openapi-clients.json → clients → generated/things-client → url',
+    );
 
     addClient(root, 'generated/offline-client', { entry: { url: 'http://127.0.0.1:1/unreachable.yaml' } });
     expect(
@@ -166,9 +171,15 @@ describe('adapter failure modes', () => {
       // info.version missing: the generator's spec validation fails (exit 1)
       spec: 'openapi: 3.0.3\ninfo: { title: Broken }\npaths:\n  /x:\n    get:\n      responses: {}\n',
     });
-    await expect(generateClient(resolveClient(root, 'generated/broken-client'), root)).rejects.toThrow(
-      /openapi-generator-cli failed \(Java 11\+ in PATH\? network for the first jar download\?\):\n[\s\S]*org\.openapitools\.codegen/,
-    );
+    const error = await generateClient(resolveClient(root, 'generated/broken-client'), root).catch((caught: OpenApiError) => caught);
+    expect(error).toMatchObject({
+      message: 'openapi-generator-cli failed',
+      phase: 'generate',
+      adapter: 'openapi-tools',
+      client: 'generated/broken-client',
+      hint: 'Java 11+ in PATH? network for the first jar download?',
+    });
+    expect(((error as OpenApiError).cause as Error).message).toMatch(/org\.openapitools\.codegen/);
   });
 
   it('openapi-tools: Java missing (simulated by a `java` that is not found) → hint on Java', async () => {
@@ -184,9 +195,10 @@ describe('adapter failure modes', () => {
     const path = process.env['PATH'];
     process.env['PATH'] = `${fakeBin}:${path}`;
     try {
-      await expect(generateClient(resolveClient(root, 'generated/java-client'), root)).rejects.toThrow(
-        'openapi-generator-cli failed (Java 11+ in PATH? network for the first jar download?)',
-      );
+      await expect(generateClient(resolveClient(root, 'generated/java-client'), root)).rejects.toMatchObject({
+        message: 'openapi-generator-cli failed',
+        hint: 'Java 11+ in PATH? network for the first jar download?',
+      });
       // the cli really started `java` (ours) and failed on it
       expect(existsSync(called)).toBe(true);
     } finally {
@@ -202,9 +214,10 @@ describe('adapter failure modes', () => {
 
   it('nx-plugin-openapi: unknown backend plugin', async () => {
     addClient(root, 'generated/np-client', { entry: { adapter: 'nx-plugin-openapi', options: { plugin: 'swagger' } } });
-    await expect(generateClient(resolveClient(root, 'generated/np-client'), root)).rejects.toThrow(
-      "nx-plugin-openapi: unknown plugin 'swagger'",
-    );
+    await expect(generateClient(resolveClient(root, 'generated/np-client'), root)).rejects.toMatchObject({
+      phase: 'options',
+      message: 'invalid options\n  options.plugin: must be one of "openapi-tools", "hey-api"',
+    });
   });
 
   it('the spec file must exist', async () => {

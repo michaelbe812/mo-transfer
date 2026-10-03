@@ -22,7 +22,8 @@ describe('openapi-clients.json on the Tree', () => {
 
   it('defaults without file; add keeps key order, 2 spaces + newline', () => {
     expect(readClientsJson(tree)).toEqual({
-      $schema: './packages/tooling/openapi/openapi-clients.schema.json',
+      // a virtual tree root: the package is not inside it → the schema below node_modules
+      $schema: './node_modules/@mo-transfer/tooling-openapi/openapi-clients.schema.json',
       defaultAdapter: 'openapi-tools',
       clients: {},
     });
@@ -31,7 +32,7 @@ describe('openapi-clients.json on the Tree', () => {
     expect(read(tree, 'openapi-clients.json')).toBe(
       [
         '{',
-        '  "$schema": "./packages/tooling/openapi/openapi-clients.schema.json",',
+        '  "$schema": "./node_modules/@mo-transfer/tooling-openapi/openapi-clients.schema.json",',
         '  "defaultAdapter": "openapi-tools",',
         '  "clients": {',
         '    "generated/b-client": {},',

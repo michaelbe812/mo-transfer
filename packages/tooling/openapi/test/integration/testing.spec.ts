@@ -5,8 +5,11 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { resolveClient } from '../../src/facade/facade';
-import { camelCase, generateTestingLib } from '../../src/testing/testing';
+import type { ClientDefinition } from '../../src/adapter';
+import { generateTesting, resolveClient } from '../../src/facade';
+import { camelCase } from '../../src/settings';
+
+const generateTestingLib = (client: ClientDefinition, root: string) => generateTesting(client, root, {}, {});
 import {
   addClient,
   createWorkspace,
@@ -105,10 +108,14 @@ describe('testing lib generation: errors', () => {
   afterAll(() => removeWorkspace(root));
 
   it('fails without spec file', async () => {
-    const client = {
+    const client: ClientDefinition = {
       name: 'x-client',
-      placement: 'shared' as const,
+      path: 'generated/x-client',
+      placement: 'shared',
       spec: { file: 'libs/generated/x-client/openapi.yaml' },
+      generator: { adapter: 'openapi-tools', options: {} },
+      layout: 'default',
+      pipeline: {},
     };
     await expect(generateTestingLib(client, root)).rejects.toThrow('libs/generated/x-client/openapi.yaml missing');
   });

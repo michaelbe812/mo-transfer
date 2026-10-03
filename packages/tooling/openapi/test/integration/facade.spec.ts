@@ -5,7 +5,7 @@
  * against the aliases.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { generateClient, resolveClient } from '../../src/facade/facade';
+import { generateClient, resolveClient } from '../../src/facade';
 import {
   addClient,
   createWorkspace,
@@ -138,7 +138,7 @@ describe('facade: registry and options', () => {
   it('fails when the adapter delivers files for a part without lib', async () => {
     addClient(root, 'generated/partial-client', { parts: ['api', 'core'], entry: { adapter: 'hey-api' } });
     await expect(generateClient(resolveClient(root, 'generated/partial-client'), root)).rejects.toThrow(
-      /types\/src\/index\.ts missing, the adapter delivers 1 files/,
+      /types\/src\/index\.ts missing, the pipeline delivers 1 files/,
     );
   });
 });

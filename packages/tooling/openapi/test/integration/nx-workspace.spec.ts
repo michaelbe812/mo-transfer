@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createWorkspace, removeWorkspace, repoRoot, THINGS_SPEC, write } from '../helpers';
+import { createWorkspace, removeWorkspace, repoRoot, SCAFFOLD, THINGS_SPEC, write } from '../helpers';
 
 const TOOLING_PATHS = Object.fromEntries(
   Object.entries(
@@ -51,6 +51,8 @@ describe('nx in a fixture workspace', () => {
     // the domain must exist (a lib below libs/booking)
     write(root, 'libs/booking/types/src/index.ts', 'export {};\n');
     write(root, 'specs/things.yaml', THINGS_SPEC);
+    // the repo's lib conventions for the part libs (settings.scaffold, loaded at run time by the generator)
+    write(root, 'openapi-clients.json', JSON.stringify({ settings: { scaffold: SCAFFOLD }, clients: {} }));
     nx(
       'g',
       '@mo-transfer/tooling-openapi:client',
@@ -100,7 +102,7 @@ describe('nx in a fixture workspace', () => {
     expect(client.tags).toEqual(['scope:booking', 'generated']);
     expect(client.targets['generate-api-client'].inputs).toContainEqual({
       json: '{workspaceRoot}/openapi-clients.json',
-      fields: ['defaultAdapter', 'clients.booking/generated/things-client'],
+      fields: ['defaultAdapter', 'settings', 'clients.booking/generated/things-client'],
     });
     expect(client.targets['generate-api-client'].inputs).toContainEqual({
       externalDependencies: ['@hey-api/openapi-ts', 'typescript', 'yaml'],
