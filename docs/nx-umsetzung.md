@@ -394,95 +394,100 @@ nx g @mo-transfer/tooling-workspace:testing <d>     # für eine bestehende Domai
 
 ## OpenAPI-Clients
 
-HTTP-Clients werden aus OpenAPI-Specs generiert. Der Code-Generator ist austauschbar und steckt hinter einer Facade in `packages/tooling/openapi`. Die Facade legt fest, wo der Code liegt, und teilt ihn in Nx-Libs auf. Generierter Code wird **nicht committet**: pro Lib ist nur `src/index.ts` (`export * from './generated';`) im Repo, alles unter `src/generated/` ist gitignored und entsteht per `generate-api-client` (Client) bzw. `generate-api-testing` (Testing-Lib). Grundlage: Spike S1 (Facade, Branch `tmp/openapi-spike`), S2 (nx-plugin-openapi), S3 (MSW-Testing).
+HTTP-Clients werden aus OpenAPI-Specs generiert. Der Code-Generator ist austauschbar (eingebaute Adapter oder eigene des Consumers) und steckt hinter einer Facade in `packages/tooling/openapi` (publishable, siehe [Pipeline-Architektur](openapi-pipeline-architektur.md)). Die Facade legt fest, wo der Code liegt, und teilt ihn in Nx-Libs auf. Generierter Code wird **nicht committet**: pro Lib ist nur `src/index.ts` (`export * from './generated';`) im Repo, alles unter `src/generated/` ist gitignored und entsteht per `generate-api-client` (Client) bzw. `generate-api-testing` (Testing-Lib). Grundlage: Spike S1 (Facade, Branch `tmp/openapi-spike`), S2 (nx-plugin-openapi), S3 (MSW-Testing).
 
 ### Architektur
 
 Bausteine als Black Box. Zwei Phasen: **Gerüst** (Generator `client`, einmalig, committet) und **Generierung**
-(Target `generate-api-client`, bei jedem Build, gecacht, gitignored). Die Facade entscheidet *wo* Code liegt, der Adapter liefert
-nur Roh-Output + Klassifizierung.
+(Targets `generate-api-client` / `generate-api-testing`, bei jedem Build, gecacht, gitignored). Die Facade entscheidet *wo* Code liegt,
+der Adapter liefert nur Roh-Output + Klassifizierung. Ein Runner mit festen Stages für beide Presets. Entscheidungen, Trade-offs,
+vorher/nachher: [`docs/openapi-pipeline-architektur.md`](openapi-pipeline-architektur.md).
 
 ```mermaid
 flowchart TB
   subgraph P1["Phase 1 · Gerüst (einmalig, committet)"]
     direction LR
-    G["Generator client<br/><i>nx g …:client</i>"]
+    G["Generator client<br/><i>nx g …:client [--layout=merged-core] [--no-testing]</i>"]
     G -->|Spec| SPEC[("openapi.yaml")]
-    G -->|Eintrag| REG[("openapi-clients.json")]
-    G -->|"project.json, index.ts,<br/>Lib-Configs, paths"| LIBS["Libs types · api · core · testing<br/><i>nur src/index.ts</i>"]
-    CONV["Konventionen<br/>Pfad → Name, Tags, Alias, Layer"] -.-> G
+    G -->|Eintrag| REG[("openapi-clients.json<br/>settings · adapters · clients")]
+    G -->|"project.json, index.ts"| LIBS["Libs types · api · core? · testing?<br/><i>nur src/index.ts</i>"]
+    SCAF["Scaffold (settings.scaffold)<br/>tooling-conventions/openapi-scaffold<br/>Lib-Config + paths"] -.-> G
   end
 
   subgraph P2["Phase 2 · Generierung (jeder Build, gecacht, gitignored)"]
-    PLUGIN["Crystal-Plugin<br/>leitet generate-api-client / update-spec ab<br/>+ Cache-Inputs"]
-    ADREG[("adapters/registry.json<br/>Modul · Pakete · Inputs · Runtime")]
-    EXEC["Target generate-api-client<br/>Executor generate · <i>Option nur { client }</i>"]
-    subgraph FACADE["Facade"]
+    PLUGIN["Crystal-Plugin createNodes<br/>generate-api-client · generate-api-testing · update-spec<br/>Cache-Inputs + metadata.openapi · createDependencies"]
+    ADREG["Adapter-Registry (eine)<br/>Built-ins + adapters-Map<br/>deklarativ: Modul · Pakete · Inputs · Runtime"]
+    EXEC["Executor generate / generate-testing<br/><i>Option nur { client }</i>"]
+    subgraph RUNNER["Pipeline-Runner (Presets client · testing)"]
       direction TB
-      RES["resolveClient<br/>Eintrag + Ordner → ClientDefinition"]
-      subgraph ADAPTER["Adapter (austauschbar)"]
+      SP["spec<br/>Overlays (Feature-Flag, Default aus)"]
+      subgraph ADAPTER["Adapter (Built-in · Workspace · npm · command)"]
         GEN["generate(ctx)<br/>Spec → raw/**"]
         CLS["classify(ctx)<br/>→ models · apis · core"]
       end
-      SPLIT["split<br/>Dateien je Teil-Lib,<br/>Imports → Aliase (TS-AST)"]
-      BAR["barrel<br/>generated/index.ts,<br/>Duplikate aufgelöst"]
-      WR["write<br/>Lint-Header, src/generated/**"]
-      RES --> GEN --> CLS --> SPLIT --> BAR --> WR
+      TR["transform[]<br/>Code-Hooks"]
+      SPLIT["split<br/>Imports → Aliase (TS-AST)"]
+      BAR["barrel<br/>in-memory, Duplikate aufgelöst"]
+      FIN["finalize<br/>prettier? · Lint-Header"]
+      WR["write<br/>src/generated/**"]
+      SP --> GEN --> CLS --> TR --> SPLIT --> BAR --> FIN --> WR
     end
-    TEST["Testing-Pipeline (Target generate-api-testing)<br/>openapi-typescript · orval-msw · openapi-msw"]
+    LOADER["Loader<br/>.ts-Hook · ESM · CJS · npm-exports"]
   end
 
   REG --> PLUGIN
   ADREG --> PLUGIN
-  PLUGIN --> EXEC --> RES
-  ADREG -. lädt Adapter .-> GEN
-  SPEC --> GEN
-  SPEC --> TEST
+  PLUGIN --> EXEC --> SP
+  ADREG -. was laden .-> LOADER -. lädt .-> GEN
+  LOADER -. lädt .-> TR
+  SPEC --> SP
 
   WR --> T["types/src/generated<br/>type:types · Models"]
-  WR --> A["api/src/generated<br/>type:data-access · Services"]
+  WR --> A["api/src/generated<br/>type:data-access · Services (+ core bei merged-core)"]
   WR --> C["core/src/generated<br/>type:data-access · HTTP-Runtime"]
-  TEST --> TS["testing/src/generated<br/>type:testing · Http, Handlers"]
+  WR --> TS["testing/src/generated<br/>type:testing · Http, Handlers (Preset testing)"]
   T & A & C --> DA["Wrapper in &lt;slice&gt;/data-access<br/>DTO → Modell"]
   DA --> FE["Stores · Feats"]
 
   UPD["update-spec<br/>url → normalisierte Spec"] --> SPEC
   PLUGIN --> UPD
+  VER["verify<br/>liest metadata.openapi"] -.-> PLUGIN
 ```
 
 Detail (Dateien und Datenfluss):
 
 ```
-openapi-clients.json (Root)            ein Eintrag pro Client: url?, adapter?, options?
+openapi-clients.json (Root)            settings?, adapters?, clients: { <pfad>: url?, adapter?, options?, layout?, pipeline? }
 libs/[<domain>/]generated/<client>/
-  openapi.yaml | openapi.json          committet, einzige Quelle für generate-api-client (die url dient nur update-spec)
+  openapi.yaml | openapi.json          committet, einzige Quelle der Generierung (die url dient nur update-spec)
         │
-        ▼  <client>:generate-api-client (gecacht) = @mo-transfer/tooling-openapi:generate
- facade.ts  ── adapters/registry.json ──▶ adapter.generate(ctx) ──▶ tmp/openapi/<pfad>/raw/**
-        │                                 adapter.classify(ctx)  ──▶ { models, apis, core, entries }
+        ▼  <client>:generate-api-client = @mo-transfer/tooling-openapi:generate   (Preset client)
+        ▼  <client>-testing:generate-api-testing = …:generate-testing             (Preset testing)
+ runner.ts  spec (Overlays*) → generate (Adapter via Registry + Loader → tmp/openapi/<pfad>/raw/**) → classify
+            → transform[] → split (relative Imports über Teilgrenzen → @mo-transfer/<pfad>/<teil>)
+            → barrel (index.ts je Teil, in-memory) → finalize (prettier?, Header) → write
         ▼
- split.ts    Struktur pro Teil, relative Imports über Teilgrenzen → @mo-transfer/<pfad>/<teil> (TS-AST)
- barrel.ts   src/generated/index.ts aus den Entries (Namenskonflikte per TS-Checker aufgelöst)
- Header      /* eslint-disable */ /* eslint-enable @nx/enforce-module-boundaries, no-restricted-imports */
-        ▼
-  types/src/generated/**   type:types      Models
-  api/src/generated/**     type:data-access  Services
+  types/src/generated/**   type:types        Models
+  api/src/generated/**     type:data-access  Services (+ Runtime bei layout merged-core)
   core/src/generated/**    type:data-access  Runtime (Configuration, BASE_PATH, provideApi …, importiert HTTP)
-  testing/src/generated/** type:testing    eigenes generate-api-testing: openapi-typescript + orval (msw, faker) + openapi-msw
+  testing/src/generated/** type:testing      openapi-typescript + orval (msw, faker) + openapi-msw (außer pipeline.testing: false)
         ▼
  Wrapper in <slice>/data-access bzw. shared/data-access ── mappt DTO → Modell, Promise statt Observable ──▶ Stores, Feats
 ```
 
+`*` experimentell: nur mit `settings.features.overlays: true`.
+
 | Datei | Aufgabe |
 |---|---|
-| `packages/tooling/openapi/src/facade/contract.ts` | Vertrag `ClientDefinition`, `GeneratorAdapter` (`generate`, `classify`), `Classification`, `AdapterRegistration` |
-| `…/openapi/facade.ts`, `split.ts`, `barrel.ts` | `resolveClient` (Eintrag + Ordner → Definition), `generateClient`, `updateSpec`, Aufteilen, Barrel, Header |
-| `…/openapi/adapters/*.ts`, `registry.json` | 3 Adapter, Registry mit Cache-Inputs je Adapter (Pakete, `openapitools.json`, `java -version`) |
-| `…/openapi/testing/testing.ts` | Testing-Lib aus der Spec |
-| `…/executors/openapi/*` | `openapi-generate`, `openapi-generate-testing`, `openapi-update-spec` (Option nur `client`) |
-| `…/openapi/project-config.ts`, `conventions/lib-files.ts`, `lib-conventions.ts` | `project.json` der Clients (Name, Tags) und Teil-Libs (Kanten, `generate-api-testing`), Client-Targets (`clientTargets`), Tags, Pfad-Konvention |
-| `…/openapi/plugin/openapi-clients.ts` | Plugin (`createNodesV2` auf `openapi-clients.json`): `generate-api-client` + `update-spec` pro Eintrag am Client-Projekt |
-| `…/generators/client`, `…/openapi/clients.ts` | Generator `client`, Pflege von `openapi-clients.json` und Client-`project.json` in `move`/`rename`/`remove` |
+| `packages/tooling/openapi/src/adapter.ts` | SPI v1 (Export `./adapter`): `defineAdapter`, `defineTransform`, `defineScaffold`, `ClientDefinition`, `AdapterContext`, `Classification` |
+| `…/openapi/src/settings.ts`, `config.ts` | Settings mit Defaults (`libsDir`, `aliasPrefix`, `outputDir`, Header, Scaffold, Feature-Flags …), `openapi-clients.json` lesen, Layout/Parts |
+| `…/openapi/src/registry/*` | eine Registry (Built-ins + `adapters`), Modul-Referenzen + Cache-Inputs, Loader (`.ts`/ESM/CJS/npm), Validierung (apiVersion, id, `optionsSchema`, `requires`) |
+| `…/openapi/src/pipeline/*` | Runner + Stages (spec/Overlay/JSONPath, split, barrel, transform), Presets `client-preset.ts` / `testing-preset.ts` |
+| `…/openapi/src/adapters/*` | `openapi-tools`, `hey-api`, `nx-plugin-openapi`, `command` |
+| `…/openapi/src/facade.ts`, `executors/*` | `resolveClient`, `generateClient`, `generateTesting`, `updateSpec`; Executoren mit Fehlerausgabe (Phase, Hint, Ursachen) und `--verbose` |
+| `…/openapi/src/project-config.ts`, `plugin/openapi-clients.ts` | inferierte Targets + Inputs + `metadata.openapi`, `createNodes`/`createDependencies`, Client-/Teil-`project.json` |
+| `…/generators/client`, `…/openapi/src/clients.ts` | Generator `client` (Scaffold-SPI), Pflege von `openapi-clients.json` und Client-`project.json` in `move`/`rename`/`remove` |
+| `…/conventions/src/openapi-scaffold.ts` | Lib-Config der Teil-Libs nach Blueprint-Konvention (`settings.scaffold`) |
 | `openapitools.json` | Jar-Version 7.25.0, `storageDir: ./node_modules/.cache/openapi-generator-cli` |
 
 ### Ablage, Projekte, Tags
@@ -511,8 +516,9 @@ libs/<domain>/generated/<client>/          scope:<domain>  Client-Projekt <domai
 {
   "$schema": "./packages/tooling/openapi/openapi-clients.schema.json",
   "defaultAdapter": "openapi-tools",
+  "settings": { "scaffold": "@mo-transfer/tooling-conventions/openapi-scaffold" },
   "clients": {
-    "generated/pet-client": { "url": "https://petstore3.swagger.io/api/v3/openapi.json" },
+    "generated/pet-client": { "url": "https://petstore3.swagger.io/api/v3/openapi.json", "adapter": "hey-api" },
     "generated/notification-client": {},
     "booking/generated/booking-client": {}
   }
@@ -522,9 +528,13 @@ libs/<domain>/generated/<client>/          scope:<domain>  Client-Projekt <domai
 | Feld | Bedeutung |
 |---|---|
 | Schlüssel | Client-Pfad unter `libs/` |
-| `adapter` | `openapi-tools` (Default), `hey-api`, `nx-plugin-openapi` |
+| `adapter` | `openapi-tools` (Default), `hey-api`, `nx-plugin-openapi`, `command` oder ein Schlüssel aus `adapters` |
 | `url` | nur für `update-spec` |
-| `options` | Adapter-Optionen, über die Adapter-Defaults gemergt (z.B. `{ "plugin": "hey-api" }` für nx-plugin-openapi) |
+| `options` | Adapter-Optionen, über die Adapter-Defaults gemergt (z.B. `{ "plugin": "hey-api" }` für nx-plugin-openapi), gegen das `optionsSchema` des Adapters geprüft |
+| `layout` | `merged-core`: core in der api-Lib (keine core-Lib). Default types/api/core |
+| `pipeline` | `overlays` (experimentell, Flag `settings.features.overlays`), `transforms` (Code-Hooks), `format` (prettier), `testing` (`msw` \| `false`) |
+| `adapters` (Datei-Ebene) | eigene Adapter: `module` (Workspace-Pfad, npm-Paket, `builtin:<id>`), `packages`, `inputs`, `runtime`, `options` |
+| `settings` (Datei-Ebene) | Workspace-Annahmen mit Defaults (`libsDir`, `clientFolder`, `outputDir`, `aliasPrefix`, `header`, `scaffold`, `toolingInputs`, `features`); hier nur `scaffold` gesetzt |
 
 Die Datei liest zur Laufzeit die Executoren (`resolveClient`), bei jeder Graph-Berechnung das Plugin, beim Anlegen der Generator und `tooling-verify:verify`. Die `project.json` des Clients und seiner Teile schreibt der Generator `client` (Vorlage `packages/tooling/openapi/src/project-config.ts`): Client-Projekt mit Name + Tags (`generate-api-client` + `update-spec` inferiert das Plugin), Teil-Libs mit `implicitDependencies` und die Testing-Lib mit eigenem `generate-api-testing` (`lint`/`typecheck` mit `dependsOn: ['generate-api-testing', '^generate-api-client', '^generate-api-testing']`). Eintrag, Ordner und Spec müssen zusammenpassen: `tooling-verify:verify` prüft Eintrag ↔ Ordner ↔ eine Spec ↔ vier Libs, bekannter Adapter, keine expliziten Client-Targets, Kanten und dass die vier `index.ts` genau `export * from './generated';` enthalten.
 
@@ -533,7 +543,7 @@ Die Datei liest zur Laufzeit die Executoren (`resolveClient`), bei jeder Graph-B
 **Warum der Eintrag in der eigenen Datei bleibt und keine Target-Option wird** (auch in der expliziten Variante): Nx hasht in `^default`/`^production` die `ProjectConfiguration` jeder Abhängigkeit mit (Hash-Plan von `shared-data-access:typecheck` enthält `generated-pet-client:ProjectConfiguration`). Stünde der Eintrag in den `options` von `generate-api-client`, liefe nach jeder Eintragsänderung alles neu, was vom Client abhängt, auch wenn der generierte Code gleich bleibt. Deshalb:
 
 - Target-Optionen sind nur `{ "client": "<pfad>" }`, die Executoren lesen den Eintrag zur Laufzeit (`resolveClient`).
-- Der Eintrag ist ein **`json`-Input** von `generate-api-client`: `{ "json": "{workspaceRoot}/openapi-clients.json", "fields": ["defaultAdapter", "clients.<pfad>"] }`.
+- Der Eintrag ist ein **`json`-Input** von `generate-api-client`: `{ "json": "{workspaceRoot}/openapi-clients.json", "fields": ["defaultAdapter", "settings", "adapters.<id>"?, "clients.<pfad>"] }` (`generate-api-testing`: `settings`, `clients.<pfad>.pipeline`).
 - `update-spec` gibt es für jeden Client (ohne `url` bricht es ab), damit eine neue `url` die Projekt-Config nicht ändert.
 - Ein Adapterwechsel ändert die Inputs (`externalDependencies` des Adapters) und damit die Projekt-Config: nur `openapi-clients.json` anpassen, das Plugin leitet die Inputs ab. Die Abhängigen laufen dann neu, was sie wegen des neuen Codes ohnehin müssten.
 - Alternativ Adapter + Optionen in die Target-Optionen: sichtbarer, aber jede Optionsänderung invalidiert alle Abhängigen (Cache-Befund oben), und Facade, Tests und Generator lesen die Datei. Deshalb verworfen.
@@ -554,11 +564,11 @@ Vor dem Umbau auf den `json`-Input liefen im ersten Fall 41 Tasks neu (Messung e
 
 | Projekt | Target | Konfiguration |
 |---|---|---|
-| Client (Plugin) | `generate-api-client` | `@mo-transfer/tooling-openapi:generate`, gecacht. Inputs: Spec, eigener Eintrag (`json`-Input), die drei `index.ts`, Facade-Code (ohne `testing/`), Executoren, Plugin + `project-config.ts` (formen das Target, für `affected`), Adapter-Inputs aus `registry.json` (`externalDependencies` der Adapter-Pakete + `typescript`, `yaml`; bei Java-Adaptern `openapitools.json` und Runtime `java -version 2>&1`). Outputs: `{types,api,core}/src/generated` |
+| Client (Plugin) | `generate-api-client` | `@mo-transfer/tooling-openapi:generate`, gecacht. Inputs: Spec, Overlays (nur mit Flag), Eintrag (`json`-Input), `index.ts` der Code-Teile, Tooling-Quellen (Pipeline, Registry, Executoren, Plugin, Adapter; als npm-Paket: `externalDependencies`), Adapter-Inputs aus der Registry (Modul-Ordner bzw. Paket, `packages`, `inputs`, `runtime`; Java-Adapter: `openapitools.json`, `java -version 2>&1`), Transform-Module, prettier bei `format`. Outputs: `{types,api,core?}/src/generated` |
 | Client (Plugin) | `update-spec` | `@mo-transfer/tooling-openapi:update-spec`, nicht gecacht: lädt die `url`, schreibt YAML/JSON normalisiert (danach Prettier wie `formatFiles`) |
-| `…/testing` (`project.json`) | `generate-api-testing` | `@mo-transfer/tooling-openapi:generate-testing`, gecacht. Inputs: Spec, Testing-Pipeline, `openapi-typescript`, `orval`, `yaml`. Output `src/generated`. `lint`/`typecheck` hängen zusätzlich an `generate-api-testing` |
+| `…/testing` (Plugin) | `generate-api-testing` | `@mo-transfer/tooling-openapi:generate-testing`, gecacht, nur ohne `pipeline.testing: false`. Inputs: Spec, Overlays (Flag), `settings` + `clients.<pfad>.pipeline`, Pipeline-Quellen, Transforms, `openapi-typescript`, `orval`, `yaml`. Output `src/generated`. `lint`/`typecheck` hängen (explizit in der `project.json`) zusätzlich an `generate-api-testing` |
 | jede Lib (`targetDefaults`) | `lint`, `typecheck`, `build`, `test` | `dependsOn: ['^generate-api-client', '^generate-api-testing']` (build: zusätzlich `^build`), Input `{ dependentTasksOutputFiles: '**/src/generated/**/*.ts', transitive: true }` |
-| Teil-Lib (`project.json`) | `implicitDependencies` | Client-Projekt; `api` → `core`, `types`; `core` → `types` |
+| Teil-Lib (`project.json`) | `implicitDependencies` | Client-Projekt; `api` → `core`, `types` (merged-core: nur `types`); `core` → `types` |
 | `client:build` | Input (`targetDefaults`) | ebenfalls `dependentTasksOutputFiles` (die App bündelt die Libs aus `dist`) |
 
 - **Gitignored = für Nx unsichtbar.** Nx hasht keine gitignored Dateien und analysiert ihre Imports nicht. Deshalb der `dependentTasksOutputFiles`-Input (sonst kämen Konsumenten nach einer Spec-Änderung aus einem veralteten Cache) und die impliziten Kanten (sonst kein `affected` und keine Build-Reihenfolge). Beleg: Property `guestName` in der booking-Spec umbenannt → `booking-api:typecheck` rot (damals; heute `booking-data-access`); `description` ergänzt → auch `client:build` läuft neu (vor dem Fix blieb es im Cache).
@@ -570,7 +580,7 @@ Vor dem Umbau auf den `json`-Input liefen im ersten Fall 41 Tasks neu (Messung e
 
 ### Inferierte Client-Targets (Plugin)
 
-`generate-api-client` und `update-spec` des Client-Projekts stehen nicht mehr in `libs/[<d>/]generated/<client>/project.json` (dort nur Name + Tags), sondern kommen von `@mo-transfer/tooling-openapi/plugin` (`createNodesV2` auf `openapi-clients.json`, in `nx.json` → `plugins`). Der Rest bleibt explizit (Teil-Libs, Kanten, `generate-api-testing`). `nx show project generated-pet-client` zeigt die Targets.
+`generate-api-client` und `update-spec` des Client-Projekts und `generate-api-testing` der Testing-Lib stehen nicht in den `project.json` (Client: nur Name + Tags), sondern kommen von `@mo-transfer/tooling-openapi/plugin` (`createNodes`, Nx 23, auf `openapi-clients.json`, in `nx.json` → `plugins`; Optionen `clientTargetName`/`testingTargetName`/`updateSpecTargetName`). Explizit bleiben Teil-Libs, Kanten und `lint`/`typecheck`-`dependsOn` der Testing-Lib. Das Plugin hängt `metadata.openapi` (Adapter, Herkunft, Layout, Parts, Problem, deaktivierte Features) an das Client-Projekt — `verify` liest daraus statt die Registry nachzubauen — und meldet per `createDependencies` Kanten Client → `npm:<paket>` eigener Adapter/Transforms. `nx show project generated-pet-client` zeigt die Targets.
 
 **Warum vorher explizit:** Die Variante explizite Config hat alle Crystal-Plugins entfernt (Graph ohne eigenen Code, Tippfehler bricht den Graphen nicht, Plugins nicht mehr `lint`-Input aller Libs). Der OpenAPI-Teil war davon nur mitbetroffen: das Argument „Target-Optionen gehen in den Hash aller Abhängigen“ betrifft *wo der Eintrag steht* (Datei + `json`-Input statt Optionen), nicht *wer das Target schreibt*.
 
@@ -578,7 +588,7 @@ Vor dem Umbau auf den `json`-Input liefen im ersten Fall 41 Tasks neu (Messung e
 
 | Punkt | Befund |
 |---|---|
-| Machbar | ja: Targets sind vollständig aus Eintrag + `registry.json` + Spec-Datei ableitbar (genau das tat der Generator und prüfte `verify`). Plugin ~60 Zeilen, nutzt `clientTargets` aus `project-config.ts` |
+| Machbar | ja: Targets sind vollständig aus Eintrag + Adapter-Registry + Spec-Datei ableitbar (genau das tat der Generator und prüfte `verify`). Plugin nutzt `inferClientTargets` aus `project-config.ts` |
 | Hash / Cache | Nx hasht die *gemergte* `ProjectConfiguration` (`project.json` + Plugin). Optionen bleiben `{ client }`, der Eintrag bleibt `json`-Input. Gemessen: `url` am notification-Eintrag → nur `generated-notification-client:generate` (heute `generate-api-client`) neu (138/139 aus dem Cache), Abhängige aus dem Cache. Einmalig beim Umstieg laufen die Abhängigen der Clients neu (`^default` enthält die geänderte Client-`project.json`), danach stabil |
 | Adapter-Inputs | aus dem Eintrag abgeleitet: Adapterwechsel = eine Datei, kein Drift mehr möglich (der `verify`-Abgleich Inputs ↔ Adapter entfällt) |
 | Plugin-Cache | das Plugin rechnet bei jeder Graph-Berechnung neu (zwei JSON-Dateien + `existsSync` je Client, kein eigener Cache nötig). Nx re-evaluiert es bei Dateiänderungen; nach Änderungen am Plugin-Code ggf. `nx reset` (Daemon) |
@@ -594,11 +604,11 @@ Vor dem Umbau auf den `json`-Input liefen im ersten Fall 41 Tasks neu (Messung e
 ### Generator `client`
 
 ```sh
-nx g @mo-transfer/tooling-openapi:client <name> [--domain=<d>] --spec=<datei|url> [--url=<url>] [--adapter=openapi-tools|hey-api|nx-plugin-openapi]
+nx g @mo-transfer/tooling-openapi:client <name> [--domain=<d>] --spec=<datei|url> [--url=<url>] [--adapter=<id>] [--layout=merged-core] [--no-testing]
 ```
 
-- legt `libs/[<d>/]generated/<name>/` an: Spec (Datei unverändert als `openapi.yaml|json`; URL einmal geladen und wie `update-spec` normalisiert), `types|api|core|testing/src/index.ts`, `project.json` des Clients, Config-Dateien der vier Libs (Testing ohne Build-Dateien), vier `paths`-Einträge, Eintrag in `openapi-clients.json` (`url` = `--url` oder die Spec-URL; `adapter` nur, wenn er vom `defaultAdapter` abweicht)
-- prüft: kebab-case, Domain existiert, Client neu, OpenAPI 3.x mit mindestens einem Pfad, Adapter bekannt
+- legt `libs/[<d>/]generated/<name>/` an: Spec (Datei unverändert als `openapi.yaml|json`; URL einmal geladen und wie `update-spec` normalisiert), `src/index.ts` je Teil (`core` fehlt bei `--layout=merged-core`, `testing` bei `--no-testing`), `project.json` des Clients, Config-Dateien der Teil-Libs über das Scaffold (`settings.scaffold`, hier Blueprint-Konvention; Testing ohne Build-Dateien), `paths`-Einträge, Eintrag in `openapi-clients.json` (`url` = `--url` oder die Spec-URL; `adapter` nur, wenn er vom `defaultAdapter` abweicht; `layout`, `pipeline.testing`)
+- prüft: kebab-case, Domain existiert (Scaffold), Client neu, OpenAPI 3.x mit mindestens einem Pfad, Adapter bekannt (Built-in oder `adapters`)
 - `move`/`rename`: Eintrag wird mitgezogen (auch beim Verschieben einer ganzen Domain), Aliase umgeschrieben, `project.json` von Client und Teilen nachgezogen (Name, Scope-Tag, Spec-Input, `json`-Feld, Option `client`, `implicitDependencies`), `paths` umbenannt, bei `rename` auch die generierten Testing-Namen (`demoClientHttp` → `thingClientHttp`). `remove`: Eintrag, `paths` und Kanten raus, bricht ab, solange Code den Client importiert. Ein `remove` direkt nach `client` stellt den Ausgangszustand exakt wieder her (Spec im Tooling-Test, E2E: `git status` leer)
 - `component`/`service`/`store` lehnen generierte Libs ab
 
@@ -637,6 +647,10 @@ return (data ?? []).map(toBooking);
 ```
 
 Die Testing-Lib hängt nicht am Adapter (nur an der Spec), ein Tausch lässt sie im Cache.
+
+**Eigener Adapter (Consumer)**, ohne das Paket anzufassen: Modul mit `defineAdapter({ apiVersion: 1, id, defaults, optionsSchema?, requires?, generate, classify })` (`@mo-transfer/tooling-openapi/adapter`) im Workspace (`.ts`/`.js`/`.mjs`) oder als npm-Paket (auch ESM-only), Eintrag `adapters.<id>` in `openapi-clients.json` mit `module` + deklarativen Cache-Metadaten (`packages`, `inputs`, `runtime`, `options`). Das Plugin lädt keinen Adapter-Code; Cache-Input ist der Modul-Ordner bzw. das Paket (+ Graph-Kante `client → npm:<paket>`). Prozess-Generatoren (NSwag, Skripte) ohne JS über den Built-in `command` (`"module": "builtin:command"`, `command`/`args` mit Platzhaltern, Glob-Klassifizierung). Prüfung per `runAdapterContract` (`./adapter-testing`). Anleitung: [README → Eigener Adapter](../packages/tooling/openapi/README.md#eigener-adapter).
+
+**Pipeline pro Client** (`pipeline` im Eintrag): `transforms` (Code-Hooks nach `classify`, Modul-Ordner = Cache-Input; müssen deterministisch sein), `format` (prettier), `testing: false`, `overlays` (OpenAPI Overlay 1.0) **experimentell hinter `settings.features.overlays`** (Default aus: ein Client mit Overlays scheitert mit Hinweis, verify meldet ihn). Layout-Variante `layout: "merged-core"` (core in der api-Lib).
 
 ### Testing-Lib pro Client
 
@@ -692,7 +706,7 @@ worker.use(bookingClientHttp.get('/bookings', ({ response }) => response('defaul
 | Spec → eigenes/shared Client-testing, Domain-testing → eigenes Client-testing | erlaubt; shared-Spec und fremder Spec → Domain-Client-testing blockiert |
 | aus generiertem Code (mit Header): types → api/core desselben Clients, types → `@angular/core`, shared → Domain-Client, api → data-access (Zyklus), api → state (Zyklus + Matrix), api → ui, Deep-Import, testing → api | blockiert; api → core, api/core → `@angular/common/http`, testing → `openapi-msw` erlaubt |
 
-Dazu der Check „Generierte Clients“: Eintrag ↔ Ordner ↔ eine Spec ↔ vier Libs, `index.ts`-Inhalt, Plugin in `nx.json`, `generate-api-client`-Optionen nur `{ client }` + `json`-Input (aus dem Graphen, also die inferierten Targets), bekannter Adapter (`registry.json`), `generate-api-client`/`update-spec` nicht explizit in der Client-`project.json`, `update-spec` vorhanden, Kanten Teil → Client (→ Teile darunter) exakt, `^generate-api-client` + `^generate-api-testing` + `dependentTasksOutputFiles` an jedem Lib-Target und an `client:build`, `generate-api-testing` gecacht und vor `lint`/`typecheck`, nichts unter `src/generated/` committet, alles gitignored.
+Dazu der Check „Generierte Clients“: Eintrag ↔ Ordner ↔ eine Spec ↔ vier Libs, `index.ts`-Inhalt, Plugin in `nx.json`, `generate-api-client`-Optionen nur `{ client }` + `json`-Input (aus dem Graphen, also die inferierten Targets), Adapter-Registry ohne Problem und keine Features mit ausgeschaltetem Flag (`metadata.openapi` aus dem Graphen), Parts passend zu `layout`/`pipeline.testing`, `generate-api-client`/`update-spec` nicht explizit in der Client-`project.json`, `update-spec` vorhanden, Kanten Teil → Client (→ Teile darunter) exakt, `^generate-api-client` + `^generate-api-testing` + `dependentTasksOutputFiles` an jedem Lib-Target und an `client:build`, `generate-api-testing` gecacht und vor `lint`/`typecheck`, nichts unter `src/generated/` committet, alles gitignored.
 
 ### Limitierungen
 
@@ -701,6 +715,9 @@ Dazu der Check „Generierte Clients“: Eintrag ↔ Ordner ↔ eine Spec ↔ vi
 | Gitignored Code ist für Nx unsichtbar (Hash, Kanten, `peerDependencies` der dist) | `dependentTasksOutputFiles` + implizite Kanten, im Verify geprüft. `peerDependencies` der Client-dist bleiben leer (harmlos, `private`) |
 | Adapterwechsel ändert die Projekt-Config des Clients (inferierte Adapter-Inputs) | eine Datei (Eintrag); Abhängige laufen neu, was sie für den neuen Code ohnehin müssen |
 | `nx affected` sieht eine Änderung an `openapi-clients.json` für alle Clients, nicht nur den geänderten | nur `affected`; der Cache von `generate-api-client` ist pro Eintrag |
+| Adapter müssen getrennte `.ts`-Dateien liefern, eine Sammeldatei wird nicht aufgeteilt | Generator im Split-Modus betreiben oder alles in eine Kategorie |
+| Overlays experimentell (JSONPath-Teilmenge), hinter Feature-Flag | `settings.features.overlays: true`; unbekannte JSONPath-Syntax → Fehler |
+| Code-Hooks können Nicht-Determinismus in den Cache tragen | Hooks deterministisch halten; Trade-off in [Pipeline-Architektur](openapi-pipeline-architektur.md#trade-off-code-hooks-veto-möglich) |
 | openapi-tools braucht Java und beim ersten `generate-api-client` Netz (Jar) | CI: setup-java + Cache; lokal JRE 11+. hey-api braucht beides nicht |
 | hey-api 0.83 statt aktuell (ab 0.96 Node ≥ 22.13, ab 0.98 ≥ 22.18) | bei Node ≥ 22.18 anheben, Klassifizierung prüfen |
 | orval 8.38 verlangt laut `engines` Node ≥ 22.18, läuft aber lokal unter 22.16 | CI nutzt Node 22 aktuell; bei Problemen Node anheben |
@@ -775,14 +792,14 @@ Das Werkzeug liegt in **`packages/tooling`**, aufgeteilt in sechs Nx-Libs (je ei
 |---|---|
 | `conventions` (`@mo-transfer/tooling-conventions`) | Pfad → Name/Tags/Alias, `generated`, Client-Pfade, Scope-Liste (`lib-scopes.json`), Vorlage der Config-Dateien (`lib-files.ts`), Tree-Helfer (schreiben/verschieben Config + `paths`), Spec-Fixture |
 | `workspace` (`@mo-transfer/tooling-workspace`) | Generatoren, Sync-Generator `app-routes` (`nx.json` → `sync.globalGenerators`) |
-| `openapi` (`@mo-transfer/tooling-openapi`) | `project.json`-Vorlagen der Clients (`project-config.ts`), Facade, Adapter, Testing-Pipeline, Executoren `generate`/`generate-testing`/`update-spec`, Generator `client` |
+| `openapi` (`@mo-transfer/tooling-openapi`) | publishable: Pipeline + Presets, Adapter-SPI/Registry/Loader, Plugin, Executoren `generate`/`generate-testing`/`update-spec`, Generator `client` |
 | `ng-lib` (`@mo-transfer/tooling-ng-lib`) | Executor `test` (durchgereicht, Vitest UI per `--ui` + Hasher) |
 | `verify` (`@mo-transfer/tooling-verify`) | `verify` (Nx-Target `tooling-verify:verify`, gecacht), `verify:nx-internals`, dist-Snapshot |
 | `eslint-rules` (`@mo-transfer/tooling-eslint-rules`) | ESLint-Regeln des [Namensschemas](#namensschema), geladen von `eslint.config.mjs` |
 
 Abhängigkeiten (Paket-Imports, `depConstraints` + 20 Verify-Fälle, zyklenfrei): `openapi` → `conventions`; `eslint-rules` → `conventions`; `workspace` → `conventions`, `openapi` (move/remove pflegen `openapi-clients.json` und Client-`project.json`); `conventions`, `ng-lib`, `verify` → nichts. `workspace` → `ng-lib` ist entfallen (keine inferierten Targets mehr).
 
-**Kein Build-Schritt:** Nx lädt Generatoren und Executoren als TypeScript/JS aus den Quellen (eigener swc-Transpiler), aufgelöst über die Workspace-Links in der Root-`package.json` (`@mo-transfer/tooling-workspace`, `-openapi`, `-ng-lib`) und in den `package.json` der Libs. Jeder importierte Tooling-Export hat einen exakten `paths`-Eintrag (`verify` prüft `exports` ↔ `paths`). Einziges Plugin, das bei jeder Graph-Berechnung geladen wird: `@mo-transfer/tooling-openapi/plugin` (liest `openapi-clients.json` + `registry.json`, prüft Dateien per `existsSync`). `tooling-openapi` ist durchgehend TypeScript (Executoren, Facade, Adapter, Testing); Regeln für das Laden als CommonJS per swc (kein `import.meta`, kein Default-Import von CJS-Paketen, keine `.ts`-Module per `import()` zur Laufzeit): [README](../packages/tooling/openapi/README.md#typescript-und-laden-durch-nx).
+**Kein Build-Schritt:** Nx lädt Generatoren und Executoren als TypeScript/JS aus den Quellen (eigener swc-Transpiler), aufgelöst über die Workspace-Links in der Root-`package.json` (`@mo-transfer/tooling-workspace`, `-openapi`, `-ng-lib`) und in den `package.json` der Libs. Jeder importierte Tooling-Export hat einen exakten `paths`-Eintrag (`verify` prüft `exports` ↔ `paths`). Einziges Plugin, das bei jeder Graph-Berechnung geladen wird: `@mo-transfer/tooling-openapi/plugin` (liest `openapi-clients.json`, Registry deklarativ, prüft Dateien per `existsSync`, lädt keinen Adapter-Code). `tooling-openapi` ist durchgehend TypeScript; Nx lädt es als CommonJS per swc und entfernt den Hook danach — Consumer-Module (`.ts`-Adapter, Transforms, Scaffold) lädt deshalb ein eigener Loader ([Pipeline-Architektur](openapi-pipeline-architektur.md)). Ausnahme vom Prinzip „kein Build“: `tooling-openapi:build` erzeugt das npm-Paket.
 
 ### Anleitungen
 
