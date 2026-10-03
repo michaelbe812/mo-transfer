@@ -67,7 +67,8 @@ export function updateClientEntries(tree: Tree, from: string, to?: string): [str
 
 /**
  * The client project.json (libs/<client>/project.json, not a lib) after the client moved from `from` to `to`:
- * name, $schema offset, scope tag, and every path in its targets (spec input, json fields, `client` option).
+ * name, $schema offset, scope tag (its targets are inferred from the moved entry; paths in leftover explicit
+ * targets are rewritten, too).
  * `moved` = what the move generator moved (the client, or the slice it lives in). Returns the new project name.
  */
 export function relocateClientProject(tree: Tree, from: string, to: string, moved: Moved = { from, to }): string {

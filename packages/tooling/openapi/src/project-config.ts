@@ -1,13 +1,14 @@
 /**
- * Explicit Nx config of the generated OpenAPI clients (docs/nx-umsetzung.md → "OpenAPI-Clients"):
- * what the client generator writes into the project.json files, and what move/rename keep in step.
+ * Nx config of the generated OpenAPI clients (docs/nx-umsetzung.md → "OpenAPI-Clients"): what the client
+ * generator writes into the project.json files, and the client targets the plugin (src/plugin) infers.
  *
  *   openapi-clients.json (workspace root)    one entry per client, key = client path below libs/:
  *     { "defaultAdapter": "openapi-tools",
  *       "clients": { "generated/pet-client": { "url": "https://…", "adapter"?: "hey-api", "options"?: {…} } } }
  *   libs/<client path>/openapi.yaml|json     committed spec — the only source for `generate`
- *   libs/<client path>/project.json          client project (generated-pet-client): tags scope:<shared|domain> +
- *                                            generated, no code, no alias
+ *   libs/<client path>/project.json          client project (generated-pet-client): name, tags scope:<shared|domain>
+ *                                            + generated, no targets, no code, no alias
+ *   inferred per entry (plugin, clientTargets):
  *     generate      @mo-transfer/tooling-openapi:generate, cached, outputs <part>/src/generated (types, api, core)
  *     update-spec   @mo-transfer/tooling-openapi:update-spec, fails without `url`, not cached
  *   libs/<client path>/<part>/project.json   ordinary lib config (tooling-conventions) + implicitDependencies
@@ -16,7 +17,7 @@
  * The entry stays in openapi-clients.json and is a `json` input (fields) of `generate`, never its options:
  * Nx hashes the ProjectConfiguration of every dependency into `^default`/`^production`, target options there
  * would invalidate every dependent on any entry change. The options hold only `client`.
- * Adapter-dependent inputs (registry.json) are written for the entry's adapter; verify checks they match.
+ * Adapter-dependent inputs (registry.json) follow the entry's adapter — derived, so they cannot drift.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -71,6 +72,8 @@ const PACKAGE_DIR = 'packages/tooling/openapi/src';
 const FACADE_DIR = `${PACKAGE_DIR}/facade`;
 const TESTING_DIR = `${PACKAGE_DIR}/testing`;
 const EXECUTORS_DIR = `${PACKAGE_DIR}/executors`;
+/** code that shapes the inferred client targets: a change must reach `nx affected` (no tooling fallback in CI) */
+const INFERENCE_FILES = [`${PACKAGE_DIR}/plugin/**/*`, `${PACKAGE_DIR}/project-config.ts`];
 const REGISTRY_FILE = join(__dirname, 'facade/adapters/registry.json');
 
 /** Adapter registry (cache inputs per adapter), read once. */
@@ -135,6 +138,7 @@ export function generateTarget(clientPath: string, specFile: string, adapter: st
       // the facade only — the testing pipeline has its own target (generate of <client>/testing)
       `{workspaceRoot}/${FACADE_DIR}/**/*`,
       `{workspaceRoot}/${EXECUTORS_DIR}/**/*`,
+      ...INFERENCE_FILES.map((file) => `{workspaceRoot}/${file}`),
       ...registration.inputs,
       { externalDependencies: [...registration.packages, 'typescript', 'yaml'] },
       ...registration.runtime.map((runtime) => ({ runtime })),
@@ -144,7 +148,7 @@ export function generateTarget(clientPath: string, specFile: string, adapter: st
   };
 }
 
-/** `update-spec` of the client project — always there (fails without url): adding a url changes no project.json. */
+/** `update-spec` of the client project — always there (fails without url): adding a url changes no project config. */
 export function updateSpecTarget(clientPath: string): TargetJson {
   return {
     executor: OPENAPI_EXECUTORS.updateSpec,
@@ -176,25 +180,38 @@ export function generateTestingTarget(clientPath: string, specFile: string): Tar
   };
 }
 
-/** project.json of the client project (libs/<client path>/project.json). */
-export function clientProjectJson(exists: Exists, clientPath: string, config: ClientsConfig): Record<string, unknown> {
+/** Throws unless `clientPath` is generated/<client> or <domain>/generated/<client>. */
+function assertClientPath(clientPath: string) {
   const client = parseClientPath(clientPath);
   if (!client) {
     throw new Error(
       `${CLIENTS_CONFIG_FILE} → "${clientPath}": not a client path (generated/<client> or <domain>/generated/<client>)`,
     );
   }
+  return client;
+}
+
+/** project.json of the client project (libs/<client path>/project.json): name + tags, the targets are inferred. */
+export function clientProjectJson(clientPath: string): Record<string, unknown> {
+  const client = assertClientPath(clientPath);
   const root = `${LIBS_DIR}/${clientPath}`;
-  const specFile = findSpecFile(exists, clientPath);
   return {
     name: projectNameFor(clientPath),
     $schema: `${'../'.repeat(root.split('/').length)}node_modules/nx/schemas/project-schema.json`,
     projectType: 'library',
     tags: [`scope:${client.scope}`, GENERATED_TAG],
-    targets: {
-      generate: generateTarget(clientPath, specFile, adapterOf(clientPath, config)),
-      'update-spec': updateSpecTarget(clientPath),
-    },
+  };
+}
+
+/**
+ * Targets of the client project, inferred from its entry by the plugin (src/plugin/openapi-clients.ts).
+ * Throws for a bad path, a missing/duplicate spec or an unknown adapter.
+ */
+export function clientTargets(exists: Exists, clientPath: string, config: ClientsConfig): Record<string, TargetJson> {
+  assertClientPath(clientPath);
+  return {
+    generate: generateTarget(clientPath, findSpecFile(exists, clientPath), adapterOf(clientPath, config)),
+    'update-spec': updateSpecTarget(clientPath),
   };
 }
 

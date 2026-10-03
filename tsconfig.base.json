@@ -68,7 +68,8 @@
       "@mo-transfer/tooling-conventions/testing": ["./packages/tooling/conventions/src/testing/blueprint-tree.ts"],
       "@mo-transfer/tooling-conventions/tree": ["./packages/tooling/conventions/src/tree.ts"],
       "@mo-transfer/tooling-openapi": ["./packages/tooling/openapi/src/project-config.ts"],
-      "@mo-transfer/tooling-openapi/clients": ["./packages/tooling/openapi/src/clients.ts"]
+      "@mo-transfer/tooling-openapi/clients": ["./packages/tooling/openapi/src/clients.ts"],
+      "@mo-transfer/tooling-openapi/plugin": ["./packages/tooling/openapi/src/plugin/openapi-clients.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

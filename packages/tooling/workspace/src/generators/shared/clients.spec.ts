@@ -1,6 +1,6 @@
 import type { Tree } from '@nx/devkit';
 import { createBlueprintTree, pathsOf, read, readProject, scopesOf } from '@mo-transfer/tooling-conventions/testing';
-import { addClientEntry, type ClientEntry, readClientsJson } from '@mo-transfer/tooling-openapi/clients';
+import { addClientEntry, type ClientEntry } from '@mo-transfer/tooling-openapi/clients';
 import { clientPartConfig, clientProjectJson } from '@mo-transfer/tooling-openapi';
 import { writeJsonFile, writeLibConfig } from '@mo-transfer/tooling-conventions/tree';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -23,7 +23,7 @@ function addClient(tree: Tree, clientPath: string, entry: ClientEntry = {}): voi
   }
   addClientEntry(tree, clientPath, entry);
   const exists = (path: string): boolean => tree.exists(path);
-  writeJsonFile(tree, `libs/${clientPath}/project.json`, clientProjectJson(exists, clientPath, readClientsJson(tree)));
+  writeJsonFile(tree, `libs/${clientPath}/project.json`, clientProjectJson(clientPath));
   for (const part of ['api', 'core', 'testing', 'types']) {
     writeLibConfig(tree, `${clientPath}/${part}`, clientPartConfig(exists, clientPath, part));
   }
@@ -79,12 +79,8 @@ describe('move / rename / remove with OpenAPI clients', () => {
     const moved = readProject(tree, 'libs/booking/generated/demo-client/project.json');
     expect(moved.name).toBe('booking-generated-demo-client');
     expect(moved.tags).toEqual(['scope:booking', 'generated']);
-    expect(moved.targets.generate.options).toEqual({ client: 'booking/generated/demo-client' });
-    expect(moved.targets.generate.inputs).toContainEqual({
-      json: '{workspaceRoot}/openapi-clients.json',
-      fields: ['defaultAdapter', 'clients.booking/generated/demo-client'],
-    });
-    expect(moved.targets.generate.inputs?.[0]).toBe('{workspaceRoot}/libs/booking/generated/demo-client/openapi.yaml');
+    // generate/update-spec follow the moved entry (inferred by the plugin), nothing to rewrite
+    expect(moved.targets).toBeUndefined();
 
     await renameGenerator(tree, { path: 'booking/generated/demo-client', name: 'thing-client', skipFormat: true });
     expect(clients(tree)).toEqual({ 'booking/generated/thing-client': { url: 'https://example.org/a.yaml' } });

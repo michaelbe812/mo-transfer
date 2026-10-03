@@ -164,6 +164,7 @@
     "globalGenerators": ["@mo-transfer/tooling-workspace:app-routes", "@mo-transfer/tooling-workspace:lib-tags"]
   },
   "plugins": [
+    "@mo-transfer/tooling-openapi/plugin",
     {
       "plugin": "@nx/playwright/plugin",
       "options": {

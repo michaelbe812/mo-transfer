@@ -19,7 +19,7 @@ Dieser Stand ist `feat/nx-blueprint` (extern) **ohne Crystal-Magie**: kein lokal
 | typecheck | `typecheck-lib.mjs` verengt `libs/tsconfig.json` im Speicher | `tsc -p {projectRoot}/tsconfig.json` |
 | `tsconfig.base.json` | ein Wildcard `@mo-transfer/*` | ein exakter Eintrag pro Lib (47) + Tooling (5); Deep-Import-Verbot daraus generiert |
 | Scope-Liste | Plugin-Option in `nx.json`, Graph-Fehler bei Tippfehler | `lib-scopes.json`, `tooling-verify:verify` prüft Tags ↔ Pfad ↔ Liste |
-| OpenAPI-Clients | Client-Projekte, Kanten und Testing-`generate` vom Plugin | `project.json` des Clients (`generate`, `update-spec`) und der Teil-Libs (Kanten, Testing-`generate`), vom Generator geschrieben |
+| OpenAPI-Clients | Client-Projekte, Kanten und Testing-`generate` vom Plugin | `project.json` des Clients (Name, Tags) und der Teil-Libs (Kanten, Testing-`generate`), vom Generator geschrieben; `generate`/`update-spec` des Clients inferiert `@mo-transfer/tooling-openapi/plugin` aus `openapi-clients.json` ([Bewertung](#inferierte-client-targets-plugin)) |
 | Config-Wächter | jede Config-Datei in `libs/` ist rot | jede fehlende oder falsche ist rot |
 | component/service | eigene Templates (Nx findet inferierte Projekte nicht) | dünne Vorbelegung für `@nx/angular:component` / `@schematics/angular:service` |
 | Namensregeln | Lib-Ordner (Layer, Scope, kebab-case) per Plugin (`libPathError`) → Graph-Fehler; Datei-/Symbolnamen per ESLint | Lib-Ordner per `tooling-verify:verify` (Ordnerregel im Tag-Schema) + Generatoren; ESLint-Regeln identisch. Lint-Inputs (`eslint-rules/src/**`, `lib-conventions.ts`) in `nx.json` → `targetDefaults` statt im Plugin, siehe [Namensschema](#namensschema) |
@@ -48,7 +48,7 @@ Dazu pro Client-Ordner `libs/[<d>/]generated/<client>/project.json`. Summe: 267 
 - 267 Dateien Boilerplate, fast alle gleich; Pflege über Generatoren (`move`/`rename`/`remove` ziehen Name, Tags, Alias, relative Pfade, `paths`, `implicitDependencies` nach).
 - Tags sind wieder handeditierbar: Tippfehler fängt nicht mehr der Graph, sondern `nx sync:check` (Sync-Generator `lib-tags`, `nx sync` repariert) und `tooling-verify:verify` (Tags ↔ Pfad ↔ `lib-scopes.json`).
 - `peerDependencies` sind statisch: der Generator leitet sie einmal aus den Imports ab, danach prüft `verify` die Übereinstimmung (rot statt still veraltet).
-- Adapterwechsel eines Clients = `openapi-clients.json` + Adapter-Inputs in `project.json` (verify meldet die Abweichung).
+- ~~Adapterwechsel eines Clients = `openapi-clients.json` + Adapter-Inputs in `project.json`~~ — entfallen: die Client-Targets inferiert das Plugin aus dem Eintrag ([Bewertung](#inferierte-client-targets-plugin)).
 - Nx liest die lib-`package.json` mit: jede buildable Lib trägt zusätzlich das Tag `npm:private` (ohne Constraint, harmlos).
 - Neue Lib nur per Generator bequem; von Hand müssen alle Dateien + `paths`-Eintrag stimmen.
 
@@ -426,7 +426,8 @@ libs/[<domain>/]generated/<client>/
 | `…/openapi/adapters/*.mjs`, `registry.json` | 3 Adapter, Registry mit Cache-Inputs je Adapter (Pakete, `openapitools.json`, `java -version`) |
 | `…/openapi/testing/testing.mjs` | Testing-Lib aus der Spec |
 | `…/executors/openapi/*` | `openapi-generate`, `openapi-generate-testing`, `openapi-update-spec` (Option nur `client`) |
-| `…/openapi/project-config.ts`, `conventions/lib-files.ts`, `lib-conventions.ts` | `project.json` der Clients (`generate`, `update-spec`) und Teil-Libs (Kanten, Testing-`generate`), Tags, Pfad-Konvention |
+| `…/openapi/project-config.ts`, `conventions/lib-files.ts`, `lib-conventions.ts` | `project.json` der Clients (Name, Tags) und Teil-Libs (Kanten, Testing-`generate`), Client-Targets (`clientTargets`), Tags, Pfad-Konvention |
+| `…/openapi/plugin/openapi-clients.ts` | Plugin (`createNodesV2` auf `openapi-clients.json`): `generate` + `update-spec` pro Eintrag am Client-Projekt |
 | `…/generators/client`, `…/openapi/clients.ts` | Generator `client`, Pflege von `openapi-clients.json` und Client-`project.json` in `move`/`rename`/`remove` |
 | `openapitools.json` | Jar-Version 7.25.0, `storageDir: ./node_modules/.cache/openapi-generator-cli` |
 
@@ -471,7 +472,7 @@ libs/<domain>/generated/<client>/          scope:<domain>  Client-Projekt <domai
 | `url` | nur für `update-spec` |
 | `options` | Adapter-Optionen, über die Adapter-Defaults gemergt (z.B. `{ "plugin": "hey-api" }` für nx-plugin-openapi) |
 
-Die Datei liest zur Laufzeit die Executoren (`resolveClient`), beim Anlegen der Generator und `tooling-verify:verify`. Die `project.json` des Clients und seiner Teile schreibt der Generator `client` (Vorlage `packages/tooling/openapi/src/project-config.ts`): Client-Projekt mit `generate` + `update-spec`, Teil-Libs mit `implicitDependencies` und die Testing-Lib mit eigenem `generate` (`lint`/`typecheck` mit `dependsOn: ['generate', '^generate']`). Eintrag, Ordner und Spec müssen zusammenpassen: `tooling-verify:verify` prüft Eintrag ↔ Ordner ↔ eine Spec ↔ vier Libs, Adapter-Inputs in `project.json` ↔ Adapter des Eintrags, Kanten und dass die vier `index.ts` genau `export * from './generated';` enthalten.
+Die Datei liest zur Laufzeit die Executoren (`resolveClient`), bei jeder Graph-Berechnung das Plugin, beim Anlegen der Generator und `tooling-verify:verify`. Die `project.json` des Clients und seiner Teile schreibt der Generator `client` (Vorlage `packages/tooling/openapi/src/project-config.ts`): Client-Projekt mit Name + Tags (`generate` + `update-spec` inferiert das Plugin), Teil-Libs mit `implicitDependencies` und die Testing-Lib mit eigenem `generate` (`lint`/`typecheck` mit `dependsOn: ['generate', '^generate']`). Eintrag, Ordner und Spec müssen zusammenpassen: `tooling-verify:verify` prüft Eintrag ↔ Ordner ↔ eine Spec ↔ vier Libs, bekannter Adapter, keine expliziten Client-Targets, Kanten und dass die vier `index.ts` genau `export * from './generated';` enthalten.
 
 **Warum eine eigene Datei statt `nx.json`:** Jede Änderung an `nx.json` invalidiert den ganzen Cache (Spike S1, belegt).
 
@@ -480,7 +481,7 @@ Die Datei liest zur Laufzeit die Executoren (`resolveClient`), beim Anlegen der 
 - Target-Optionen sind nur `{ "client": "<pfad>" }`, die Executoren lesen den Eintrag zur Laufzeit (`resolveClient`).
 - Der Eintrag ist ein **`json`-Input** von `generate`: `{ "json": "{workspaceRoot}/openapi-clients.json", "fields": ["defaultAdapter", "clients.<pfad>"] }`.
 - `update-spec` gibt es für jeden Client (ohne `url` bricht es ab), damit eine neue `url` die Projekt-Config nicht ändert.
-- Ein Adapterwechsel ändert die Inputs (`externalDependencies` des Adapters) und damit die Projekt-Config: `openapi-clients.json` **und** die Adapter-Inputs im `generate` der Client-`project.json` anpassen (`verify` meldet die Abweichung mit den erwarteten Inputs). Die Abhängigen laufen dann neu, was sie wegen des neuen Codes ohnehin müssten.
+- Ein Adapterwechsel ändert die Inputs (`externalDependencies` des Adapters) und damit die Projekt-Config: nur `openapi-clients.json` anpassen, das Plugin leitet die Inputs ab. Die Abhängigen laufen dann neu, was sie wegen des neuen Codes ohnehin müssten.
 - Alternativ Adapter + Optionen in die Target-Optionen: sichtbarer, aber jede Optionsänderung invalidiert alle Abhängigen (Cache-Befund oben), und Facade, Tests und Generator lesen die Datei. Deshalb verworfen.
 
 **Cache-Probe** (eigener Cache, `run-many -t build lint test typecheck generate`, 155 Tasks, Ausgangslage 153/155 aus dem Cache; die 2 übrigen sind `sheriff-blueprint:build/test` ohne Cache; gemessen in sheriff-blue-print, das Paket ist hier nicht übernommen):
@@ -499,8 +500,8 @@ Vor dem Umbau auf den `json`-Input liefen im ersten Fall 41 Tasks neu (Messung e
 
 | Projekt | Target | Konfiguration |
 |---|---|---|
-| Client (`project.json`) | `generate` | `@mo-transfer/tooling-openapi:generate`, gecacht. Inputs: Spec, eigener Eintrag (`json`-Input), die drei `index.ts`, Facade-Code (ohne `testing/`), Executoren, Adapter-Inputs aus `registry.json` (`externalDependencies` der Adapter-Pakete + `typescript`, `yaml`; bei Java-Adaptern `openapitools.json` und Runtime `java -version 2>&1`). Outputs: `{types,api,core}/src/generated` |
-| Client | `update-spec` | `@mo-transfer/tooling-openapi:update-spec`, nicht gecacht: lädt die `url`, schreibt YAML/JSON normalisiert (danach Prettier wie `formatFiles`) |
+| Client (Plugin) | `generate` | `@mo-transfer/tooling-openapi:generate`, gecacht. Inputs: Spec, eigener Eintrag (`json`-Input), die drei `index.ts`, Facade-Code (ohne `testing/`), Executoren, Plugin + `project-config.ts` (formen das Target, für `affected`), Adapter-Inputs aus `registry.json` (`externalDependencies` der Adapter-Pakete + `typescript`, `yaml`; bei Java-Adaptern `openapitools.json` und Runtime `java -version 2>&1`). Outputs: `{types,api,core}/src/generated` |
+| Client (Plugin) | `update-spec` | `@mo-transfer/tooling-openapi:update-spec`, nicht gecacht: lädt die `url`, schreibt YAML/JSON normalisiert (danach Prettier wie `formatFiles`) |
 | `…/testing` (`project.json`) | `generate` | `@mo-transfer/tooling-openapi:generate-testing`, gecacht. Inputs: Spec, Testing-Pipeline, `openapi-typescript`, `orval`, `yaml`. Output `src/generated`. `lint`/`typecheck` hängen zusätzlich an `generate` |
 | jede Lib (`targetDefaults`) | `lint`, `typecheck`, `build`, `test` | `dependsOn: ['^generate']` (build: `['^build', '^generate']`), Input `{ dependentTasksOutputFiles: '**/src/generated/**/*.ts', transitive: true }` |
 | Teil-Lib (`project.json`) | `implicitDependencies` | Client-Projekt; `api` → `core`, `types`; `core` → `types` |
@@ -511,6 +512,29 @@ Vor dem Umbau auf den `json`-Input liefen im ersten Fall 41 Tasks neu (Messung e
 - **`nx affected`**: Spec-Änderung → Client, Teile, Wrapper in `data-access`, Konsumenten, App (per impliziter Kante). Eine Änderung an `openapi-clients.json` gehört keinem Projekt; sie ist Input von `update-spec` (nicht gecacht, also nur für `affected`) → alle Clients + Abhängige. Der Cache von `generate` bleibt pro Eintrag.
 - **IDE:** `pnpm openapi:generate` (= `nx run-many -t generate`) nach dem Checkout, sonst meldet die IDE `Cannot find module './generated'`. Kein `postinstall`: `pnpm install` bräuchte dann Java und Netz. Build, Lint, Typecheck und Test generieren selbst.
 - Deterministisch: zweimal `generate --skip-nx-cache` ergibt byte-gleiche Dateien, die dist der Client-Libs steht im Snapshot von `verify:nx-internals`.
+
+### Inferierte Client-Targets (Plugin)
+
+`generate` und `update-spec` des Client-Projekts stehen nicht mehr in `libs/[<d>/]generated/<client>/project.json` (dort nur Name + Tags), sondern kommen von `@mo-transfer/tooling-openapi/plugin` (`createNodesV2` auf `openapi-clients.json`, in `nx.json` → `plugins`). Der Rest bleibt explizit (Teil-Libs, Kanten, Testing-`generate`). `nx show project generated-pet-client` zeigt die Targets.
+
+**Warum vorher explizit:** Die Variante explizite Config hat alle Crystal-Plugins entfernt (Graph ohne eigenen Code, Tippfehler bricht den Graphen nicht, Plugins nicht mehr `lint`-Input aller Libs). Der OpenAPI-Teil war davon nur mitbetroffen: das Argument „Target-Optionen gehen in den Hash aller Abhängigen“ betrifft *wo der Eintrag steht* (Datei + `json`-Input statt Optionen), nicht *wer das Target schreibt*.
+
+**Bewertung:**
+
+| Punkt | Befund |
+|---|---|
+| Machbar | ja: Targets sind vollständig aus Eintrag + `registry.json` + Spec-Datei ableitbar (genau das tat der Generator und prüfte `verify`). Plugin ~60 Zeilen, nutzt `clientTargets` aus `project-config.ts` |
+| Hash / Cache | Nx hasht die *gemergte* `ProjectConfiguration` (`project.json` + Plugin). Optionen bleiben `{ client }`, der Eintrag bleibt `json`-Input. Gemessen: `url` am notification-Eintrag → nur `generated-notification-client:generate` neu (138/139 aus dem Cache), Abhängige aus dem Cache. Einmalig beim Umstieg laufen die Abhängigen der Clients neu (`^default` enthält die geänderte Client-`project.json`), danach stabil |
+| Adapter-Inputs | aus dem Eintrag abgeleitet: Adapterwechsel = eine Datei, kein Drift mehr möglich (der `verify`-Abgleich Inputs ↔ Adapter entfällt) |
+| Plugin-Cache | das Plugin rechnet bei jeder Graph-Berechnung neu (zwei JSON-Dateien + `existsSync` je Client, kein eigener Cache nötig). Nx re-evaluiert es bei Dateiänderungen; nach Änderungen am Plugin-Code ggf. `nx reset` (Daemon) |
+| `nx affected` | unverändert: Nx liest Target-Inputs aus dem gemergten Graphen (`getImplicitlyTouchedProjects`), `openapi-clients.json` → alle Clients (über `update-spec`), Spec → Client + Abhängige. Eine geänderte `openapi-clients.json` passt auf das Plugin-Glob, markiert aber nur beim *Löschen* alle Projekte. Neu: Plugin + `project-config.ts` sind `generate`-Inputs, damit eine Änderung daran per `affected` die Clients erreicht (Probe in `verify`) |
+| Robustheit | ein kaputter Eintrag (unbekannter Adapter, keine/zwei Specs) oder eine unlesbare Datei bricht den Graphen nicht: Warnung, kein `generate`, `verify` meldet. Ohne Client-`project.json` kein Knoten (kein namenloses Projekt) |
+| Generator / move / rename / remove | `client` schreibt nur Name + Tags; `move`/`rename` ziehen Eintrag + Name/Tags nach, die Targets folgen dem Eintrag automatisch (`relocateClientProject` muss keine Pfade in Targets mehr umschreiben); `remove` unverändert |
+| `verify` | prüft weiter am Graphen (inferierte Targets: Optionen, `json`-Input, Spec-Input, Cache, Outputs, `update-spec`), neu: Plugin in `nx.json`, keine expliziten `generate`/`update-spec` in der Client-`project.json`, bekannter Adapter |
+
+**Trade-offs:** Targets nicht mehr in der Datei sichtbar (nur per `nx show project`/Nx Console); eigener Code läuft wieder bei jeder Graph-Berechnung (klein, nur Lesezugriffe); ein lokales Plugin mehr in `nx.json`. Dafür: eine Quelle (`openapi-clients.json`) statt zwei, ~40 Zeilen weniger pro Client-`project.json`, Adapterwechsel ohne Zweitänderung, weniger Generator- und `verify`-Logik.
+
+**Entscheidung:** Netto-Verbesserung, umgesetzt — die Client-Targets sind reine Ableitung aus `openapi-clients.json`, explizit geschrieben brauchten sie Generator + `verify` als Drift-Schutz. Teil-Libs und Testing-`generate` bleiben explizit (Lib-Konvention, eigener Config-Satz pro Lib).
 
 ### Generator `client`
 
@@ -613,14 +637,14 @@ worker.use(bookingClientHttp.get('/bookings', ({ response }) => response('defaul
 | Spec → eigenes/shared Client-testing, Domain-testing → eigenes Client-testing | erlaubt; shared-Spec und fremder Spec → Domain-Client-testing blockiert |
 | aus generiertem Code (mit Header): types → api/core desselben Clients, types → `@angular/core`, shared → Domain-Client, api → data-access (Zyklus), api → state (Zyklus + Matrix), api → ui, Deep-Import, testing → api | blockiert; api → core, api/core → `@angular/common/http`, testing → `openapi-msw` erlaubt |
 
-Dazu der Check „Generierte Clients“: Eintrag ↔ Ordner ↔ eine Spec ↔ vier Libs, `index.ts`-Inhalt, `generate`-Optionen nur `{ client }` + `json`-Input, Adapter-Inputs in `project.json` ↔ Adapter des Eintrags (`registry.json`), `update-spec` vorhanden, Kanten Teil → Client (→ Teile darunter) exakt, `^generate` + `dependentTasksOutputFiles` an jedem Lib-Target und an `client:build`, Testing-`generate` gecacht und vor `lint`/`typecheck`, nichts unter `src/generated/` committet, alles gitignored.
+Dazu der Check „Generierte Clients“: Eintrag ↔ Ordner ↔ eine Spec ↔ vier Libs, `index.ts`-Inhalt, Plugin in `nx.json`, `generate`-Optionen nur `{ client }` + `json`-Input (aus dem Graphen, also die inferierten Targets), bekannter Adapter (`registry.json`), `generate`/`update-spec` nicht explizit in der Client-`project.json`, `update-spec` vorhanden, Kanten Teil → Client (→ Teile darunter) exakt, `^generate` + `dependentTasksOutputFiles` an jedem Lib-Target und an `client:build`, Testing-`generate` gecacht und vor `lint`/`typecheck`, nichts unter `src/generated/` committet, alles gitignored.
 
 ### Limitierungen
 
 | Limitierung | Umgang |
 |---|---|
 | Gitignored Code ist für Nx unsichtbar (Hash, Kanten, `peerDependencies` der dist) | `dependentTasksOutputFiles` + implizite Kanten, im Verify geprüft. `peerDependencies` der Client-dist bleiben leer (harmlos, `private`) |
-| Adapterwechsel ändert die Projekt-Config des Clients (zwei Dateien: Eintrag + Adapter-Inputs in `project.json`) | `verify` meldet eine Abweichung; Abhängige laufen neu, was sie für den neuen Code ohnehin müssen |
+| Adapterwechsel ändert die Projekt-Config des Clients (inferierte Adapter-Inputs) | eine Datei (Eintrag); Abhängige laufen neu, was sie für den neuen Code ohnehin müssen |
 | `nx affected` sieht eine Änderung an `openapi-clients.json` für alle Clients, nicht nur den geänderten | nur `affected`; der Cache von `generate` ist pro Eintrag |
 | openapi-tools braucht Java und beim ersten `generate` Netz (Jar) | CI: setup-java + Cache; lokal JRE 11+. hey-api braucht beides nicht |
 | hey-api 0.83 statt aktuell (ab 0.96 Node ≥ 22.13, ab 0.98 ≥ 22.18) | bei Node ≥ 22.18 anheben, Klassifizierung prüfen |
@@ -703,7 +727,7 @@ Das Werkzeug liegt in **`packages/tooling`**, aufgeteilt in sechs Nx-Libs (je ei
 
 Abhängigkeiten (Paket-Imports, `depConstraints` + 20 Verify-Fälle, zyklenfrei): `openapi` → `conventions`; `eslint-rules` → `conventions`; `workspace` → `conventions`, `openapi` (move/remove pflegen `openapi-clients.json` und Client-`project.json`); `conventions`, `ng-lib`, `verify` → nichts. `workspace` → `ng-lib` ist entfallen (keine inferierten Targets mehr).
 
-**Kein Build-Schritt:** Nx lädt Generatoren und Executoren als TypeScript/JS aus den Quellen (eigener swc-Transpiler), aufgelöst über die Workspace-Links in der Root-`package.json` (`@mo-transfer/tooling-workspace`, `-openapi`, `-ng-lib`) und in den `package.json` der Libs. Jeder importierte Tooling-Export hat einen exakten `paths`-Eintrag (`verify` prüft `exports` ↔ `paths`). Kein Plugin mehr, das bei jeder Graph-Berechnung geladen wird.
+**Kein Build-Schritt:** Nx lädt Generatoren und Executoren als TypeScript/JS aus den Quellen (eigener swc-Transpiler), aufgelöst über die Workspace-Links in der Root-`package.json` (`@mo-transfer/tooling-workspace`, `-openapi`, `-ng-lib`) und in den `package.json` der Libs. Jeder importierte Tooling-Export hat einen exakten `paths`-Eintrag (`verify` prüft `exports` ↔ `paths`). Einziges Plugin, das bei jeder Graph-Berechnung geladen wird: `@mo-transfer/tooling-openapi/plugin` (liest `openapi-clients.json` + `registry.json`, prüft Dateien per `existsSync`).
 
 ### Anleitungen
 
@@ -740,7 +764,7 @@ nx g @nx/angular:component libs/booking/ui/src/booking-badge --export          #
 
 ### CI
 
-*Nicht übernommen* — mo-transfer hat noch keine CI. Vorlage in sheriff-blue-print (extern): `.github/workflows/ci.yml` (Push, PRs): `pnpm install --frozen-lockfile`, Java 17 (Temurin) + Jar-Cache für openapi-tools, `playwright install --with-deps chromium`, `nx sync:check`, dann bei PRs `nx affected -t build lint test typecheck` (Basis per `nrwl/nx-set-shas`), bei Pushes `run-many`, zuletzt `nx run tooling-verify:verify`. Kein Tooling-Fallback: jede Tooling-Datei, die eine Lib-Task nutzt, ist `{workspaceRoot}`-Input dieser Task, `affected` folgt Inputs (ng-lib → alle Libs mit `test` + Abhängige, Facade → Clients + Abhängige). Generatoren betreffen nur noch die Tooling-Libs (auf `feat/nx-blueprint` waren die Plugins `lint`-Input aller Libs); `lib-conventions.ts` und `eslint-rules/src/**` sind `lint`-Input aller Projekte (Namensregeln). `verify` probt das (`nx show projects --affected --files=…`, 9 Proben, auch negativ: `ng-lib/src/test.js` betrifft `booking-types` nicht).
+*Nicht übernommen* — mo-transfer hat noch keine CI. Vorlage in sheriff-blue-print (extern): `.github/workflows/ci.yml` (Push, PRs): `pnpm install --frozen-lockfile`, Java 17 (Temurin) + Jar-Cache für openapi-tools, `playwright install --with-deps chromium`, `nx sync:check`, dann bei PRs `nx affected -t build lint test typecheck` (Basis per `nrwl/nx-set-shas`), bei Pushes `run-many`, zuletzt `nx run tooling-verify:verify`. Kein Tooling-Fallback: jede Tooling-Datei, die eine Lib-Task nutzt, ist `{workspaceRoot}`-Input dieser Task, `affected` folgt Inputs (ng-lib → alle Libs mit `test` + Abhängige, Facade → Clients + Abhängige). Generatoren betreffen nur noch die Tooling-Libs (auf `feat/nx-blueprint` waren die Plugins `lint`-Input aller Libs); `lib-conventions.ts` und `eslint-rules/src/**` sind `lint`-Input aller Projekte (Namensregeln). `verify` probt das (`nx show projects --affected --files=…`, 10 Proben, auch negativ: `ng-lib/src/test.js` betrifft `booking-types` nicht).
 
 ### Nach `nx migrate`
 

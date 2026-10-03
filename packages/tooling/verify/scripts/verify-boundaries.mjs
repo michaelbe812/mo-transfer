@@ -556,14 +556,15 @@ function checkLibConfigFiles(libRoots = undefined) {
  * Generated OpenAPI clients, from the project graph + openapi-clients.json + git:
  *   consistency  every entry ↔ client folder ↔ exactly one spec ↔ the four libs (committed index.ts =
  *                `export * from './generated'`), every client folder has an entry, the entry is a json
- *                input of generate (and not its options, which would reach every dependent's hash),
- *                the adapter's cache inputs in project.json match the entry's adapter
+ *                input of generate (and not its options, which would reach every dependent's hash), known
+ *                adapter, generate/update-spec inferred by the plugin (registered in nx.json, not in project.json)
  *   graph        every part has its edges (client, parts below); every lib target waits for `^generate` and
  *                hashes the generated code (dependentTasksOutputFiles, transitive); generate is cached with
  *                the spec as input and src/generated as outputs; the testing lib generates before lint/typecheck
  *   git          nothing below src/generated/ is committed, every generated file is gitignored
  */
 const CLIENT_PARTS = ['types', 'api', 'core', 'testing'];
+const OPENAPI_PLUGIN = '@mo-transfer/tooling-openapi/plugin';
 const COMMITTED_INDEX = "export * from './generated';\n";
 
 function checkGeneratedClients(projectGraph) {
@@ -578,6 +579,8 @@ function checkGeneratedClients(projectGraph) {
     .map(String)
     .filter((path) => /^([a-z][a-z0-9-]*\/)?generated\/[a-z][a-z0-9-]*$/.test(path) && statSync(join('libs', path)).isDirectory());
 
+  const plugins = (readJson('nx.json').plugins ?? []).map((plugin) => (typeof plugin === 'string' ? plugin : plugin.plugin));
+  if (!plugins.includes(OPENAPI_PLUGIN)) problems.push(`nx.json: plugin ${OPENAPI_PLUGIN} missing (infers generate/update-spec of the clients)`);
   for (const folder of clientFolders) if (!entries[folder]) problems.push(`libs/${folder}: client folder without entry in openapi-clients.json`);
   for (const clientPath of Object.keys(entries)) {
     const root = `libs/${clientPath}`;
@@ -600,22 +603,12 @@ function checkGeneratedClients(projectGraph) {
     if (!entryInput?.fields?.includes(`clients.${clientPath}`)) problems.push(`${node.name}: its openapi-clients.json entry must be a generate input`);
     if (!generate?.cache) problems.push(`${node.name}: generate must be cached`);
     if (!generate?.inputs?.includes(`{workspaceRoot}/${root}/${specs[0]}`)) problems.push(`${node.name}: spec must be a generate input`);
-    // project.json holds the adapter's cache inputs (registry.json) — an adapter switch in openapi-clients.json
-    // needs them, too (and the testing lib's generate never depends on the adapter)
+    // generate/update-spec come from the plugin (packages/tooling/openapi/src/plugin), the adapter inputs follow the
+    // entry; an unknown adapter or a broken spec leaves the client without generate (the plugin only warns)
     const adapter = entries[clientPath].adapter ?? config.defaultAdapter ?? 'openapi-tools';
-    const registration = registry[adapter];
-    const adapterInputs = registration && [
-      ...registration.inputs,
-      { externalDependencies: [...registration.packages, 'typescript', 'yaml'] },
-      ...registration.runtime.map((runtime) => ({ runtime })),
-    ];
-    const actualAdapterInputs = (generate?.inputs ?? []).filter(
-      (input) => input.externalDependencies || input.runtime || input === '{workspaceRoot}/openapitools.json',
-    );
-    if (!adapterInputs) problems.push(`${root}: unknown adapter "${adapter}" in openapi-clients.json`);
-    else if (JSON.stringify(actualAdapterInputs) !== JSON.stringify(adapterInputs)) {
-      problems.push(`${root}/project.json: generate inputs do not match adapter "${adapter}" (registry.json): expected ${JSON.stringify(adapterInputs)}`);
-    }
+    if (!registry[adapter]) problems.push(`${root}: unknown adapter "${adapter}" in openapi-clients.json`);
+    const explicitTargets = Object.keys(readJson(join(root, 'project.json')).targets ?? {}).filter((target) => ['generate', 'update-spec'].includes(target));
+    if (explicitTargets.length) problems.push(`${root}/project.json: ${explicitTargets.join(', ')} explicit — inferred from openapi-clients.json (${OPENAPI_PLUGIN}), remove it`);
     if (!generate?.outputs?.every((output) => output.endsWith('/src/generated'))) problems.push(`${node.name}: outputs must be the src/generated folders`);
     if (!node.data.targets?.['update-spec']) problems.push(`${node.name}: update-spec target missing`);
   }
@@ -756,6 +749,8 @@ const AFFECTED_PROBES = [
   { file: 'libs/booking/ui/project.json', expected: ['booking-ui', 'booking-shell', 'client'], notExpected: ['checkin-types'] },
   { file: 'tsconfig.base.json', expected: ['booking-ui', 'shared-testing', 'generated-pet-client-api', 'client'] },
   { file: 'packages/tooling/openapi/src/facade/facade.mjs', expected: ['generated-pet-client', 'booking-data-access', 'booking-state', 'client'] },
+  // the plugin shapes the client targets: an input of every client's generate (no tooling fallback in CI)
+  { file: 'packages/tooling/openapi/src/plugin/openapi-clients.ts', expected: ['generated-pet-client', 'booking-generated-booking-client', 'booking-data-access', 'client'] },
   { file: 'packages/tooling/openapi/src/testing/testing.mjs', expected: ['booking-generated-booking-client-testing'] },
   { file: 'openapi-clients.json', expected: ['generated-pet-client-api', 'booking-generated-booking-client-testing', 'client'] },
   // integration tests of tooling-openapi run the jar: their workspace inputs affect it

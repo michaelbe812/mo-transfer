@@ -41,13 +41,13 @@ describe('client generator', () => {
     expect(clients(tree)).toEqual({ 'generated/demo-client': {} });
   });
 
-  it('writes the explicit config: client project.json, part configs with edges, paths entries', async () => {
+  it('writes the config: client project.json (no targets), part configs with edges, paths entries', async () => {
     await clientGenerator(tree, { name: 'demo-client', spec: 'specs/demo.yaml', skipFormat: true });
 
     const client = readProject(tree, 'libs/generated/demo-client/project.json');
     expect(client).toMatchObject({ name: 'generated-demo-client', tags: ['scope:shared', 'generated'] });
-    expect(client.targets.generate.options).toEqual({ client: 'generated/demo-client' });
-    expect(client.targets['update-spec'].executor).toBe('@mo-transfer/tooling-openapi:update-spec');
+    // generate/update-spec: inferred from the entry by the plugin (src/plugin/openapi-clients.ts)
+    expect(client.targets).toBeUndefined();
 
     expect(readJsonFile(tree, 'libs/generated/demo-client/api/project.json')).toMatchObject({
       name: 'generated-demo-client-api',

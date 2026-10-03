@@ -8,13 +8,14 @@ import {
   clientPartConfig,
   clientPartEdges,
   clientProjectJson,
+  clientTargets,
   findSpecFile,
   generateTestingTarget,
 } from './project-config';
 
 const INDEX = "export * from './generated';\n";
 
-describe('explicit client config (project.json of clients and parts)', () => {
+describe('client config (project.json of clients and parts, inferred client targets)', () => {
   let root: string;
   const write = (path: string, content = ''): void => {
     mkdirSync(dirname(join(root, path)), { recursive: true });
@@ -31,19 +32,18 @@ describe('explicit client config (project.json of clients and parts)', () => {
   });
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-  it('client project: tags, generate (json-field input, registry inputs of the adapter), update-spec', () => {
+  it('client project.json: name + tags only; targets: generate (json-field input, adapter inputs), update-spec', () => {
     client('generated/pet-client');
-    const pet = clientProjectJson(exists, 'generated/pet-client', {
-      defaultAdapter: 'openapi-tools',
-      clients: { 'generated/pet-client': { url: 'https://x' } },
-    });
-    expect(pet).toMatchObject({
+    expect(clientProjectJson('generated/pet-client')).toEqual({
       name: 'generated-pet-client',
       $schema: '../../../node_modules/nx/schemas/project-schema.json',
       projectType: 'library',
       tags: ['scope:shared', 'generated'],
     });
-    const targets = pet['targets'] as Record<string, Record<string, unknown>>;
+    const targets = clientTargets(exists, 'generated/pet-client', {
+      defaultAdapter: 'openapi-tools',
+      clients: { 'generated/pet-client': { url: 'https://x' } },
+    });
     expect(targets['generate']).toEqual({
       executor: '@mo-transfer/tooling-openapi:generate',
       cache: true,
@@ -55,6 +55,8 @@ describe('explicit client config (project.json of clients and parts)', () => {
         '{workspaceRoot}/libs/generated/pet-client/core/src/index.ts',
         '{workspaceRoot}/packages/tooling/openapi/src/facade/**/*',
         '{workspaceRoot}/packages/tooling/openapi/src/executors/**/*',
+        '{workspaceRoot}/packages/tooling/openapi/src/plugin/**/*',
+        '{workspaceRoot}/packages/tooling/openapi/src/project-config.ts',
         '{workspaceRoot}/openapitools.json',
         { externalDependencies: ['@openapitools/openapi-generator-cli', 'typescript', 'yaml'] },
         { runtime: 'java -version 2>&1' },
@@ -76,13 +78,13 @@ describe('explicit client config (project.json of clients and parts)', () => {
 
   it('domain client: scope of the domain, the entry adapter wins over defaultAdapter', () => {
     client('booking/generated/booking-client', ['types', 'api', 'testing'], 'openapi.json');
-    const booking = clientProjectJson(exists, 'booking/generated/booking-client', {
-      defaultAdapter: 'openapi-tools',
-      clients: { 'booking/generated/booking-client': { adapter: 'hey-api' } },
-    });
+    const booking = clientProjectJson('booking/generated/booking-client');
     expect(booking['$schema']).toBe('../../../../node_modules/nx/schemas/project-schema.json');
     expect(booking['tags']).toEqual(['scope:booking', 'generated']);
-    const generate = (booking['targets'] as Record<string, { inputs: unknown[] }>)['generate'];
+    const { generate } = clientTargets(exists, 'booking/generated/booking-client', {
+      defaultAdapter: 'openapi-tools',
+      clients: { 'booking/generated/booking-client': { adapter: 'hey-api' } },
+    }) as Record<string, { inputs: unknown[] }>;
     expect(generate.inputs[0]).toBe('{workspaceRoot}/libs/booking/generated/booking-client/openapi.json');
     expect(generate.inputs).toContainEqual({ externalDependencies: ['@hey-api/openapi-ts', 'typescript', 'yaml'] });
     expect(generate.inputs).not.toContainEqual({ runtime: 'java -version 2>&1' });
@@ -149,10 +151,11 @@ describe('explicit client config (project.json of clients and parts)', () => {
   });
 
   it('errors: bad client path, no spec / two specs', () => {
-    expect(() => clientProjectJson(exists, 'pet-client', {})).toThrow(
+    expect(() => clientProjectJson('pet-client')).toThrow(
       'openapi-clients.json → "pet-client": not a client path (generated/<client> or <domain>/generated/<client>)',
     );
-    expect(() => clientProjectJson(exists, 'generated/nospec-client', {})).toThrow(
+    expect(() => clientTargets(exists, 'pet-client', {})).toThrow('not a client path');
+    expect(() => clientTargets(exists, 'generated/nospec-client', {})).toThrow(
       'openapi-clients.json → "generated/nospec-client": libs/generated/nospec-client needs exactly one spec file (openapi.yaml | openapi.json), found none. New client: nx g @mo-transfer/tooling-openapi:client <name> --spec=<file|url>',
     );
     client('generated/two-client');

@@ -1,6 +1,6 @@
 # @mo-transfer/tooling-workspace
 
-Alle Generatoren außer `client`. Projekt `tooling-workspace` (`type:tooling`, `tooling:workspace`), importiert `@mo-transfer/tooling-conventions` und `@mo-transfer/tooling-openapi` (`/clients`, Client-`project.json`). Übersicht: [`packages/tooling`](../README.md).
+Alle Generatoren außer `client`. Projekt `tooling-workspace` (`type:tooling`, `tooling:workspace`), importiert `@mo-transfer/tooling-conventions` und `@mo-transfer/tooling-openapi` (`/clients`, Client-`project.json`: Name + Tags, die Targets inferiert das Plugin aus dem Eintrag). Übersicht: [`packages/tooling`](../README.md).
 
 | Teil | Datei(en) | Aufgabe |
 |---|---|---|

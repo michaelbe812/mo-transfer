@@ -1,11 +1,11 @@
 # packages/tooling
 
-Werkzeug des Blueprints (übernommen aus sheriff-blue-print, Branch `feat/nx-reduced-blueprint`: explizite Config pro Lib, keine Crystal-Plugins), aufgeteilt in sechs Nx-Libs. `packages/tooling` selbst ist nur ein Gruppierungsordner, kein Projekt und kein Paket.
+Werkzeug des Blueprints (übernommen aus sheriff-blue-print, Branch `feat/nx-reduced-blueprint`: explizite Config pro Lib; einziges Crystal-Plugin: `generate`/`update-spec` der OpenAPI-Clients), aufgeteilt in sechs Nx-Libs. `packages/tooling` selbst ist nur ein Gruppierungsordner, kein Projekt und kein Paket.
 
 | Lib | Paket / Projekt | Tag | Inhalt | Details |
 |---|---|---|---|---|
 | `conventions` | `@mo-transfer/tooling-conventions` / `tooling-conventions` | `tooling:conventions` | Pfad → Name/Tags/Alias, Layer, reservierter Ordner `generated`, Client-Pfade, Scope-Liste (`lib-scopes.json`), Vorlage der Config-Dateien pro Lib, Tree-Helfer (Config + `paths` schreiben/verschieben), Fixture-Workspace für Specs | [README](conventions/README.md) |
-| `openapi` | `@mo-transfer/tooling-openapi` / `tooling-openapi` | `tooling:openapi` | `project.json`-Vorlagen der Clients, Facade (Vertrag, Registry, Adapter, Split, Barrel), Testing-Generierung, Executoren `generate`/`update-spec`/`generate-testing`, Generator `client` | [README](openapi/README.md) |
+| `openapi` | `@mo-transfer/tooling-openapi` / `tooling-openapi` | `tooling:openapi` | `project.json`-Vorlagen der Clients, Plugin (Client-Targets aus `openapi-clients.json`), Facade (Vertrag, Registry, Adapter, Split, Barrel), Testing-Generierung, Executoren `generate`/`update-spec`/`generate-testing`, Generator `client` | [README](openapi/README.md) |
 | `workspace` | `@mo-transfer/tooling-workspace` / `tooling-workspace` | `tooling:workspace` | Generatoren domain/layer/feat/testing/move/rename/remove/component/service/store (schreiben/pflegen die Config-Dateien), Sync-Generator `app-routes` | [README](workspace/README.md) |
 | `ng-lib` | `@mo-transfer/tooling-ng-lib` / `tooling-ng-lib` | `tooling:ng-lib` | Executor `test`: `@nx/angular:unit-test` durchgereicht, Vitest UI per `--ui` (Hasher) | [README](ng-lib/README.md) |
 | `verify` | `@mo-transfer/tooling-verify` / `tooling-verify` | `tooling:verify` | `verify` (Boundaries, Namensregeln, Config pro Lib, Tag-Schema + Ordnerregel, Clients, Tooling-Libs, affected, Bundle-Scan), `verify:nx-internals`, dist-Snapshot | [README](verify/README.md) |
@@ -26,7 +26,7 @@ conventions  ◀── openapi  ◀── workspace        ng-lib        verify 
 |---|---|---|
 | `conventions` | nichts | Basis: Pfad-Konventionen und Config-Vorlagen gelten für alle Generatoren; `lib-conventions.ts`/`lib-files.ts` ohne Runtime-Imports |
 | `openapi` | `conventions` | Client-Pfade, Tags, Scope-Liste kommen aus den Konventionen. Kennt die Lib-Generatoren nicht |
-| `workspace` | `conventions`, `openapi` | `move`/`rename`/`remove` halten `openapi-clients.json` und Client-`project.json` nach (`@mo-transfer/tooling-openapi/clients`). Die Abhängigkeit auf `ng-lib` ist entfallen: Targets stehen in `project.json` + `nx.json` |
+| `workspace` | `conventions`, `openapi` | `move`/`rename`/`remove` halten `openapi-clients.json` und Client-`project.json` (Name, Tags) nach (`@mo-transfer/tooling-openapi/clients`). Die Abhängigkeit auf `ng-lib` ist entfallen: Targets stehen in `project.json` + `nx.json` |
 | `ng-lib` | nichts | kapselt das eine verbliebene Nx-Interna (unit-test-Executor), weiß nichts von Konventionen oder OpenAPI |
 | `verify` | nichts | prüft von außen (Projekt-Graph, Dateien, ESLint, git), leitet Tags und Ordnerregel unabhängig ab |
 | `eslint-rules` | `conventions` | Layer/Scope/Feat und Datei-Kinds aus denselben Konventionen wie die Generatoren, keine doppelte Logik |
@@ -39,7 +39,7 @@ Nx lädt Generatoren und Executoren direkt aus den Quellen (`main`/`exports` zei
 
 **`paths` in `tsconfig.base.json`:** jeder importierte Export einer Tooling-Lib hat einen exakten Eintrag (wie jede Lib), swc und IDE landen so direkt auf den `.ts`-Quellen. `verify` prüft `exports` ↔ `paths` in beide Richtungen. `eslint-rules` importiert niemand per Paketname (`eslint.config.mjs` lädt die Quellen per Pfad), deshalb kein eigener Eintrag; ihr Import `@mo-transfer/tooling-conventions` läuft über den bestehenden.
 
-**Kein Build-Schritt:** kein veraltetes `dist/`. Keine Plugins mehr in `nx.json`, der Projekt-Graph entsteht nur aus `project.json`/`package.json`.
+**Kein Build-Schritt:** kein veraltetes `dist/`. Der Projekt-Graph entsteht aus `project.json`/`package.json`; einziges eigenes Plugin in `nx.json` ist `@mo-transfer/tooling-openapi/plugin` (nur Targets der Client-Projekte, aus den `.ts`-Quellen geladen, `paths`-Eintrag wie jeder Export).
 
 ## Generatoren
 
@@ -72,11 +72,11 @@ Die Libs haben keine Graph-Kante zum Tooling. Nötig ist sie nicht: jede Tooling
 | Änderung in | betroffen |
 |---|---|
 | `ng-lib/src/**` | alle Libs mit `test` + Abhängige (App) |
-| `openapi/src/facade/**`, `openapi/src/executors/**` | Client-Projekte + Abhängige |
+| `openapi/src/facade/**`, `openapi/src/executors/**`, `openapi/src/plugin/**`, `openapi/src/project-config.ts` | Client-Projekte + Abhängige (Plugin + `project-config.ts` formen die inferierten Client-Targets) |
 | `openapi/src/testing/**` | Testing-Libs der Clients + deren Nutzer |
 | `openapi-clients.json` | alle Client-Projekte + Abhängige (Input von `update-spec`; der Cache von `generate` bleibt pro Eintrag) |
 | `libs/<lib>/project.json` (Tags, Targets) | die Lib + Abhängige |
 | `conventions/src/lib-conventions.ts`, `eslint-rules/src/**` | `lint` aller Projekte (Namensregeln lesen die Konventionen); Specs der Regeln sind aus dem Hash ausgenommen, `affected` ignoriert die Negation aber |
 | übrige `conventions/**`, Generatoren, `verify` | nur Tooling-Libs (auf `feat/nx-blueprint` (extern) waren zusätzlich die Plugins `lint`-Input aller Libs) |
 
-`verify` probt das mit `nx show projects --affected --files=…` (9 Proben, positiv und negativ). Implizite Kanten Lib → Tooling-Lib wären gröber und würden den Graphen mit ~50 Kanten füllen, deshalb nicht umgesetzt.
+`verify` probt das mit `nx show projects --affected --files=…` (10 Proben, positiv und negativ). Implizite Kanten Lib → Tooling-Lib wären gröber und würden den Graphen mit ~50 Kanten füllen, deshalb nicht umgesetzt.
