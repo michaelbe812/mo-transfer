@@ -50,7 +50,7 @@ spec[] (Overlays, experimentell) → generate → classify → transform[] → s
 | `adapters.<id>` | `module` (Workspace-Pfad, Paket, `builtin:<id>`), `packages`, `inputs`, `runtime`, `options` — deklarativ, das Plugin lädt keinen Adapter-Code |
 | `settings` | `libsDir` (`libs`), `clientFolder` (`generated`), `outputDir` (`generated`), `aliasPrefix` (`@mo-transfer/`), `sharedScope` (`shared`), `specFiles`, `clientTags`, `partTags`, `header.lint`/`header.banner` (`{source}`, `{spec}`), `scaffold`, `toolingInputs` (`auto`/`source`/`package`/`none`), `features.overlays` (`false`), `testing.mocks` (`schema-faker`) |
 
-Jeder Eintrag ist `json`-Input (Felder `defaultAdapter`, `settings`, ggf. `adapters.<id>`, `clients.<pfad>`) seines Targets, nie Target-Option: eine Änderung invalidiert nur diesen Client. Plugin-Optionen in `nx.json` nur für Target-Namen: `{ "plugin": "@mo-transfer/tooling-openapi/plugin", "options": { "clientTargetName": "…", "testingTargetName": "…", "updateSpecTargetName": "…" } }`.
+Jeder Eintrag ist `json`-Input (Felder `defaultAdapter`, `settings`, ggf. `adapters.<id>`, `clients.<pfad>`) seines Targets, nie Target-Option: eine Änderung invalidiert nur diesen Client. Plugin-Optionen in `nx.json` nur für Target-Namen: `{ "plugin": "@mo-transfer/tooling-openapi/plugin", "options": { "clientTargetName": "…", "testingTargetName": "…", "updateSpecTargetName": "…" } }` — der Generator `client` schreibt sie in `targetDefaults.dependsOn` (`^<name>`) und in die Testing-Lib; verify prüft mit denselben Namen. Settings werden validiert (Pfade bleiben im Workspace); eine kaputte Datei bricht den Graphen nie (Warnung, Problem in `metadata.openapi`).
 
 ## Testing-Lib: Mocks-Engines
 
@@ -103,7 +103,8 @@ Vertrag: `generate` schreibt **getrennte `.ts`-Dateien** nach `ctx.outDir` (eine
 
 - **npm-Paket**: `"module": "@acme/openapi-orval"` — CommonJS oder ESM-only (`exports` mit `import`), Cache-Input `externalDependencies` + Graph-Kante `client → npm:@acme/openapi-orval`.
 - **Ohne JS**: `"nswag": { "module": "builtin:command", "runtime": ["nswag version"], "options": { "command": "nswag", "args": ["openapi2tsclient", "/input:{specFile}", "/output:{outDir}/client.ts"], "classify": { "apis": ["**/*.ts"] } } }` (Platzhalter `{specFile}`, `{outDir}`, `{workspaceRoot}`, `{clientName}`, `{clientPath}`).
-- **Laden**: `.ts` über einen eigenen Require-Hook (TypeScript `transpileModule`, kein Typcheck, keine `paths`), `.mjs`/ESM über echtes `import()`, `.js`/`.cjs` über `require`. Kein `.mts`.
+- **Laden**: `.ts` über einen eigenen Require-Hook nur für den Modulordner, nur während des Ladens (TypeScript `transpileModule`, kein Typcheck, keine `paths`; `.ts`-Helfer statisch importieren), `.mjs`/ESM über echtes `import()`, `.js`/`.cjs` über `require`. Kein `.mts`. Module müssen im Workspace liegen (Cache-Input).
+- **Pakete**: `packages`/Paket-Module zählen nur als Cache-Input, wenn sie in der Root-`package.json` stehen und installiert sind; sonst `metadata.openapi.missingPackages` + Warnung (verify meldet).
 - Gleiche ID wie ein Built-in ersetzt ihn.
 
 Transform-Hook analog: `export default defineTransform({ apiVersion: 1, id, optionsSchema?, transform(files, ctx) { return files.map(…) } })` — `files` = `{ path, part, content }[]`, `ctx.preset` = `client` | `testing`.
@@ -115,7 +116,7 @@ pnpm exec nx run tooling-openapi:build      # tsc → dist/packages/tooling/open
 cd dist/packages/tooling/openapi && npm pack --dry-run
 ```
 
-Die Quell-`package.json` bleibt `private` und zeigt auf `.ts` (Nx lädt die Quellen im Workspace ohne Build); `scripts/prepare-dist.mts` schreibt die dist-`package.json` ohne `private`/devDependencies, Exporte auf `.js` + `types`. `executors.json` nennt Implementierungen ohne Endung (Nx löst `.ts` bzw. `.js` auf). Für einen echten Release fehlen bewusst: Ziel-Registry/`publishConfig`, `nx release`-Konfiguration (Version, Changelog), ggf. neutraler Paketname. Im Consumer: Paket + Peers (`nx`, `@nx/devkit`, `typescript`) + Generator-Pakete der genutzten Adapter installieren, Plugin in `nx.json`, `openapi-clients.json` anlegen, optional `settings.scaffold`.
+Die dist hat keine Source Maps; ein Integrationstest (`test/integration/dist-smoke.spec.ts`) baut sie, lädt jeden Export und betreibt Plugin + Executor aus dem gebauten Paket in einem Fixture. Die Quell-`package.json` bleibt `private` und zeigt auf `.ts` (Nx lädt die Quellen im Workspace ohne Build); `scripts/prepare-dist.mts` schreibt die dist-`package.json` ohne `private`/devDependencies, Exporte auf `.js` + `types`. `executors.json` nennt Implementierungen ohne Endung (Nx löst `.ts` bzw. `.js` auf). Für einen echten Release fehlen bewusst: Ziel-Registry/`publishConfig`, `nx release`-Konfiguration (Version, Changelog), ggf. neutraler Paketname. Im Consumer: Paket + Peers (`nx`, `@nx/devkit`, `typescript`) + Generator-Pakete der genutzten Adapter installieren, Plugin in `nx.json`, `openapi-clients.json` anlegen, optional `settings.scaffold`.
 
 ## Tests
 

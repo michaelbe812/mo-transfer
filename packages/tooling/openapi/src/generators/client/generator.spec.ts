@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBlueprintTree, pathsOf, read, readProject } from '@mo-transfer/tooling-conventions/testing';
 import { listLibPaths, readJsonFile } from '@mo-transfer/tooling-conventions/tree';
-import { clientGenerator } from './generator';
+import { clientGenerator, syncTargetDefaults } from './generator';
 
 const SPEC_YAML = `openapi: 3.0.3
 info: { title: Demo, version: 1.0.0 }
@@ -356,5 +356,32 @@ describe('client generator with the built-in scaffold (no settings.scaffold)', (
     tree.delete('tsconfig.base.json');
     await clientGenerator(tree, { name: 'y-client', spec: 'specs/demo.yaml', skipFormat: true });
     expect(tree.exists('tsconfig.base.json')).toBe(false);
+  });
+});
+
+describe('syncTargetDefaults (L5)', () => {
+  const names = { client: 'codegen', testing: 'codegen-testing', updateSpec: 'update-spec' };
+  it('rewrites object and list target defaults, leaves the rest; default names or no targetDefaults: no change', () => {
+    const tree = createTreeWithEmptyWorkspace();
+    updateJson(tree, 'nx.json', (nxJson) => ({
+      ...nxJson,
+      targetDefaults: {
+        lint: { dependsOn: ['^generate-api-client', '^generate-api-testing', '^build'] },
+        test: [{ dependsOn: ['^generate-api-client', '^codegen'] }, { cache: true }],
+        build: { cache: true },
+      },
+    }));
+    const before = read(tree, 'nx.json');
+    syncTargetDefaults(tree, { client: 'generate-api-client', testing: 'generate-api-testing', updateSpec: 'update-spec' });
+    expect(read(tree, 'nx.json')).toBe(before);
+    syncTargetDefaults(tree, names);
+    const { targetDefaults } = JSON.parse(read(tree, 'nx.json'));
+    expect(targetDefaults.lint.dependsOn).toEqual(['^codegen', '^codegen-testing', '^build']);
+    expect(targetDefaults.test[0].dependsOn).toEqual(['^codegen']);
+    const after = read(tree, 'nx.json');
+    syncTargetDefaults(tree, names);
+    expect(read(tree, 'nx.json')).toBe(after);
+    updateJson(tree, 'nx.json', ({ targetDefaults: _, ...rest }) => rest);
+    expect(() => syncTargetDefaults(tree, names)).not.toThrow();
   });
 });

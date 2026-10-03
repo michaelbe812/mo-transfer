@@ -86,13 +86,27 @@ flowchart LR
 
 Verworfene Alternativen (Spike): hey-api-Faker/msw-Plugins (ignoriert `example`, 501-Defaults), kubb/`@mswjs/source` (msw 3 nicht im Peer-Range), `msw-auto-mock` (AI-SDK-Deps), `openapi-backend`/Prism/Scalar (kein faker bzw. kein msw). Testing-Output ändert sich gegenüber main bewusst (andere Dateien/Werte), generierter Client-Code bleibt byte-identisch.
 
+## Review-Fixes (TDD, `test/integration/robustness.spec.ts` u. a.)
+
+| Befund | Umsetzung |
+|---|---|
+| H1 kaputte `openapi-clients.json` | Abschnitte formgeprüft (falsche → leer), Registrierung ohne String-`module` → Problem, `transformsOf` validiert, Plugin: try/catch um Kontext + pro Client, `createDependencies` → `[]`. Der Graph überlebt jede getestete Form |
+| H2 Pfadsicherheit | `settingsProblems`: `libsDir` relativ ohne `..`, `clientFolder`/`outputDir`/`sharedScope` ein kebab-Ordner, `specFiles` nur Dateinamen; Client-Pfade nur kebab-Segmente; Overlay- und Transform-Pfade relativ ohne `..`; write-Stage schreibt/löscht nur unter `<part>/src/<outputDir>` |
+| M1 fehlende Pakete | `externalDependencies` nur, wenn in der Root-`package.json` deklariert (→ Lockfile → `npm:`-Knoten) **und** installiert; sonst `metadata.openapi.missingPackages`, Warnung, verify-Problem — statt Hasher-Abbruch |
+| M2 `.ts`-Hook | Hook nur während des Ladens und nur für den Modulordner (bei npm-Paketen: Paketordner, auch unter `node_modules` — nie an Nodes Type Stripping), danach vorheriger Handler zurück. Folge: `.ts`-Helfer müssen statisch (Top-Level) importiert werden. Getestet unter Node 22.16 und 24.18 |
+| M3 Cache-Lücken | Module außerhalb des Workspace → Problem (Scaffold ausgenommen); `generate-api-testing` mit `adapters/files.ts`; Package-Modus mit `yaml`; Require-Cache des ganzen Modulordners geleert |
+| M4 Parallel-Race | effektive Spec je Preset (`tmp/openapi/<client>/<preset>/spec`) |
+| Low | optionale Peers für alle Generator-Tools, `engines.node >=22.12`, dist ohne Source Maps, automatischer dist-Smoke-Test (Build → Exporte → Fixture mit installiertem dist), Target-Namen: Generator schreibt sie in `targetDefaults.dependsOn`, verify liest die Plugin-Optionen; Tooling-Inputs je Target eng (schema-faker/Testing-Preset nicht im Client-Hash, Adapter nicht im Testing-Hash) |
+
 ## Limitierungen
 
 | Limitierung | Umgang |
 |---|---|
 | Adapter müssen **getrennte `.ts`-Dateien** liefern; eine Single-File-Ausgabe wird nicht aufgeteilt | alles in eine Kategorie (z. B. `apis`) oder Generator auf Split-Modus stellen |
 | JSONPath nur Teilmenge (Namen, `*`, Index, `..`, Filter `==`/`!=`/Existenz) | unbekannte Syntax → Fehler, nie stiller Mismatch |
-| `.ts`-Module: kein Typcheck beim Laden, keine tsconfig-`paths`, `.mts` nicht unterstützt | `.ts`/`.mjs`/`.js` nutzen; SPI per Paketname importieren |
+| `.ts`-Module: kein Typcheck beim Laden, keine tsconfig-`paths`, `.mts` nicht unterstützt, `.ts`-Helfer nur statisch importiert (der Hook ist nach dem Laden wieder weg) | `.ts`/`.mjs`/`.js` nutzen; SPI per Paketname importieren |
+| `externalDependencies` nur für deklarierte + installierte Pakete | fehlende stehen in `metadata.openapi.missingPackages` (verify) |
+| Target-Umbenennung: der Generator `client` passt `targetDefaults` an; bei manueller Umbenennung ohne Generator-Lauf meldet verify | — |
 | Workspace-Adapter: der ganze Ordner ist Input | ein Ordner pro Adapter |
 | `node_modules`-Auflösung von npm-Adaptern ab Workspace-Root, Conditions `node`/`require`/`import`/`default` | — |
 | Projektnamen-Regel `/` → `-` und Part-Ordner `types`/`api`/`core`/`testing` sind fest | dokumentiert |
