@@ -243,3 +243,28 @@ describe('M3: modules outside the workspace are rejected (no cache input possibl
     expect(transform.metadata.openapi.problem).toBe('pipeline.transforms: ../m3-outside/hook.ts is outside the workspace (no cache input possible)');
   });
 });
+
+describe('M4: client and testing generation in parallel with overlays do not share the effective spec', () => {
+  let fx: NxFixture;
+  beforeAll(() => {
+    fx = createNxFixture('m4');
+    write(fx.root, 'tools/gen.mjs', GENERATOR);
+    commitClient(fx.root, 'generated/r-client', ['types', 'api', 'core', 'testing']);
+    write(fx.root, 'libs/generated/r-client/testing/project.json', JSON.stringify({ name: 'generated-r-client-testing', tags: ['scope:shared', 'type:testing'] }));
+    write(fx.root, 'libs/generated/r-client/overlays/title.yaml', 'overlay: 1.0.0\ninfo: { title: t, version: 1.0.0 }\nactions:\n  - target: $.info\n    update: { title: Overlaid }\n');
+    fx.clients({
+      settings: { features: { overlays: true } },
+      adapters: { cmd: COMMAND_ADAPTER },
+      clients: { 'generated/r-client': { adapter: 'cmd', pipeline: { overlays: ['overlays/title.yaml'] } } },
+    });
+  });
+  afterAll(() => removeWorkspace(fx.root));
+
+  it('each preset writes its own effective spec (tmp/openapi/<client>/<preset>/spec)', () => {
+    const run = fx.tryNx('run-many', '-t', 'generate-api-client', 'generate-api-testing', '--parallel=2', '--skip-nx-cache');
+    if (!run.ok) console.log('M4-OUTPUT', run.output.slice(-1500));
+    expect(run.ok).toBe(true);
+    expect(existsSync(join(fx.root, 'tmp/openapi/generated/r-client/client/spec/openapi.yaml'))).toBe(true);
+    expect(existsSync(join(fx.root, 'tmp/openapi/generated/r-client/testing/spec/openapi.yaml'))).toBe(true);
+  });
+});
