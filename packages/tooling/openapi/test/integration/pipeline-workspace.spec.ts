@@ -275,6 +275,25 @@ describe('extension points with nx in a fixture workspace', () => {
     expect(affected('tools/openapi-transforms/stamp.ts')).not.toContain('generated-other-client');
   });
 
+  it('testing preset with both mocks engines via nx: schema-faker (default) and orval (deprecated) — orval input only in its mode', () => {
+    updateClients((config) => {
+      config.clients['generated/other-client'].pipeline = { testing: { mocks: 'orval' } };
+    });
+    const faker = project('generated-ts-client-testing').targets['generate-api-testing'];
+    const orval = project('generated-other-client-testing').targets['generate-api-testing'];
+    expect(faker.inputs.find((input: { externalDependencies?: string[] }) => input.externalDependencies).externalDependencies).not.toContain('orval');
+    expect(orval.inputs.find((input: { externalDependencies?: string[] }) => input.externalDependencies).externalDependencies).toContain('orval');
+    expect(project('generated-other-client').metadata.openapi.mocks).toBe('orval');
+    nx('run-many', '-t', 'generate-api-testing', '-p', 'generated-ts-client-testing', 'generated-other-client-testing');
+    expect(filesBelow(join(root, 'libs/generated/ts-client/testing/src/generated'))).toContain('mock-runtime.ts');
+    expect(read(root, 'libs/generated/ts-client/testing/src/generated/model.ts')).toContain("export type Thing = components['schemas']");
+    const orvalFiles = filesBelow(join(root, 'libs/generated/other-client/testing/src/generated'));
+    expect(orvalFiles.some((file) => file.startsWith('model/'))).toBe(true);
+    expect(orvalFiles).not.toContain('mock-runtime.ts');
+    // the transform hook of ts-client runs in the testing preset, too
+    expect(read(root, 'libs/generated/ts-client/testing/src/generated/handlers.ts')).toContain('// stamped');
+  });
+
   it('overlay feature flag off: no overlay input, generate fails with the hint, the metadata names it (verify reports it)', () => {
     updateClients((config) => {
       config.settings.features.overlays = false;

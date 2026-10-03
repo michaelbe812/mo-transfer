@@ -12,7 +12,17 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { OpenApiError } from './errors';
-import { type ClientPart, clientRoot, type OpenApiSettings, type Part, PARTS, resolveSettings, TESTING_PART } from './settings';
+import {
+  type ClientPart,
+  clientRoot,
+  MOCK_ENGINES,
+  type MockEngine,
+  type OpenApiSettings,
+  type Part,
+  PARTS,
+  resolveSettings,
+  TESTING_PART,
+} from './settings';
 
 export const CLIENTS_CONFIG_FILE = 'openapi-clients.json';
 export const DEFAULT_ADAPTER = 'openapi-tools';
@@ -30,8 +40,11 @@ export interface PipelineConfig {
   transforms?: TransformEntry[];
   /** prettier (workspace config) on every generated file, default false */
   format?: boolean;
-  /** testing lib: `msw` (default) or none (`false`: the client generator skips it, no generate-api-testing) */
-  testing?: 'msw' | false;
+  /**
+   * testing lib: `msw` / `{ mocks }` (mocks engine, default settings.testing.mocks = schema-faker; `orval` deprecated)
+   * or none (`false`: the client generator skips it, no generate-api-testing)
+   */
+  testing?: 'msw' | false | { mocks?: MockEngine };
 }
 
 export interface ClientEntry {
@@ -84,6 +97,19 @@ export function readClientsConfig(workspaceRoot: string): ClientsConfig {
 export const settingsOf = (config: ClientsConfig): OpenApiSettings => resolveSettings(config.settings);
 export const layoutOf = (entry: ClientEntry | undefined): Layout => entry?.layout ?? 'default';
 export const hasTesting = (entry: ClientEntry | undefined): boolean => entry?.pipeline?.testing !== false;
+
+/** Mocks engine of a client's testing lib: its own (`pipeline.testing.mocks`), else the workspace default. */
+export function mockEngineOf(settings: OpenApiSettings, entry: ClientEntry | undefined): MockEngine {
+  const testing = entry?.pipeline?.testing;
+  const engine = (typeof testing === 'object' ? testing.mocks : undefined) ?? settings.testing.mocks;
+  if (!MOCK_ENGINES.includes(engine)) {
+    throw new OpenApiError(`unknown mocks engine "${engine}" (${MOCK_ENGINES.join(' | ')})`, {
+      phase: 'config',
+      hint: 'openapi-clients.json → settings.testing.mocks / clients → <path> → pipeline.testing.mocks',
+    });
+  }
+  return engine;
+}
 
 /** Code parts the adapter output is split into: types, api (+ core unless merged into api). */
 export const codePartsOf = (entry: ClientEntry | undefined): Part[] =>

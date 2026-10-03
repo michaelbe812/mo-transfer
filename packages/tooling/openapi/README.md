@@ -46,11 +46,23 @@ spec[] (Overlays, experimentell) → generate → classify → transform[] → s
 | `pipeline.overlays` | **experimentell**, nur mit `settings.features.overlays: true`: OpenAPI-Overlay-1.0-Dateien relativ zum Client-Ordner, in Reihenfolge. Ohne Flag: Generate scheitert mit Hinweis, verify meldet |
 | `pipeline.transforms` | Code-Hooks nach `classify` (beide Presets): Workspace-Modul oder Paket, `{ module, options }` möglich. Müssen deterministisch sein (Trade-off in der Architektur-Doku) |
 | `pipeline.format` | prettier (Workspace-Config) auf jede Datei; dann `.prettierrc*`, `.editorconfig`, `prettier` Inputs |
-| `pipeline.testing` | `msw` (Default) oder `false` (keine Testing-Lib, kein `generate-api-testing`) |
+| `pipeline.testing` | `msw` / `{ "mocks": "schema-faker" \| "orval" }` (Mocks-Engine, Default `settings.testing.mocks` = `schema-faker`; `orval` **deprecated**, nächste Iteration entfernt) oder `false` (keine Testing-Lib, kein `generate-api-testing`). `orval` ist nur in seinem Modus Cache-Input |
 | `adapters.<id>` | `module` (Workspace-Pfad, Paket, `builtin:<id>`), `packages`, `inputs`, `runtime`, `options` — deklarativ, das Plugin lädt keinen Adapter-Code |
-| `settings` | `libsDir` (`libs`), `clientFolder` (`generated`), `outputDir` (`generated`), `aliasPrefix` (`@mo-transfer/`), `sharedScope` (`shared`), `specFiles`, `clientTags`, `partTags`, `header.lint`/`header.banner` (`{source}`, `{spec}`), `scaffold`, `toolingInputs` (`auto`/`source`/`package`/`none`), `features.overlays` (`false`) |
+| `settings` | `libsDir` (`libs`), `clientFolder` (`generated`), `outputDir` (`generated`), `aliasPrefix` (`@mo-transfer/`), `sharedScope` (`shared`), `specFiles`, `clientTags`, `partTags`, `header.lint`/`header.banner` (`{source}`, `{spec}`), `scaffold`, `toolingInputs` (`auto`/`source`/`package`/`none`), `features.overlays` (`false`), `testing.mocks` (`schema-faker`) |
 
 Jeder Eintrag ist `json`-Input (Felder `defaultAdapter`, `settings`, ggf. `adapters.<id>`, `clients.<pfad>`) seines Targets, nie Target-Option: eine Änderung invalidiert nur diesen Client. Plugin-Optionen in `nx.json` nur für Target-Namen: `{ "plugin": "@mo-transfer/tooling-openapi/plugin", "options": { "clientTargetName": "…", "testingTargetName": "…", "updateSpecTargetName": "…" } }`.
+
+## Testing-Lib: Mocks-Engines
+
+| | `schema-faker` (Default) | `orval` (deprecated) |
+|---|---|---|
+| Dateien | `schema.ts`, `http.ts`, `mocks.ts`, `model.ts`, `mock-runtime.ts`, `handlers.ts`, `index.ts` (7) | `schema.ts`, `http.ts`, `mocks.ts`, `model/**`, `handlers.ts`, `index.ts` |
+| Exporte | `get<Op>ResponseMock(override?)`, `get<Op>MockHandler(override?, options?)`, `<Schema>`-Typen, `<client>Handlers/Http/BaseUrl` | dieselben (+ orvals Inline-Typen wie `GetInventory200`) |
+| Daten | Media-`example(s)` → Schema-/Property-`example` → `const`/`enum` → faker nach Typ/Format/Grenzen | orval `useExamples` + faker |
+| Abhängigkeiten | keine neuen (msw + faker im Test) | orval + `@orval/*` |
+| Grenzen | nur lokale `$ref`s (extern → Fehler, Spec vorher bündeln), nie `null`, kein `not`/`if`/`patternProperties`/`prefixItems` | – |
+
+`mock-runtime.ts` (~10 KiB, gitignored) wird pro Testing-Lib kopiert, statt importiert: ein Import aus dem Tooling-Paket verletzte die Boundaries (Libs importieren kein Tooling) und zöge den Paket-Einstieg in Browser-Bundles; eine gemeinsame Lib wäre workspace-spezifisch. Die Kopie importiert nur msw + faker.
 
 ## Eigener Adapter
 
@@ -112,7 +124,7 @@ Die Quell-`package.json` bleibt `private` und zeigt auf `.ts` (Nx lädt die Quel
 | `nx test tooling-openapi` → `unit` (`src/**/*.spec.ts`) | Stages (split, barrel in-memory, classify inkl. merged-core), Overlay + JSONPath + Flag, Glob, Registry (Built-ins, Workspace, Paket, Alias, Probleme), Loader (`.ts` mit Helfer, CJS, `.mjs`, `type: module`, TLA, ESM-only npm, Patterns, vorheriger Hook), Validierung, Runner end-to-end mit TS-Workspace-Adapter (Overlay, Transforms, Format, Fehler je Phase), Contract-Helper mit `command`, Plugin (`createNodes`, Optionen, `createDependencies`), Generator (Blueprint- und eingebauter Scaffold, merged-core, `--no-testing`, Target-Namen) | ~5 s |
 | (dito) `integration` (`test/integration/**`) | echte Adapter (Jar, hey-api, nx-plugin-openapi), Testing-Preset + msw, Executoren, `update-spec`, `nx` im Fixture-Workspace; neu `pipeline-workspace.spec.ts`: TS-Workspace-Adapter mit SPI-Import, ESM-only Fake-npm-Adapter (Lockfile-Eintrag → `npm:`-Knoten + Kante), `command`, Overlay (Flag an/aus), Transform, merged-core, `testing: false`, Cache-Invalidierung je Client/Adapter/Overlay/Transform, `nx affected` | ~50 s (Java 11+) |
 
-Coverage (V8, Summe beider Projekte) ≥ **95 %** für alle vier Metriken, sonst rot. Stand: **99,5 % Statements, 96,1 % Branches, 99,7 % Functions, 99,9 % Lines** (158 Tests).
+Coverage (V8, Summe beider Projekte) ≥ **95 %** für alle vier Metriken, sonst rot. Stand: **99,5 % Statements, 96,8 % Branches, 99,7 % Functions, 99,9 % Lines** (186 Tests, beide Mocks-Engines end-to-end inkl. msw).
 
 ```sh
 pnpm exec nx test tooling-openapi

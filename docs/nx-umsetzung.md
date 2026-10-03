@@ -654,12 +654,13 @@ Die Testing-Lib hängt nicht am Adapter (nur an der Spec), ein Tausch lässt sie
 
 ### Testing-Lib pro Client
 
-`<client>/testing` (`type:testing`, gleicher Scope wie der Client) entsteht nur aus der Spec:
+`<client>/testing` (`type:testing`, gleicher Scope wie der Client) entsteht nur aus der Spec (Preset `testing`). Mocks-Engine: **`schema-faker`** (Default, `settings.testing.mocks`; eigener Spec-Walk, keine orval-Abhängigkeit) oder `orval` (**deprecated**, eine Iteration wählbar per `pipeline.testing: { "mocks": "orval" }`, danach entfernt). Alle drei Clients laufen auf `schema-faker`; Specs unverändert grün (`'doggie'`, Seed-Determinismus, booking/checkin/notification).
 
 | Datei in `src/generated/` | Werkzeug | Inhalt |
 |---|---|---|
 | `schema.ts` | openapi-typescript 7.13 | `paths`, `components`, `operations` |
-| `mocks.ts`, `model/**` | orval 8.38 (nur msw-Mocks, `useExamples`, Faker) | `get<Op>MockHandler(override?)`, `get<Op>ResponseMock()` je Operation |
+| `mocks.ts`, `model.ts`, `mock-runtime.ts` | schema-faker (Default): erreichbare Schemas als Daten + `fake()`/`mockHandler()` (nur msw + faker) | `get<Op>MockHandler(override?)`, `get<Op>ResponseMock()` je Operation, `export type <Schema>` |
+| `mocks.ts`, `model/**` | orval 8.38 (deprecated, nur msw-Mocks, `useExamples`, Faker) | dieselben Namen |
 | `http.ts` | openapi-msw 2.0 | `<client>Http = createOpenApiHttp<paths>({ baseUrl: servers[0].url })`, `<client>BaseUrl` |
 | `handlers.ts` | – | `<client>Handlers`: ein Default-Handler je Operation (Spec-`example`s, Faker füllt den Rest) |
 

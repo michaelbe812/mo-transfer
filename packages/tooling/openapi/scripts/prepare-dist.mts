@@ -51,5 +51,9 @@ const copyJson = (dir: string): void => {
   }
 };
 copyJson(join(packageRoot, 'src'));
+// schema-faker runtime: copied as TypeScript source into every testing lib, never compiled into the package
+const runtime = 'src/pipeline/schema-faker/runtime/mock-runtime.ts';
+mkdirSync(dirname(join(distRoot, runtime)), { recursive: true });
+cpSync(join(packageRoot, runtime), join(distRoot, runtime));
 if (!existsSync(join(distRoot, 'src/index.js'))) throw new Error('dist incomplete: run tsc -p tsconfig.lib.json first');
 console.log(`${relative(process.cwd(), distRoot)}: package.json + assets ready (npm pack --dry-run there)`);

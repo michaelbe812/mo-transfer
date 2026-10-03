@@ -160,12 +160,23 @@ describe('client config (project.json of clients and parts, inferred targets)', 
         '{workspaceRoot}/libs/generated/pet-client/openapi.yaml',
         '{workspaceRoot}/libs/generated/pet-client/o.yaml',
         { json: '{workspaceRoot}/openapi-clients.json', fields: ['settings', 'clients.generated/pet-client.pipeline'] },
-        { externalDependencies: ['openapi-typescript', 'orval', 'yaml', 'typescript'] },
+        { externalDependencies: ['openapi-typescript', 'yaml', 'typescript'] },
       ],
       outputs: ['{projectRoot}/src/generated'],
       options: { client: 'generated/pet-client' },
-      metadata: { description: 'OpenAPI testing lib (openapi-typescript, orval msw mocks, openapi-msw)' },
+      metadata: { description: 'OpenAPI testing lib (openapi-typescript, schema-faker msw mocks, openapi-msw)' },
     });
+    // orval (deprecated) only in its mode: per client or as workspace default
+    const orval: ClientsConfig = { clients: { 'generated/pet-client': { pipeline: { testing: { mocks: 'orval' } } } } };
+    expect(generateTestingTarget(context(orval), 'generated/pet-client', 'x.yaml')['inputs']).toContainEqual({
+      externalDependencies: ['openapi-typescript', 'orval', 'yaml', 'typescript'],
+    });
+    const workspaceOrval: ClientsConfig = { settings: { testing: { mocks: 'orval' } }, clients: { 'generated/pet-client': {} } };
+    expect(generateTestingTarget(context(workspaceOrval), 'generated/pet-client', 'x.yaml')['metadata']).toEqual({
+      description: 'OpenAPI testing lib (openapi-typescript, orval msw mocks, openapi-msw)',
+    });
+    const unknown = { clients: { 'generated/pet-client': { pipeline: { testing: { mocks: 'nope' } } } } } as unknown as ClientsConfig;
+    expect(inferClientTargets(context(unknown), 'generated/pet-client').metadata.problem).toBe('unknown mocks engine "nope" (schema-faker | orval)');
   });
 
   it('inferClientTargets: client + testing lib, target names, metadata; testing: false / no testing project → none', () => {
@@ -184,6 +195,7 @@ describe('client config (project.json of clients and parts, inferred targets)', 
       adapterSource: 'builtin',
       layout: 'default',
       testing: true,
+      mocks: 'schema-faker',
       parts: ['types', 'api', 'core', 'testing'],
     });
     const lean = inferClientTargets(context(config), 'generated/lean-client');

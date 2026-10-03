@@ -107,6 +107,17 @@
             }
           },
           "additionalProperties": false
+        },
+        "testing": {
+          "type": "object",
+          "properties": {
+            "mocks": {
+              "enum": ["schema-faker", "orval"],
+              "default": "schema-faker",
+              "description": "mocks engine of the testing libs; orval is deprecated (removed next iteration)"
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -205,9 +216,22 @@
                 "description": "prettier on every generated file"
               },
               "testing": {
-                "enum": ["msw", false],
+                "anyOf": [
+                  {
+                    "enum": ["msw", false]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "mocks": {
+                        "enum": ["schema-faker", "orval"]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ],
                 "default": "msw",
-                "description": "false: no testing lib"
+                "description": "false: no testing lib; { mocks }: engine (default settings.testing.mocks = schema-faker, orval deprecated)"
               }
             },
             "additionalProperties": false

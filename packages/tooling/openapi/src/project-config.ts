@@ -28,6 +28,7 @@ import {
   disabledFeaturesOf,
   findSpecFile,
   hasTesting,
+  mockEngineOf,
   normalizeTransform,
   overlayFiles,
   settingsOf,
@@ -39,6 +40,7 @@ import {
   clientRoot,
   DEFAULT_SETTINGS,
   fillTemplate,
+  type MockEngine,
   type OpenApiSettings,
   parseClientPath,
   projectNameFor,
@@ -81,8 +83,11 @@ export const OPENAPI_EXECUTORS = {
   generateTesting: `${PACKAGE_NAME}:generate-testing`,
   updateSpec: `${PACKAGE_NAME}:update-spec`,
 };
-/** npm packages of the testing pipeline (cache inputs of generate-api-testing) */
-const TESTING_PACKAGES = ['openapi-typescript', 'orval', 'yaml'];
+/** npm packages of the testing preset (cache inputs of generate-api-testing): orval only in its (deprecated) mode */
+const TESTING_PACKAGES: Record<MockEngine, string[]> = {
+  'schema-faker': ['openapi-typescript', 'yaml'],
+  orval: ['openapi-typescript', 'orval', 'yaml'],
+};
 /** source files every generate target runs (relative to src/); the client target adds the built-in adapters */
 const PIPELINE_SOURCES = [
   'pipeline/**/*',
@@ -260,11 +265,11 @@ export function generateTestingTarget(context: InferenceContext, clientPath: str
       { json: `{workspaceRoot}/${CLIENTS_CONFIG_FILE}`, fields: ['settings', `clients.${clientPath}.pipeline`] },
       ...tooling.files,
       ...pipeline.files,
-      { externalDependencies: unique([...TESTING_PACKAGES, ...pipeline.packages, ...tooling.packages]) },
+      { externalDependencies: unique([...TESTING_PACKAGES[mockEngineOf(settings, entry)], ...pipeline.packages, ...tooling.packages]) },
     ],
     outputs: [`{projectRoot}/src/${settings.outputDir}`],
     options: { client: clientPath },
-    metadata: { description: 'OpenAPI testing lib (openapi-typescript, orval msw mocks, openapi-msw)' },
+    metadata: { description: `OpenAPI testing lib (openapi-typescript, ${mockEngineOf(settings, entry)} msw mocks, openapi-msw)` },
   };
 }
 
@@ -304,6 +309,8 @@ export interface ClientMetadata {
   adapterSource?: 'builtin' | 'workspace' | 'package';
   layout: string;
   testing: boolean;
+  /** mocks engine of the testing lib (absent without testing lib or for an unknown engine) */
+  mocks?: MockEngine;
   parts: ClientPart[];
   problem?: string;
   /** experimental features the entry uses with their flag off (generate fails, verify reports) */
@@ -325,6 +332,13 @@ export function inferClientTargets(context: InferenceContext, clientPath: string
     testing: hasTesting(entry),
     parts: clientPartsOf(entry),
   };
+  if (metadata.testing) {
+    try {
+      metadata.mocks = mockEngineOf(settings, entry);
+    } catch (error) {
+      metadata.problem = (error as Error).message;
+    }
+  }
   const disabled = disabledFeaturesOf(settings, entry);
   if (disabled.length) metadata.disabledFeatures = disabled;
   const targets: Record<string, Record<string, TargetJson>> = { [root]: { [targetNames.updateSpec]: updateSpecTarget(clientPath) } };

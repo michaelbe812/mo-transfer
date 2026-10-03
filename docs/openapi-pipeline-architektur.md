@@ -56,6 +56,8 @@ flowchart LR
 | 4 | `command`-Adapter | `command`/`args`/`env` mit Platzhaltern, Glob-Klassifizierung, `runtime` als Versions-Input | NSwag, Skripte, Docker ohne JS |
 | 4 | Fehler | `OpenApiError` mit `phase`, `client`, `adapter`, `hint`, `cause`; Executor druckt Ursachen-Kette, `--verbose` (Option oder `NX_VERBOSE_LOGGING`) streamt Generator-Output + Stages + Stack | — |
 | 5 | Testing als zweites Preset | gleicher Runner (Overlays, Transforms, Format, Header gelten auch); `pipeline.testing: false` → Generator ohne Testing-Lib, kein Target; `generate-api-testing` inferiert, Teil-Libs + Kanten + `lint`/`typecheck`-`dependsOn` bleiben explizit | — |
+| 5 | Mocks-Engine `schema-faker` (Default) | Port des Spikes `spike/testing-without-orval` als Engine des Testing-Presets: Spec-Walk → `get<Op>ResponseMock`/`get<Op>MockHandler` (gleiche Namen wie orval), Schemas als Daten, `mock-runtime.ts` (faker + msw). Auswahl `settings.testing.mocks` (Default `schema-faker`) bzw. `pipeline.testing: { mocks }`; `orval` deprecated, eine Iteration wählbar, nur dann Cache-Input. Alle 3 Clients umgestellt | 0 neue Deps, schneller (pet: 722 vs. 992 ms Nx-Task), kleinerer generierter Code; orval entfernbar |
+| 5 | Runtime kopieren statt importieren | `mock-runtime.ts` pro Testing-Lib (gitignored), Quelle als Asset im Paket (nicht kompiliert, in dist kopiert) | Import aus dem Tooling-Paket: Boundary-Verstoß (Libs → Tooling verboten) + Paket-Einstieg im Browser-Bundle; gemeinsame Lib: workspace-spezifischer Ort, eigenes Projekt/Kanten. Kopie importiert nur msw + faker |
 | 6 | Layout `merged-core` | `layout: 'merged-core'` → core-Dateien + -Entries in die api-Lib (relative Imports bleiben), Generator ohne core-Lib, Outputs/Inputs/Kanten ohne core, verify kennt es, move/rename/remove tragen den Eintrag mit | einzige Variante neben types/api/core |
 | 7 | `createNodes` (Nx 23) | `createNodesV2` entfernt; Optionen `clientTargetName`, `testingTargetName`, `updateSpecTargetName` (Generator liest sie aus `nx.json` für `dependsOn`) | — |
 | 8 | Target-Namen | `generate-api-client`, `generate-api-testing`, `update-spec` unverändert (Defaults) | — |
@@ -70,6 +72,20 @@ flowchart LR
 | Absicherung | Modul-Ordner/Paket ist Cache-Input, Optionen schema-geprüft, Kopien der Dateien (kein halber Zustand), Duplikate/ungültige Parts → Fehler, Doku „muss deterministisch sein“ |
 | Alternative | nur deklarative Transforms (Regex-Replace aus JSON) oder eigener Adapter, der den Built-in wrappt |
 
+## orval vs. schema-faker (Spike-Messung, pet-client)
+
+| | orval | schema-faker |
+|---|---|---|
+| Generierung kalt / warm | ~690 ms / 45 ms | **~425 ms / 14 ms** |
+| Nx-Task `generate-api-testing` | 992 ms | **722 ms** |
+| Output pet / notification / booking | 23 Dateien 80,6 KiB / 10 · 9,8 KiB / 9 · 6,9 KiB | **7 · 60,9 KiB** / 7 · 18,1 KiB / 7 · 15,8 KiB (inkl. 9,7 KiB Runtime-Kopie) |
+| Browser-Bundle generierter Code (min) | 11,2 KiB | **6,9 KiB** |
+| Testlaufzeit `shared-data-access:test` | ~1,27 s | ~1,2–1,3 s (Rauschen) |
+| Abhängigkeiten | orval + 15 `@orval/*` | **0 neue** |
+| Grenzen | – | nur lokale `$ref`s, nie `null`, `default`/`not`/`if`/`patternProperties`/`prefixItems` ignoriert, keine orval-Inline-Typen, gleicher Seed ≠ gleiche Werte wie orval |
+
+Verworfene Alternativen (Spike): hey-api-Faker/msw-Plugins (ignoriert `example`, 501-Defaults), kubb/`@mswjs/source` (msw 3 nicht im Peer-Range), `msw-auto-mock` (AI-SDK-Deps), `openapi-backend`/Prism/Scalar (kein faker bzw. kein msw). Testing-Output ändert sich gegenüber main bewusst (andere Dateien/Werte), generierter Client-Code bleibt byte-identisch.
+
 ## Limitierungen
 
 | Limitierung | Umgang |
@@ -82,6 +98,7 @@ flowchart LR
 | Projektnamen-Regel `/` → `-` und Part-Ordner `types`/`api`/`core`/`testing` sind fest | dokumentiert |
 | ESM-Import in Vitest nutzt `vm.USE_MAIN_CONTEXT_DEFAULT_LOADER` (experimentell, nur Fallback) | in Nx-Executoren nicht genutzt |
 | Datei-Name `openapi-clients.json` fest (Plugin-Glob ist statisch) | — |
+| schema-faker: nur lokale `$ref`s (externe Refs → Fehler beim Generieren) | Spec vorher bündeln (z. B. `@redocly/cli bundle`); Bündeln im spec-Stage ist eine mögliche Erweiterung |
 
 ## Migration (main → Branch)
 
@@ -91,15 +108,16 @@ flowchart LR
 - Exporte: `.` → `src/index.ts`, neu `./adapter`, `./adapter-testing`; tsconfig-`paths` nachgezogen. `adapterRegistry`/`adapterOf`/`clientTargets` entfallen (→ `resolveAdapterRegistry`, `inferClientTargets`).
 - Fehlertexte der Executoren jetzt `[openapi:<phase>] <client> (adapter <id>): …` + `hint`.
 - `verify-nx-internals`: dist-Snapshot ohne `dist/packages/**` (Tooling-dist ändert sich mit jedem Commit); Snapshot selbst unverändert (526 Dateien identisch).
-- Generierter Code aller drei Clients **byte-identisch** zu main (92 Dateien, sha256).
+- Generierter Client-Code (types/api/core) aller drei Clients **byte-identisch** zu main (50 Dateien, sha256). Testing-Libs bewusst geändert: `schema-faker` statt orval (7 statt 9–23 Dateien je Lib, `model.ts` statt `model/**`, `mock-runtime.ts`); Exporte gleich, Specs unverändert grün.
 
 ## Vorher / nachher
 
 | | main | Branch |
 |---|---|---|
 | Code `src/` (ohne Specs) | 1 328 Zeilen (JS/MJS/TS gemischt) | 3 674 Zeilen TS strict |
-| Specs | 1 791 Zeilen, 97 Tests | 3 261 Zeilen, 158 Tests |
-| Coverage (Stmts/Branches/Funcs/Lines) | 100 / 98,4 / 100 / 100 | 99,5 / 96,1 / 99,7 / 99,9 |
+| Specs | 1 791 Zeilen, 97 Tests | ~3 700 Zeilen, 186 Tests |
+| Coverage (Stmts/Branches/Funcs/Lines) | 100 / 98,4 / 100 / 100 | 99,5 / 96,8 / 99,7 / 99,9 |
+| Testing-Mocks | orval (+15 `@orval/*`) | schema-faker (0 Deps), orval deprecated |
 | Erweiterungspunkte | Adapter nur im Paket (Modul + `registry.json` + 2 Schema-Enums) | Adapter (Workspace/npm/Built-in-Alias), Transform-Hooks, Overlays (Flag), Format, Scaffold, Target-Namen, Settings |
 | Neuer Generator | Paket ändern: Modul, `registry.json`, `adapters/index.ts`, 2 Schemas, Release | Consumer: `defineAdapter` in einer Datei + 1 Zeile `adapters` (oder `command` ohne JS), Contract-Test via `runAdapterContract` |
 | Wiederverwendung | nur dieser Workspace | npm-Paket, Workspace-Annahmen per Settings |

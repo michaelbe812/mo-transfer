@@ -20,6 +20,7 @@ import {
   findSpecFile,
   hasTesting,
   layoutOf,
+  mockEngineOf,
   readClientsConfig,
   settingsOf,
 } from './config';
@@ -83,7 +84,7 @@ export async function generateTesting(
   if (!hasTesting({ pipeline: client.pipeline })) {
     throw new OpenApiError('pipeline.testing is false: no testing lib', { phase: 'config', client: client.path });
   }
-  const preset = testingPreset();
+  const preset = testingPreset(mockEngineOf(settingsOf(config), { pipeline: client.pipeline }));
   const written = await runPipeline(preset, pipelineInput(client, workspaceRoot, config, options));
   return { files: written.testing ?? 0, baseUrl: preset.baseUrl ?? '' };
 }

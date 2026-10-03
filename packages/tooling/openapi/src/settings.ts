@@ -26,6 +26,15 @@ export interface FeatureFlags {
   overlays: boolean;
 }
 
+/** Mocks engine of the testing preset: `schema-faker` (default, own generator) or `orval` (deprecated, removed next iteration). */
+export type MockEngine = 'schema-faker' | 'orval';
+export const MOCK_ENGINES: readonly MockEngine[] = ['schema-faker', 'orval'];
+
+export interface TestingSettings {
+  /** workspace default, a client overrides it with pipeline.testing: { mocks } */
+  mocks: MockEngine;
+}
+
 export interface OpenApiSettings {
   /** folder of all libs, client paths are relative to it */
   libsDir: string;
@@ -55,6 +64,7 @@ export interface OpenApiSettings {
    */
   toolingInputs: ToolingInputs;
   features: FeatureFlags;
+  testing: TestingSettings;
 }
 
 export const DEFAULT_SETTINGS: OpenApiSettings = {
@@ -72,6 +82,7 @@ export const DEFAULT_SETTINGS: OpenApiSettings = {
   },
   toolingInputs: 'auto',
   features: { overlays: false },
+  testing: { mocks: 'schema-faker' },
 };
 
 /** Settings of a parsed openapi-clients.json: its `settings` over the defaults (`header` merged per field). */
@@ -81,6 +92,7 @@ export function resolveSettings(partial: Partial<OpenApiSettings> | undefined): 
     ...partial,
     header: { ...DEFAULT_SETTINGS.header, ...partial?.header },
     features: { ...DEFAULT_SETTINGS.features, ...partial?.features },
+    testing: { ...DEFAULT_SETTINGS.testing, ...partial?.testing },
   };
 }
 

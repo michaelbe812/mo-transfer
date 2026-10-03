@@ -4,7 +4,13 @@
   "private": true,
   "description": "Generierte OpenAPI-Clients für Nx: Pipeline (spec/Overlays → generate → classify → transform → split → barrel → finalize → write), Adapter-SPI v1, Crystal-Plugin (generate-api-client/generate-api-testing/update-spec), Executoren, Generator client.",
   "license": "MIT",
-  "keywords": ["nx", "nx-plugin", "openapi", "codegen", "angular"],
+  "keywords": [
+    "nx",
+    "nx-plugin",
+    "openapi",
+    "codegen",
+    "angular"
+  ],
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
@@ -22,7 +28,17 @@
   "peerDependencies": {
     "@nx/devkit": ">=23.0.0",
     "nx": ">=23.0.0",
-    "typescript": ">=5.5.0"
+    "typescript": ">=5.5.0",
+    "msw": ">=2.0.0",
+    "@faker-js/faker": ">=9.0.0"
+  },
+  "peerDependenciesMeta": {
+    "msw": {
+      "optional": true
+    },
+    "@faker-js/faker": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@mo-transfer/tooling-conventions": "workspace:*"
