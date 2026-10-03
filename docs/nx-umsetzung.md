@@ -398,6 +398,60 @@ HTTP-Clients werden aus OpenAPI-Specs generiert. Der Code-Generator ist austausc
 
 ### Architektur
 
+Bausteine als Black Box. Zwei Phasen: **Gerüst** (Generator `client`, einmalig, committet) und **Generierung**
+(Target `generate`, bei jedem Build, gecacht, gitignored). Die Facade entscheidet *wo* Code liegt, der Adapter liefert
+nur Roh-Output + Klassifizierung.
+
+```mermaid
+flowchart TB
+  subgraph P1["Phase 1 · Gerüst (einmalig, committet)"]
+    direction LR
+    G["Generator client<br/><i>nx g …:client</i>"]
+    G -->|Spec| SPEC[("openapi.yaml")]
+    G -->|Eintrag| REG[("openapi-clients.json")]
+    G -->|"project.json, index.ts,<br/>Lib-Configs, paths"| LIBS["Libs types · api · core · testing<br/><i>nur src/index.ts</i>"]
+    CONV["Konventionen<br/>Pfad → Name, Tags, Alias, Layer"] -.-> G
+  end
+
+  subgraph P2["Phase 2 · Generierung (jeder Build, gecacht, gitignored)"]
+    PLUGIN["Crystal-Plugin<br/>leitet generate / update-spec ab<br/>+ Cache-Inputs"]
+    ADREG[("adapters/registry.json<br/>Modul · Pakete · Inputs · Runtime")]
+    EXEC["Executor generate<br/><i>Option nur { client }</i>"]
+    subgraph FACADE["Facade"]
+      direction TB
+      RES["resolveClient<br/>Eintrag + Ordner → ClientDefinition"]
+      subgraph ADAPTER["Adapter (austauschbar)"]
+        GEN["generate(ctx)<br/>Spec → raw/**"]
+        CLS["classify(ctx)<br/>→ models · apis · core"]
+      end
+      SPLIT["split<br/>Dateien je Teil-Lib,<br/>Imports → Aliase (TS-AST)"]
+      BAR["barrel<br/>generated/index.ts,<br/>Duplikate aufgelöst"]
+      WR["write<br/>Lint-Header, src/generated/**"]
+      RES --> GEN --> CLS --> SPLIT --> BAR --> WR
+    end
+    TEST["Testing-Pipeline (eigenes generate)<br/>openapi-typescript · orval-msw · openapi-msw"]
+  end
+
+  REG --> PLUGIN
+  ADREG --> PLUGIN
+  PLUGIN --> EXEC --> RES
+  ADREG -. lädt Adapter .-> GEN
+  SPEC --> GEN
+  SPEC --> TEST
+
+  WR --> T["types/src/generated<br/>type:types · Models"]
+  WR --> A["api/src/generated<br/>type:data-access · Services"]
+  WR --> C["core/src/generated<br/>type:data-access · HTTP-Runtime"]
+  TEST --> TS["testing/src/generated<br/>type:testing · Http, Handlers"]
+  T & A & C --> DA["Wrapper in &lt;slice&gt;/data-access<br/>DTO → Modell"]
+  DA --> FE["Stores · Feats"]
+
+  UPD["update-spec<br/>url → normalisierte Spec"] --> SPEC
+  PLUGIN --> UPD
+```
+
+Detail (Dateien und Datenfluss):
+
 ```
 openapi-clients.json (Root)            ein Eintrag pro Client: url?, adapter?, options?
 libs/[<domain>/]generated/<client>/
