@@ -216,3 +216,30 @@ describe.each([
     expect(readFileSync(join(fx.root, 'libs/generated/p-client/types/src/generated/model/thing.ts'), 'utf-8')).toContain('"from-npm-ts"');
   });
 });
+
+describe('M3: modules outside the workspace are rejected (no cache input possible)', () => {
+  let fx: NxFixture;
+  beforeAll(() => {
+    fx = createNxFixture('m3');
+    write(fx.root, '../m3-outside/adapter.ts', "export default { apiVersion: 1, id: 'out', generate() {}, classify() { return { models: [], apis: [], core: [] }; } };\n");
+    write(fx.root, '../m3-outside/hook.ts', "export default { apiVersion: 1, id: 'hook', transform: (files: unknown[]) => files };\n");
+    commitClient(fx.root, 'generated/o-client');
+    commitClient(fx.root, 'generated/t-client');
+    fx.clients({
+      adapters: { out: { module: '../m3-outside/adapter.ts' } },
+      clients: { 'generated/o-client': { adapter: 'out' }, 'generated/t-client': { pipeline: { transforms: ['../m3-outside/hook.ts'] } } },
+    });
+  });
+  afterAll(() => {
+    removeWorkspace(fx.root);
+    removeWorkspace(join(fx.root, '../m3-outside'));
+  });
+
+  it('adapter and transform modules outside the workspace root: problem, no generate target', () => {
+    const adapter = fx.project('generated-o-client');
+    expect(adapter.metadata.openapi.problem).toBe('adapters.out: ../m3-outside/adapter.ts is outside the workspace (no cache input possible)');
+    expect(adapter.targets['generate-api-client']).toBeUndefined();
+    const transform = fx.project('generated-t-client');
+    expect(transform.metadata.openapi.problem).toBe('pipeline.transforms: ../m3-outside/hook.ts is outside the workspace (no cache input possible)');
+  });
+});

@@ -71,6 +71,11 @@ describe('loading', () => {
     expect(await load('./tools/ts/adapter.ts')).toEqual({ apiVersion: 1, id: 'ts-adapter', x: 1 });
     write('tools/ts/adapter.ts', "export default { apiVersion: 1, id: 'changed' };\n");
     expect((await load('./tools/ts/adapter.ts')).id).toBe('changed');
+    // M3: the whole module folder loads fresh, not only the top file
+    write('tools/ts/adapter.ts', "import { id } from './helper';\nexport default { apiVersion: 1, id };\n");
+    expect((await load('./tools/ts/adapter.ts')).id).toBe('ts-adapter');
+    write('tools/ts/helper.ts', "export const id: string = 'helper-changed';\n");
+    expect((await load('./tools/ts/adapter.ts')).id).toBe('helper-changed');
   });
 
   it('CommonJS (.cjs, .js), ESM (.mjs, .js in a type:module folder, ESM with top-level await)', async () => {

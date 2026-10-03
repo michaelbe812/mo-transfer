@@ -167,6 +167,17 @@ describe('client config (project.json of clients and parts, inferred targets)', 
     });
   });
 
+  it('M3: testing target runs adapters/files.ts (readRawFiles) — an input; package mode includes yaml', () => {
+    client('generated/pet-client');
+    const config: ClientsConfig = { clients: { 'generated/pet-client': {} } };
+    const inputs = generateTestingTarget(context(config, REPO_ROOT), 'generated/pet-client', 'x.yaml')['inputs'] as unknown[];
+    expect(inputs).toContain(`{workspaceRoot}/${SRC}/adapters/files.ts`);
+    const packageMode: ClientsConfig = { settings: { toolingInputs: 'package' }, clients: { 'generated/pet-client': {} } };
+    expect(generateTarget(context(packageMode), 'generated/pet-client', 'x.yaml')['inputs']).toContainEqual({
+      externalDependencies: ['@openapitools/openapi-generator-cli', '@mo-transfer/tooling-openapi', 'typescript', 'yaml'],
+    });
+  });
+
   it('generate-api-testing: spec, overlays, pipeline field, testing packages — independent of the adapter', () => {
     client('generated/pet-client');
     const config: ClientsConfig = {
