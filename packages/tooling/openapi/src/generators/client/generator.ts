@@ -1,13 +1,14 @@
 import { formatFiles, type GeneratorCallback, logger, readNxJson, type Tree, updateNxJson } from '@nx/devkit';
 import { readFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { parse as parseYaml } from 'yaml';
 import { addClientEntry, readClientsJson } from '../../clients';
-import { type ClientEntry, clientPartsOf, DEFAULT_ADAPTER, type Layout, settingsOf } from '../../config';
+import { type ClientEntry, clientLocationOf, clientPartsOf, DEFAULT_ADAPTER, type Layout, settingsOf } from '../../config';
+import { stringifySpec } from '../../pipeline/spec';
 import { targetNamesOf, type OpenApiPluginOptions } from '../../plugin/openapi-clients';
 import { clientPartConfig, clientProjectJson, DEFAULT_TARGET_NAMES, PACKAGE_NAME, type TargetNames } from '../../project-config';
 import { resolveAdapterRegistry } from '../../registry/registry';
-import { camelCase, clientRoot, parseClientPath, partTags, projectNameFor, TESTING_PART } from '../../settings';
+import { camelCase, clientRoot, partTags, projectNameFor, TESTING_PART } from '../../settings';
 import { assertKebabCase, writeJsonFile } from '../../tree-helpers';
 import { resolveScaffold } from './scaffold';
 
@@ -57,14 +58,7 @@ async function loadSpec(tree: Tree, spec: string, url: string | undefined, proje
     throw new Error(`${spec}: not an OpenAPI 3.x spec with at least one path`);
   }
   if (!isUrl(spec)) return { file: `openapi.${format}`, content: text.endsWith('\n') ? text : `${text}\n` };
-  const header = [
-    `# Source: ${url ?? spec}`,
-    `# Update: nx run ${projectName}:update-spec (overwrites this file, normalized). Committed, the only source for generate-api-client.`,
-  ];
-  return {
-    file: 'openapi.yaml',
-    content: [...header, stringifyYaml(document, { lineWidth: 0, aliasDuplicateObjects: false })].join('\n'),
-  };
+  return { file: 'openapi.yaml', content: stringifySpec(document, 'openapi.yaml', { url: url ?? spec, projectName }) };
 }
 
 /** Target names from the plugin's options in nx.json (testing lib dependsOn must match the inferred target). */
@@ -120,8 +114,7 @@ export async function clientGenerator(tree: Tree, options: ClientGeneratorSchema
   }
   const clientPath = domain ? `${domain}/${settings.clientFolder}/${options.name}` : `${settings.clientFolder}/${options.name}`;
   const root = clientRoot(settings, clientPath);
-  const client = parseClientPath(clientPath, settings);
-  if (!client) throw new Error(`${root}: not a client path`);
+  const client = clientLocationOf(clientPath, settings);
   if (tree.exists(root)) throw new Error(`${root} exists already`);
   if (config.clients?.[clientPath]) throw new Error(`openapi-clients.json has an entry "${clientPath}" already`);
   const known = resolveAdapterRegistry(tree.root, config).adapters;

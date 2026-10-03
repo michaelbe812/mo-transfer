@@ -31,7 +31,6 @@ import {
   createInferenceContext,
   type InferenceContext,
   inferClientTargets,
-  updateSpecTarget,
   type TargetJson,
   type TargetNames,
 } from '../project-config';
@@ -67,7 +66,7 @@ export function inferClientNodes(workspaceRoot: string, options?: OpenApiPluginO
   for (const clientPath of Object.keys(context.config.clients ?? {})) {
     const root = clientRoot(context.settings, clientPath);
     if (!context.exists(`${root}/project.json`)) continue;
-    const { targets, metadata } = safeInfer(context, clientPath);
+    const { targets, metadata } = inferClientTargets(context, clientPath);
     if (metadata.problem) {
       logger.warn(`${CLIENTS_CONFIG_FILE} → "${clientPath}": ${metadata.problem} — no ${context.targetNames.client} target (verify reports it)`);
     }
@@ -82,18 +81,6 @@ export function inferClientNodes(workspaceRoot: string, options?: OpenApiPluginO
     }
   }
   return { projects };
-}
-
-/** inferClientTargets that never throws: an unexpected error becomes the client's problem (update-spec only). */
-function safeInfer(context: InferenceContext, clientPath: string): ReturnType<typeof inferClientTargets> {
-  try {
-    return inferClientTargets(context, clientPath);
-  } catch (error) {
-    return {
-      targets: { [clientRoot(context.settings, clientPath)]: { [context.targetNames.updateSpec]: updateSpecTarget(clientPath) } },
-      metadata: { adapter: '', layout: 'default', testing: false, parts: [], problem: (error as Error).message },
-    };
-  }
 }
 
 /** Only the root file: the client paths in it are relative to the workspace root. */

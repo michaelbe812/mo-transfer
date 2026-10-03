@@ -68,6 +68,10 @@ export const isSafeRelativePath = (path: unknown): path is string =>
   !path.includes('\\') &&
   path.split('/').every((segment) => segment !== '' && segment !== '.' && segment !== '..');
 
+/** A plain object (no array, no null). */
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+
 const isStringList = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === 'string');
 
 /**

@@ -20,6 +20,7 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import {
   adapterIdOf,
+  clientLocationOf,
   type ClientEntry,
   CLIENTS_CONFIG_FILE,
   type ClientsConfig,
@@ -28,6 +29,7 @@ import {
   disabledFeaturesOf,
   findSpecFile,
   hasTesting,
+  layoutOf,
   mockEngineOf,
   transformsOf,
   overlayFiles,
@@ -42,7 +44,6 @@ import {
   DEFAULT_SETTINGS,
   type MockEngine,
   type OpenApiSettings,
-  parseClientPath,
   projectNameFor,
   TESTING_PART,
 } from './settings';
@@ -124,15 +125,16 @@ export function toolingMode(workspaceRoot: string): 'source' | 'package' | 'none
   if (packageFolderIn(workspaceRoot) !== undefined) return 'source';
   // outside the workspace, not below node_modules (a symlinked install): a registry version in the root manifest
   // makes it an npm package (an external node), workspace:/link:/file: links stay without tooling input
-  return /^(workspace|link|file|portal):/.test(declaredSpecifier(workspaceRoot, PACKAGE_NAME) ?? 'link:') ? 'none' : 'package';
+  return /^(workspace|link|file|portal):/.test(declaredPackages(workspaceRoot).get(PACKAGE_NAME) ?? 'link:') ? 'none' : 'package';
 }
 
-function declaredSpecifier(workspaceRoot: string, name: string): string | undefined {
+/** Packages the root package.json declares → their specifier (they are in the lockfile → Nx external nodes). */
+function declaredPackages(workspaceRoot: string): Map<string, string> {
   try {
     const manifest = JSON.parse(readFileSync(join(workspaceRoot, 'package.json'), 'utf-8')) as Record<string, Record<string, string> | undefined>;
-    return manifest.dependencies?.[name] ?? manifest.devDependencies?.[name];
+    return new Map(['optionalDependencies', 'devDependencies', 'dependencies'].flatMap((key) => Object.entries(manifest[key] ?? {})));
   } catch {
-    return undefined;
+    return new Map();
   }
 }
 
@@ -208,16 +210,6 @@ function pipelineInputs(entry: ClientEntry | undefined, workspaceRoot: string): 
 }
 
 const unique = <T>(items: T[]): T[] => [...new Set(items)];
-
-/** Packages the root package.json declares (they are in the lockfile → Nx external nodes). */
-function declaredPackages(workspaceRoot: string): Set<string> {
-  try {
-    const manifest = JSON.parse(readFileSync(join(workspaceRoot, 'package.json'), 'utf-8')) as Record<string, Record<string, string> | undefined>;
-    return new Set(['dependencies', 'devDependencies', 'optionalDependencies'].flatMap((key) => Object.keys(manifest[key] ?? {})));
-  } catch {
-    return new Set();
-  }
-}
 
 /**
  * Only declared (root package.json → lockfile → Nx external node) AND installed packages become externalDependencies:
@@ -312,20 +304,9 @@ export function generateTestingTarget(context: InferenceContext, clientPath: str
   };
 }
 
-/** Throws unless `clientPath` is <clientFolder>/<client> or <domain>/<clientFolder>/<client>. */
-function assertClientPath(clientPath: string, settings: OpenApiSettings) {
-  const client = parseClientPath(clientPath, settings);
-  if (!client) {
-    throw new Error(
-      `${CLIENTS_CONFIG_FILE} → "${clientPath}": not a client path (${settings.clientFolder}/<client> or <domain>/${settings.clientFolder}/<client>)`,
-    );
-  }
-  return client;
-}
-
 /** project.json of the client project: name + tags, the targets are inferred. */
 export function clientProjectJson(clientPath: string, settings: OpenApiSettings = DEFAULT_SETTINGS): Record<string, unknown> {
-  const client = assertClientPath(clientPath, settings);
+  const client = clientLocationOf(clientPath, settings);
   const root = clientRoot(settings, clientPath);
   return {
     name: projectNameFor(clientPath),
@@ -357,32 +338,32 @@ export interface ClientMetadata {
  */
 export function inferClientTargets(context: InferenceContext, clientPath: string): { targets: Record<string, Record<string, TargetJson>>; metadata: ClientMetadata } {
   const { config, settings, targetNames, exists } = context;
-  const entry = config.clients?.[clientPath];
   const root = clientRoot(settings, clientPath);
-  const metadata: ClientMetadata = {
-    adapter: adapterIdOf(config, clientPath),
-    adapterSource: context.registry.adapters[adapterIdOf(config, clientPath)]?.module.kind,
-    layout: entry?.layout ?? 'default',
-    testing: hasTesting(entry),
-    parts: clientPartsOf(entry),
-  };
-  if (metadata.testing) {
-    try {
-      metadata.mocks = mockEngineOf(settings, entry);
-    } catch (error) {
-      metadata.problem = (error as Error).message;
-    }
-  }
-  const disabled = disabledFeaturesOf(settings, entry);
-  if (disabled.length) metadata.disabledFeatures = disabled;
   const targets: Record<string, Record<string, TargetJson>> = { [root]: { [targetNames.updateSpec]: updateSpecTarget(clientPath) } };
+  const metadata: ClientMetadata = { adapter: adapterIdOf(config, clientPath), layout: 'default', testing: false, parts: [] };
+  // never throws (the graph must survive any entry): every problem lands in the metadata
   try {
-    assertClientPath(clientPath, settings);
+    const entry = config.clients?.[clientPath];
+    metadata.adapterSource = context.registry.adapters[metadata.adapter]?.module.kind;
+    metadata.layout = layoutOf(entry);
+    metadata.testing = hasTesting(entry);
+    metadata.parts = clientPartsOf(entry);
+    const disabled = disabledFeaturesOf(settings, entry);
+    if (disabled.length) metadata.disabledFeatures = disabled;
+    if (metadata.testing) {
+      // an unknown mocks engine is a problem, the client target stays
+      try {
+        metadata.mocks = mockEngineOf(settings, entry);
+      } catch (error) {
+        metadata.problem = (error as Error).message;
+      }
+    }
+    clientLocationOf(clientPath, settings);
     const specFile = findSpecFile(exists, settings, clientPath);
     const missing = new Set<string>();
     targets[root][targetNames.client] = generateTarget(context, clientPath, specFile, missing);
     const testingRoot = `${root}/${TESTING_PART}`;
-    if (hasTesting(entry) && exists(`${testingRoot}/project.json`)) {
+    if (metadata.testing && exists(`${testingRoot}/project.json`)) {
       targets[testingRoot] = { [targetNames.testing]: generateTestingTarget(context, clientPath, specFile, missing) };
     }
     if (missing.size) metadata.missingPackages = [...missing];

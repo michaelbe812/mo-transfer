@@ -6,6 +6,8 @@
  *
  * Unsupported syntax (slices, functions, &&/||, comparisons < >) is an error, never a silent mismatch.
  */
+import { isRecord } from '../settings';
+
 type Literal = string | number | boolean | null;
 
 interface Filter {
@@ -153,13 +155,10 @@ class Parser {
   }
 }
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === 'object' && !Array.isArray(value);
-
 function children(node: JsonPathNode): JsonPathNode[] {
   const { value } = node;
   if (Array.isArray(value)) return value.map((item, index) => ({ value: item, parent: value, key: index }));
-  if (isObject(value)) return Object.entries(value).map(([key, item]) => ({ value: item, parent: value, key }));
+  if (isRecord(value)) return Object.entries(value).map(([key, item]) => ({ value: item, parent: value, key }));
   return [];
 }
 
@@ -170,7 +169,7 @@ function descendantsAndSelf(node: JsonPathNode): JsonPathNode[] {
 function matchesFilter(value: unknown, filter: Filter): boolean {
   let current: unknown = value;
   for (const key of filter.path) {
-    if (!isObject(current) || !(key in current)) return filter.operator === '!=';
+    if (!isRecord(current) || !(key in current)) return filter.operator === '!=';
     current = current[key];
   }
   if (!filter.operator) return true;
@@ -182,7 +181,7 @@ function select(node: JsonPathNode, selector: Selector): JsonPathNode[] {
   const { value } = node;
   switch (selector.kind) {
     case 'name':
-      return isObject(value) && Object.hasOwn(value, selector.name)
+      return isRecord(value) && Object.hasOwn(value, selector.name)
         ? [{ value: value[selector.name], parent: value, key: selector.name }]
         : [];
     case 'wildcard':

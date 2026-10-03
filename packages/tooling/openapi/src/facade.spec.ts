@@ -63,7 +63,7 @@ describe('resolveClient', () => {
     expect(() => resolveClient(dir, 'generated/x')).toThrow('openapi-clients.json: not readable');
     config({ 'generated/none-client': {}, 'generated/two-client': {}, 'x/y/z/w': {} });
     expect(() => resolveClient(dir, 'generated/missing')).toThrow('openapi-clients.json has no entry "generated/missing"');
-    expect(() => resolveClient(dir, 'x/y/z/w')).toThrow('"x/y/z/w" is no client path (generated/<name> or <domain>/generated/<name>)');
+    expect(() => resolveClient(dir, 'x/y/z/w')).toThrow('openapi-clients.json → "x/y/z/w": not a client path (generated/<name> or <domain>/generated/<name>)');
     expect(() => resolveClient(dir, 'generated/none-client')).toThrow('libs/generated/none-client needs exactly one spec file (openapi.yaml | openapi.json), found none');
     write('libs/generated/two-client/openapi.yaml', '');
     write('libs/generated/two-client/openapi.json', '');

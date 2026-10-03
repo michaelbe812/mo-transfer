@@ -6,6 +6,7 @@
  */
 import type { ClientsConfig } from '../config';
 import { OpenApiError } from '../errors';
+import { isRecord } from '../settings';
 import { type ModuleRef, moduleCacheInputs, moduleProblem, parseModuleRef } from './module-ref';
 
 export interface AdapterMetadata {
@@ -87,7 +88,7 @@ export function resolveAdapterRegistry(workspaceRoot: string, config: ClientsCon
       packages: [...(base?.packages ?? []), ...strings(registration.packages)],
       inputs: [...(base?.inputs ?? []), ...strings(registration.inputs)],
       runtime: [...(base?.runtime ?? []), ...strings(registration.runtime)],
-      options: registration.options && typeof registration.options === 'object' ? registration.options : {},
+      options: isRecord(registration.options) ? registration.options : {},
       custom: true,
     };
   }

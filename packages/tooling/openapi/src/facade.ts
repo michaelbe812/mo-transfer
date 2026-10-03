@@ -11,10 +11,11 @@
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { parse as parseYaml } from 'yaml';
 import type { ClientDefinition, ClientPart } from './adapter';
 import {
   adapterIdOf,
+  clientLocationOf,
   type ClientsConfig,
   CLIENTS_CONFIG_FILE,
   findSpecFile,
@@ -26,10 +27,10 @@ import {
 } from './config';
 import { OpenApiError } from './errors';
 import { clientPreset } from './pipeline/client-preset';
-import { type PipelineInput, runPipeline } from './pipeline/runner';
+import { type PipelineInput, prettierFormatter, runPipeline } from './pipeline/runner';
+import { stringifySpec } from './pipeline/spec';
 import { testingPreset } from './pipeline/testing-preset';
 import { resolveAdapter, resolveAdapterRegistry } from './registry/registry';
-import { parseClientPath } from './settings';
 
 /**
  * ClientDefinition of `clientPath` from openapi-clients.json + the client folder — read at run time by the
@@ -39,13 +40,7 @@ export function resolveClient(workspaceRoot: string, clientPath: string, config:
   const entry = config.clients?.[clientPath];
   if (!entry) throw new OpenApiError(`${CLIENTS_CONFIG_FILE} has no entry "${clientPath}"`, { phase: 'config', client: clientPath });
   const settings = settingsOf(config);
-  const location = parseClientPath(clientPath, settings);
-  if (!location) {
-    throw new OpenApiError(`"${clientPath}" is no client path (${settings.clientFolder}/<name> or <domain>/${settings.clientFolder}/<name>)`, {
-      phase: 'config',
-      client: clientPath,
-    });
-  }
+  const location = clientLocationOf(clientPath, settings);
   const specFile = findSpecFile((path) => existsSync(join(workspaceRoot, path)), settings, clientPath);
   return {
     name: location.name,
@@ -109,18 +104,9 @@ export async function serializeSpec(
   projectName: string,
   workspaceRoot: string,
 ): Promise<string> {
-  const text = file.endsWith('.json')
-    ? `${JSON.stringify(document, null, 2)}\n`
-    : [
-        `# Source: ${url}`,
-        `# Update: nx run ${projectName}:update-spec (overwrites this file, normalized). Committed, the only source for generate-api-client.`,
-        stringifyYaml(document, { lineWidth: 0, aliasDuplicateObjects: false }),
-      ].join('\n');
-  const prettier = await import('prettier').catch(() => undefined);
-  if (!prettier) return text;
-  const filepath = join(workspaceRoot, file);
-  const options = (await prettier.resolveConfig(filepath, { editorconfig: true })) ?? {};
-  return prettier.format(text, { ...options, filepath });
+  const text = stringifySpec(document, file, { url, projectName });
+  const format = await prettierFormatter();
+  return format ? format(text, join(workspaceRoot, file)) : text;
 }
 
 /**

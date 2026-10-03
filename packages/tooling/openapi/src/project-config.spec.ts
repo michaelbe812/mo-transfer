@@ -56,7 +56,7 @@ describe('client config (project.json of clients and parts, inferred targets)', 
     expect(booking['$schema']).toBe('../../../../node_modules/nx/schemas/project-schema.json');
     expect(booking['tags']).toEqual(['scope:booking', 'generated']);
     expect(() => clientProjectJson('pet-client')).toThrow(
-      'openapi-clients.json → "pet-client": not a client path (generated/<client> or <domain>/generated/<client>)',
+      'openapi-clients.json → "pet-client": not a client path (generated/<name> or <domain>/generated/<name>)',
     );
   });
 

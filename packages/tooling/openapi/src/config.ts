@@ -13,12 +13,15 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { OpenApiError } from './errors';
 import {
+  type ClientLocation,
   type ClientPart,
   clientRoot,
+  isRecord,
   isSafeRelativePath,
   MOCK_ENGINES,
   type MockEngine,
   type OpenApiSettings,
+  parseClientPath,
   type Part,
   PARTS,
   resolveSettings,
@@ -105,6 +108,18 @@ export function readClientsConfig(workspaceRoot: string): ClientsConfig {
   };
 }
 
+/** Location of a client path; throws (config) unless it is <clientFolder>/<name> or <domain>/<clientFolder>/<name>. */
+export function clientLocationOf(clientPath: string, settings: OpenApiSettings): ClientLocation {
+  const location = parseClientPath(clientPath, settings);
+  if (!location) {
+    throw new OpenApiError(
+      `${CLIENTS_CONFIG_FILE} → "${clientPath}": not a client path (${settings.clientFolder}/<name> or <domain>/${settings.clientFolder}/<name>)`,
+      { phase: 'config', client: clientPath },
+    );
+  }
+  return location;
+}
+
 export const settingsOf = (config: ClientsConfig): OpenApiSettings => resolveSettings(config.settings);
 export const layoutOf = (entry: ClientEntry | undefined): Layout => entry?.layout ?? 'default';
 export const hasTesting = (entry: ClientEntry | undefined): boolean => entry?.pipeline?.testing !== false;
@@ -135,9 +150,6 @@ export const clientPartsOf = (entry: ClientEntry | undefined): ClientPart[] => [
 /** Adapter id of an entry: its own, else the file's default, else openapi-tools. */
 export const adapterIdOf = (config: ClientsConfig, clientPath: string): string =>
   config.clients?.[clientPath]?.adapter ?? config.defaultAdapter ?? DEFAULT_ADAPTER;
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === 'object' && !Array.isArray(value);
 
 /** Transform hooks of an entry → [{ module, options }]; throws (config) for a malformed list or entry. */
 export function transformsOf(entry: ClientEntry | null | undefined): { module: string; options: Record<string, unknown> }[] {

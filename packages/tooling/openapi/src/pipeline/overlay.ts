@@ -11,6 +11,7 @@
  *
  * A target that selects nothing is an error (a renamed path would otherwise silently drop the change).
  */
+import { isRecord } from '../settings';
 import { queryJsonPath } from './jsonpath';
 
 interface OverlayAction {
@@ -25,13 +26,10 @@ export interface OverlayDocument {
   actions?: OverlayAction[];
 }
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === 'object' && !Array.isArray(value);
-
 /** Overlay merge: properties of `update` replace/extend the target, nested objects recursively. */
 function merge(target: Record<string, unknown>, update: Record<string, unknown>): void {
   for (const [key, value] of Object.entries(update)) {
-    if (isObject(target[key]) && isObject(value)) merge(target[key], value);
+    if (isRecord(target[key]) && isRecord(value)) merge(target[key], value);
     else target[key] = structuredClone(value);
   }
 }
@@ -57,7 +55,7 @@ export function applyOverlay(document: unknown, overlay: OverlayDocument, name: 
     if (action.update === undefined) throw new Error(`${label}: neither update nor remove`);
     for (const { value } of nodes) {
       if (Array.isArray(value)) value.push(...(Array.isArray(action.update) ? action.update : [action.update]).map((item) => structuredClone(item)));
-      else if (isObject(value) && isObject(action.update)) merge(value, action.update);
+      else if (isRecord(value) && isRecord(action.update)) merge(value, action.update);
       else throw new Error(`${label}: update needs an object or array target (got ${JSON.stringify(value)})`);
     }
   });

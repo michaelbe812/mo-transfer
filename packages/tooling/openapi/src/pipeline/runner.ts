@@ -139,6 +139,9 @@ async function finalize(
     ...Object.entries(barrels).map(([part, barrel]) => ({ path: 'index.ts', part: part as ClientPart, content: `${barrel}\n` })),
   ];
   const format = context.client.pipeline.format ? await prettierFormatter() : undefined;
+  if (context.client.pipeline.format && !format) {
+    throw new OpenApiError('prettier not installed', { phase: 'finalize', hint: 'pnpm add -D prettier, or pipeline.format: false' });
+  }
   const result: PipelineFile[] = [];
   for (const file of all) {
     const target = join(context.workspaceRoot, partRoot(context.settings, context.client.path, file.part), 'src', context.settings.outputDir, file.path);
@@ -147,11 +150,10 @@ async function finalize(
   return result.sort(byPath);
 }
 
-/** prettier with the workspace config of each target file (.prettierrc, .editorconfig). */
-async function prettierFormatter(): Promise<(content: string, filepath: string) => Promise<string>> {
-  const prettier = await import('prettier').catch((error: unknown) => {
-    throw new OpenApiError('prettier not installed', { phase: 'finalize', cause: error, hint: 'pnpm add -D prettier, or pipeline.format: false' });
-  });
+/** prettier with the workspace config of each target file (.prettierrc, .editorconfig); undefined when not installed. */
+export async function prettierFormatter(): Promise<((content: string, filepath: string) => Promise<string>) | undefined> {
+  const prettier = await import('prettier').catch(() => undefined);
+  if (!prettier) return undefined;
   return async (content, filepath) => {
     const options = (await prettier.resolveConfig(filepath, { editorconfig: true })) ?? {};
     return prettier.format(content, { ...options, filepath });
