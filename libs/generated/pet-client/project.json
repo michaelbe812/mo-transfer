@@ -18,12 +18,8 @@
         "{workspaceRoot}/libs/generated/pet-client/core/src/index.ts",
         "{workspaceRoot}/packages/tooling/openapi/src/facade/**/*",
         "{workspaceRoot}/packages/tooling/openapi/src/executors/**/*",
-        "{workspaceRoot}/openapitools.json",
         {
-          "externalDependencies": ["@openapitools/openapi-generator-cli", "typescript", "yaml"]
-        },
-        {
-          "runtime": "java -version 2>&1"
+          "externalDependencies": ["@hey-api/openapi-ts", "typescript", "yaml"]
         }
       ],
       "outputs": [

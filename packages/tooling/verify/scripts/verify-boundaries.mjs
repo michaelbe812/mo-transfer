@@ -759,7 +759,8 @@ const AFFECTED_PROBES = [
   { file: 'packages/tooling/openapi/src/testing/testing.mjs', expected: ['booking-generated-booking-client-testing'] },
   { file: 'openapi-clients.json', expected: ['generated-pet-client-api', 'booking-generated-booking-client-testing', 'client'] },
   // integration tests of tooling-openapi run the jar: their workspace inputs affect it
-  { file: 'openapitools.json', expected: ['tooling-openapi', 'generated-pet-client'] },
+  // openapitools.json is a cache input of openapi-tools clients only (pet-client uses hey-api)
+  { file: 'openapitools.json', expected: ['tooling-openapi', 'generated-notification-client'], notExpected: ['generated-pet-client'] },
 ];
 
 function checkAffected() {
