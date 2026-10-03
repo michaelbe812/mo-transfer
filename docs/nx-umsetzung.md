@@ -399,7 +399,7 @@ HTTP-Clients werden aus OpenAPI-Specs generiert. Der Code-Generator ist austausc
 ### Architektur
 
 Bausteine als Black Box. Zwei Phasen: **Gerüst** (Generator `client`, einmalig, committet) und **Generierung**
-(Target `generate`, bei jedem Build, gecacht, gitignored). Die Facade entscheidet *wo* Code liegt, der Adapter liefert
+(Target `generate-api-client`, bei jedem Build, gecacht, gitignored). Die Facade entscheidet *wo* Code liegt, der Adapter liefert
 nur Roh-Output + Klassifizierung.
 
 ```mermaid
@@ -414,9 +414,9 @@ flowchart TB
   end
 
   subgraph P2["Phase 2 · Generierung (jeder Build, gecacht, gitignored)"]
-    PLUGIN["Crystal-Plugin<br/>leitet generate / update-spec ab<br/>+ Cache-Inputs"]
+    PLUGIN["Crystal-Plugin<br/>leitet generate-api-client / update-spec ab<br/>+ Cache-Inputs"]
     ADREG[("adapters/registry.json<br/>Modul · Pakete · Inputs · Runtime")]
-    EXEC["Executor generate<br/><i>Option nur { client }</i>"]
+    EXEC["Target generate-api-client<br/>Executor generate · <i>Option nur { client }</i>"]
     subgraph FACADE["Facade"]
       direction TB
       RES["resolveClient<br/>Eintrag + Ordner → ClientDefinition"]
@@ -429,7 +429,7 @@ flowchart TB
       WR["write<br/>Lint-Header, src/generated/**"]
       RES --> GEN --> CLS --> SPLIT --> BAR --> WR
     end
-    TEST["Testing-Pipeline (eigenes generate)<br/>openapi-typescript · orval-msw · openapi-msw"]
+    TEST["Testing-Pipeline (Target generate-api-testing)<br/>openapi-typescript · orval-msw · openapi-msw"]
   end
 
   REG --> PLUGIN
