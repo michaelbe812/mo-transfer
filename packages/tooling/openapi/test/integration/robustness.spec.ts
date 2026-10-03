@@ -210,7 +210,6 @@ describe.each([
   it.skipIf(!node)('nx run generates through both', () => {
     const run = fx.tryNx('run-many', '-t', 'generate-api-client', '-p', 'generated-w-client', 'generated-p-client', '--skip-nx-cache');
     expect(run.output).not.toContain('could not be loaded');
-    if (!run.ok) console.log('M2-OUTPUT', run.output.slice(-2500));
     expect(run.ok).toBe(true);
     expect(readFileSync(join(fx.root, 'libs/generated/w-client/types/src/generated/model/thing.ts'), 'utf-8')).toContain('"from-workspace-ts"');
     expect(readFileSync(join(fx.root, 'libs/generated/p-client/types/src/generated/model/thing.ts'), 'utf-8')).toContain('"from-npm-ts"');
@@ -262,7 +261,6 @@ describe('M4: client and testing generation in parallel with overlays do not sha
 
   it('each preset writes its own effective spec (tmp/openapi/<client>/<preset>/spec)', () => {
     const run = fx.tryNx('run-many', '-t', 'generate-api-client', 'generate-api-testing', '--parallel=2', '--skip-nx-cache');
-    if (!run.ok) console.log('M4-OUTPUT', run.output.slice(-1500));
     expect(run.ok).toBe(true);
     expect(existsSync(join(fx.root, 'tmp/openapi/generated/r-client/client/spec/openapi.yaml'))).toBe(true);
     expect(existsSync(join(fx.root, 'tmp/openapi/generated/r-client/testing/spec/openapi.yaml'))).toBe(true);

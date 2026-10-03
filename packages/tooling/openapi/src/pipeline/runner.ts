@@ -85,7 +85,8 @@ export async function runPipeline(preset: PipelinePreset, input: PipelineInput):
   const tmpDir = join(workspaceRoot, 'tmp/openapi', client.path);
   const rawDir = join(tmpDir, preset.rawDirName);
 
-  const specFile = await stage('spec', () => prepareSpec(client, workspaceRoot, settings, tmpDir));
+  // per preset: client and testing generation of one client may run in parallel
+  const specFile = await stage('spec', () => prepareSpec(client, workspaceRoot, settings, join(tmpDir, preset.id)));
   const context: PipelineContext = { client, workspaceRoot, settings, verbose, log, tmpDir, specFile, rawDir };
   const raw = await stage('generate', () => {
     rmSync(rawDir, { recursive: true, force: true });
