@@ -197,13 +197,25 @@ function pipelineInputs(entry: ClientEntry | undefined, workspaceRoot: string): 
 
 const unique = <T>(items: T[]): T[] => [...new Set(items)];
 
+/** Packages the root package.json declares (they are in the lockfile → Nx external nodes). */
+function declaredPackages(workspaceRoot: string): Set<string> {
+  try {
+    const manifest = JSON.parse(readFileSync(join(workspaceRoot, 'package.json'), 'utf-8')) as Record<string, Record<string, string> | undefined>;
+    return new Set(['dependencies', 'devDependencies', 'optionalDependencies'].flatMap((key) => Object.keys(manifest[key] ?? {})));
+  } catch {
+    return new Set();
+  }
+}
+
 /**
- * Only installed packages become externalDependencies: Nx' hasher fails the task for an unknown one
- * ("externalDependency … could not be found"). The rest is collected in `missing` (metadata + warning, verify).
+ * Only declared (root package.json → lockfile → Nx external node) AND installed packages become externalDependencies:
+ * Nx' hasher fails the task for an unknown one ("externalDependency … could not be found"). The rest is collected
+ * in `missing` (metadata + warning, verify).
  */
 function installedOnly(workspaceRoot: string, packages: string[], missing?: Set<string>): string[] {
+  const declared = declaredPackages(workspaceRoot);
   return unique(packages).filter((name) => {
-    if (findPackageDir(workspaceRoot, name)) return true;
+    if (declared.has(name) && findPackageDir(workspaceRoot, name)) return true;
     missing?.add(name);
     return false;
   });

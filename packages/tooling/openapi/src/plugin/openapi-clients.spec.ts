@@ -23,9 +23,9 @@ describe('plugin: targets inferred from openapi-clients.json', () => {
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'openapi-plugin-'));
     warn = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
-    for (const name of ['typescript', 'yaml', '@hey-api/openapi-ts', '@openapitools/openapi-generator-cli', 'openapi-typescript']) {
-      write(`node_modules/${name}/package.json`, '{}');
-    }
+    const installed = ['typescript', 'yaml', '@hey-api/openapi-ts', '@openapitools/openapi-generator-cli', 'openapi-typescript'];
+    for (const name of installed) write(`node_modules/${name}/package.json`, '{}');
+    write('package.json', JSON.stringify({ devDependencies: Object.fromEntries(installed.map((name) => [name, '1.0.0'])) }));
   });
   afterEach(() => {
     rmSync(root, { recursive: true, force: true });

@@ -22,6 +22,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { dirname, join, relative, resolve } from 'node:path';
 import ts from 'typescript';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 export const repoRoot = resolve(__dirname, '../../../..');
 export const fixture = (name: string): string => readFileSync(join(__dirname, 'fixtures', name), 'utf-8');
@@ -235,4 +236,20 @@ export function createNxFixture(name: string, options: { ownNodeModules?: boolea
     project: (projectName) => JSON.parse(nx('show', 'project', projectName, '--json')),
     clients: (config) => write(root, 'openapi-clients.json', `${JSON.stringify({ settings: { scaffold: SCAFFOLD }, ...config }, null, 2)}\n`),
   };
+}
+
+/**
+ * A fake npm package in a fixture with own node_modules: files below node_modules/<name>, a devDependency in the
+ * fixture package.json and a lockfile entry, so Nx creates `npm:<name>` (externalDependencies, createDependencies).
+ */
+export function addFakePackage(root: string, name: string, files: Record<string, string>): void {
+  for (const [file, content] of Object.entries(files)) write(root, `node_modules/${name}/${file}`, content);
+  const manifest = JSON.parse(read(root, 'package.json'));
+  manifest.devDependencies[name] = '1.0.0';
+  write(root, 'package.json', JSON.stringify(manifest, null, 2));
+  const lock = parseYaml(read(root, 'pnpm-lock.yaml'));
+  lock.importers['.'].devDependencies[name] = { specifier: '1.0.0', version: '1.0.0' };
+  lock.packages[`${name}@1.0.0`] = { resolution: { integrity: 'sha512-ZmFrZQ==' } };
+  lock.snapshots[`${name}@1.0.0`] = {};
+  write(root, 'pnpm-lock.yaml', stringifyYaml(lock));
 }

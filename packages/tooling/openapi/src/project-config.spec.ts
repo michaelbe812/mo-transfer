@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -40,9 +40,9 @@ describe('client config (project.json of clients and parts, inferred targets)', 
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'openapi-config-'));
     // installed packages (only those become externalDependencies, M1)
-    for (const name of ['typescript', 'yaml', 'orval', 'openapi-typescript', 'prettier', '@acme/transform', '@openapitools/openapi-generator-cli', '@hey-api/openapi-ts', '@mo-transfer/tooling-openapi']) {
-      write(`node_modules/${name}/package.json`, '{}');
-    }
+    const installed = ['typescript', 'yaml', 'orval', 'openapi-typescript', 'prettier', '@acme/transform', '@openapitools/openapi-generator-cli', '@hey-api/openapi-ts', '@mo-transfer/tooling-openapi'];
+    for (const name of installed) write(`node_modules/${name}/package.json`, '{}');
+    write('package.json', JSON.stringify({ devDependencies: Object.fromEntries(installed.map((name) => [name, '1.0.0'])) }));
   });
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
@@ -137,6 +137,9 @@ describe('client config (project.json of clients and parts, inferred targets)', 
   it('npm package adapter: externalDependency on the package; toolingInputs package / none / source', () => {
     client('generated/pet-client');
     write('node_modules/@acme/openapi-adapter/package.json', '{"name":"@acme/openapi-adapter"}');
+    const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8'));
+    manifest.devDependencies['@acme/openapi-adapter'] = '1.0.0';
+    write('package.json', JSON.stringify(manifest));
     const config: ClientsConfig = {
       settings: { toolingInputs: 'package' },
       adapters: { acme: { module: '@acme/openapi-adapter/sub' } },
@@ -154,9 +157,11 @@ describe('client config (project.json of clients and parts, inferred targets)', 
   it('declared but not installed packages stay out of externalDependencies and are reported (M1)', () => {
     client('generated/pet-client');
     rmSync(join(root, 'node_modules/prettier'), { recursive: true });
-    const config: ClientsConfig = { clients: { 'generated/pet-client': { pipeline: { format: true, transforms: ['@acme/missing'] } } } };
+    write('node_modules/@acme/undeclared/package.json', '{}');
+    const config: ClientsConfig = { clients: { 'generated/pet-client': { pipeline: { format: true, transforms: ['@acme/missing', '@acme/undeclared'] } } } };
     const { targets, metadata } = inferClientTargets(context(config), 'generated/pet-client');
-    expect(metadata.missingPackages).toEqual(['@acme/missing', 'prettier']);
+    // not installed, installed but undeclared (not in the lockfile) — both would fail Nx' hasher
+    expect(metadata.missingPackages).toEqual(['@acme/missing', '@acme/undeclared', 'prettier']);
     expect(targets['libs/generated/pet-client']['generate-api-client']['inputs']).toContainEqual({
       externalDependencies: ['@openapitools/openapi-generator-cli', 'typescript', 'yaml'],
     });
