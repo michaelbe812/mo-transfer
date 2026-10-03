@@ -5,16 +5,21 @@
  *   openapi-clients.json (workspace root)    one entry per client, key = client path below libs/:
  *     { "defaultAdapter": "openapi-tools",
  *       "clients": { "generated/pet-client": { "url": "https://…", "adapter"?: "hey-api", "options"?: {…} } } }
- *   libs/<client path>/openapi.yaml|json     committed spec — the only source for `generate`
+ *   libs/<client path>/openapi.yaml|json     committed spec — the only source for `generate-api-client`
  *   libs/<client path>/project.json          client project (generated-pet-client): name, tags scope:<shared|domain>
  *                                            + generated, no targets, no code, no alias
  *   inferred per entry (plugin, clientTargets):
- *     generate      @mo-transfer/tooling-openapi:generate, cached, outputs <part>/src/generated (types, api, core)
- *     update-spec   @mo-transfer/tooling-openapi:update-spec, fails without `url`, not cached
+ *     generate-api-client  @mo-transfer/tooling-openapi:generate, cached, outputs <part>/src/generated (types, api, core)
+ *     update-spec          @mo-transfer/tooling-openapi:update-spec, fails without `url`, not cached
  *   libs/<client path>/<part>/project.json   ordinary lib config (tooling-conventions) + implicitDependencies
- *                                            part → client (→ sibling parts); the testing part has its own generate
+ *                                            part → client (→ sibling parts); the testing part has its own
+ *                                            generate-api-testing (@mo-transfer/tooling-openapi:generate-testing)
  *
- * The entry stays in openapi-clients.json and is a `json` input (fields) of `generate`, never its options:
+ * Target names: two distinct names, so `^generate-api-client` / `^generate-api-testing` (nx.json targetDefaults
+ * of build/lint/test/typecheck) say exactly which generated code a lib waits for; both outputs are hashed via
+ * `dependentTasksOutputFiles` (src/generated). The executor names stay generate / generate-testing.
+ *
+ * The entry stays in openapi-clients.json and is a `json` input (fields) of `generate-api-client`, never its options:
  * Nx hashes the ProjectConfiguration of every dependency into `^default`/`^production`, target options there
  * would invalidate every dependent on any entry change. The options hold only `client`.
  * Adapter-dependent inputs (registry.json) follow the entry's adapter — derived, so they cannot drift.
@@ -35,7 +40,7 @@ import {
 export interface ClientEntry {
   /** adapter id (adapters/registry.json), default: `defaultAdapter` */
   adapter?: string;
-  /** source for update-spec; generate always reads the committed spec file */
+  /** source for update-spec; generate-api-client always reads the committed spec file */
   url?: string;
   /** adapter options, merged over the adapter's defaults */
   options?: Record<string, unknown>;
@@ -59,13 +64,20 @@ export type TargetJson = Record<string, unknown>;
 /** Checks for files relative to the workspace root (fs or an Nx Tree). */
 export type Exists = (path: string) => boolean;
 
+/** Target of the client project (inferred): adapter code of types/api/core. */
+export const CLIENT_GENERATE_TARGET = 'generate-api-client';
+/** Target of the client's testing lib (project.json): openapi-typescript + msw. */
+export const TESTING_GENERATE_TARGET = 'generate-api-testing';
+/** dependsOn of every lib target: the generated code of all dependencies (both target kinds). */
+export const GENERATED_DEPENDS_ON = [`^${CLIENT_GENERATE_TARGET}`, `^${TESTING_GENERATE_TARGET}`];
+
 /** Executors of this package (executors.json). */
 export const OPENAPI_EXECUTORS = {
   generate: '@mo-transfer/tooling-openapi:generate',
   generateTesting: '@mo-transfer/tooling-openapi:generate-testing',
   updateSpec: '@mo-transfer/tooling-openapi:update-spec',
 };
-/** npm packages of the testing pipeline (cache inputs of the testing lib's generate) */
+/** npm packages of the testing pipeline (cache inputs of the testing lib's generate-api-testing) */
 const TESTING_PACKAGES = ['openapi-typescript', 'orval', 'yaml'];
 export const DEFAULT_ADAPTER = 'openapi-tools';
 const PACKAGE_DIR = 'packages/tooling/openapi/src';
@@ -112,7 +124,7 @@ export function findSpecFile(exists: Exists, clientPath: string): string {
 }
 
 /**
- * implicitDependencies of a part lib: its client (`^generate`, affected — the generated code is gitignored,
+ * implicitDependencies of a part lib: its client (`^generate-api-client`, affected — the generated code is gitignored,
  * so Nx sees no import edges) and the parts below it (build order).
  */
 export function clientPartEdges(exists: Exists, client: { path: string; part: string }): string[] {
@@ -123,7 +135,7 @@ export function clientPartEdges(exists: Exists, client: { path: string; part: st
   return [projectNameFor(client.path), ...siblings];
 }
 
-/** `generate` of the client project: the facade + the entry's adapter. */
+/** `generate-api-client` of the client project: the facade + the entry's adapter. */
 export function generateTarget(clientPath: string, specFile: string, adapter: string): TargetJson {
   const registration = adapterRegistry()[adapter];
   return {
@@ -135,7 +147,7 @@ export function generateTarget(clientPath: string, specFile: string, adapter: st
       { json: `{workspaceRoot}/${CLIENTS_CONFIG_FILE}`, fields: ['defaultAdapter', `clients.${clientPath}`] },
       // which parts are committed (core is optional) — the parts are projects of their own
       ...CLIENT_CODE_PARTS.map((part) => `{workspaceRoot}/${LIBS_DIR}/${clientPath}/${part}/src/index.ts`),
-      // the facade only — the testing pipeline has its own target (generate of <client>/testing)
+      // the facade only — the testing pipeline has its own target (generate-api-testing of <client>/testing)
       `{workspaceRoot}/${FACADE_DIR}/**/*`,
       `{workspaceRoot}/${EXECUTORS_DIR}/**/*`,
       ...INFERENCE_FILES.map((file) => `{workspaceRoot}/${file}`),
@@ -154,14 +166,14 @@ export function updateSpecTarget(clientPath: string): TargetJson {
     executor: OPENAPI_EXECUTORS.updateSpec,
     cache: false,
     // reads the url from the file at run time; not cached, so this input only feeds `nx affected`:
-    // an edited openapi-clients.json affects every client (the cache of generate stays per entry)
+    // an edited openapi-clients.json affects every client (the cache of generate-api-client stays per entry)
     inputs: [`{workspaceRoot}/${CLIENTS_CONFIG_FILE}`],
     options: { client: clientPath },
   };
 }
 
 /**
- * `generate` of a client's testing lib (<client>/testing): spec → openapi-typescript + orval mocks +
+ * `generate-api-testing` of a client's testing lib (<client>/testing): spec → openapi-typescript + orval mocks +
  * openapi-msw. Independent of the adapter — a switch keeps its cache.
  */
 export function generateTestingTarget(clientPath: string, specFile: string): TargetJson {
@@ -210,7 +222,11 @@ export function clientProjectJson(clientPath: string): Record<string, unknown> {
 export function clientTargets(exists: Exists, clientPath: string, config: ClientsConfig): Record<string, TargetJson> {
   assertClientPath(clientPath);
   return {
-    generate: generateTarget(clientPath, findSpecFile(exists, clientPath), adapterOf(clientPath, config)),
+    [CLIENT_GENERATE_TARGET]: generateTarget(
+      clientPath,
+      findSpecFile(exists, clientPath),
+      adapterOf(clientPath, config),
+    ),
     'update-spec': updateSpecTarget(clientPath),
   };
 }
@@ -227,9 +243,9 @@ export function clientPartConfig(exists: Exists, clientPath: string, part: strin
     implicitDependencies,
     peerDependencies: {},
     targets: {
-      generate: generateTestingTarget(clientPath, findSpecFile(exists, clientPath)),
-      lint: { dependsOn: ['generate', '^generate'] },
-      typecheck: { dependsOn: ['generate', '^generate'] },
+      [TESTING_GENERATE_TARGET]: generateTestingTarget(clientPath, findSpecFile(exists, clientPath)),
+      lint: { dependsOn: [TESTING_GENERATE_TARGET, ...GENERATED_DEPENDS_ON] },
+      typecheck: { dependsOn: [TESTING_GENERATE_TARGET, ...GENERATED_DEPENDS_ON] },
     },
   };
 }

@@ -35,7 +35,7 @@ Nx lib build targets (`@nx/angular:ng-packagr-lite`). `@angular/build:unit-test`
 "test": {
   "executor": "@nx/angular:unit-test",
   "cache": true,
-  "dependsOn": ["^generate"],                 // generated OpenAPI clients/testing libs first
+  "dependsOn": ["^generate-api-client", "^generate-api-testing"], // generated OpenAPI clients/testing libs first
   "options": {
     "tsConfig": "libs/tsconfig.spec.json",    // include: **/src/**/*.spec.ts
     "runnerConfig": "vitest-base.config.mts",

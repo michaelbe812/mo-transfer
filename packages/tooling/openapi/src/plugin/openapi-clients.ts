@@ -1,5 +1,5 @@
 /**
- * Nx plugin (createNodesV2, nx.json → plugins): infers `generate` + `update-spec` of every client project from
+ * Nx plugin (createNodesV2, nx.json → plugins): infers `generate-api-client` + `update-spec` of every client project from
  * openapi-clients.json (docs/nx-umsetzung.md → "OpenAPI-Clients"). The client project.json keeps name + tags.
  *
  *   openapi-clients.json   entry "generated/pet-client" → targets of the project at libs/generated/pet-client
@@ -7,9 +7,9 @@
  *
  * Only adds targets to existing projects (no project.json → no node: a project without a name would break the
  * graph). A broken entry (unknown adapter, no/two specs, bad path) or an unreadable file never breaks the graph:
- * a warning, the entry gets no `generate`, `tooling-verify:verify` reports it.
+ * a warning, the entry gets no `generate-api-client`, `tooling-verify:verify` reports it.
  * Hashing is unchanged against an explicit project.json: Nx hashes the merged ProjectConfiguration, and the
- * options hold only `client` — the entry itself stays a json input of `generate`.
+ * options hold only `client` — the entry itself stays a json input of `generate-api-client`.
  */
 import { type CreateNodesV2, createNodesFromFiles, logger } from '@nx/devkit';
 import { existsSync, readFileSync } from 'node:fs';
@@ -36,7 +36,7 @@ export function inferClientNodes(workspaceRoot: string, configFile: string): Cli
     try {
       projects[root] = { targets: clientTargets(exists, clientPath, config) };
     } catch (error) {
-      logger.warn(`${(error as Error).message} — no generate target (tooling-verify:verify reports it)`);
+      logger.warn(`${(error as Error).message} — no generate-api-client target (tooling-verify:verify reports it)`);
       projects[root] = { targets: { 'update-spec': updateSpecTarget(clientPath) } };
     }
   }

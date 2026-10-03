@@ -42,11 +42,11 @@ describe('libConfigFiles', () => {
       scopes,
       hasSpecs: true,
       implicitDependencies: ['x'],
-      targets: { lint: { dependsOn: ['generate'] } },
+      targets: { lint: { dependsOn: ['generate-api-testing'] } },
     });
     expect(withSpecs['project.json']).toMatchObject({
       implicitDependencies: ['x'],
-      targets: { build: {}, lint: { dependsOn: ['generate'] }, typecheck: {}, test: {} },
+      targets: { build: {}, lint: { dependsOn: ['generate-api-testing'] }, typecheck: {}, test: {} },
     });
     expect(withSpecs['tsconfig.spec.json']).toMatchObject({ include: ['src/**/*.spec.ts', 'src/**/*.d.ts'] });
     expect(withSpecs['package.json']).not.toHaveProperty('peerDependencies');

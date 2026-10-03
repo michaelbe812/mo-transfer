@@ -46,7 +46,7 @@ describe('client generator', () => {
 
     const client = readProject(tree, 'libs/generated/demo-client/project.json');
     expect(client).toMatchObject({ name: 'generated-demo-client', tags: ['scope:shared', 'generated'] });
-    // generate/update-spec: inferred from the entry by the plugin (src/plugin/openapi-clients.ts)
+    // generate-api-client/update-spec: inferred from the entry by the plugin (src/plugin/openapi-clients.ts)
     expect(client.targets).toBeUndefined();
 
     expect(readJsonFile(tree, 'libs/generated/demo-client/api/project.json')).toMatchObject({
@@ -63,8 +63,10 @@ describe('client generator', () => {
       sideEffects: false,
     });
     const testing = readProject(tree, 'libs/generated/demo-client/testing/project.json');
-    expect(testing.targets.generate.executor).toBe('@mo-transfer/tooling-openapi:generate-testing');
-    expect(testing.targets.lint).toEqual({ dependsOn: ['generate', '^generate'] });
+    expect(testing.targets['generate-api-testing'].executor).toBe('@mo-transfer/tooling-openapi:generate-testing');
+    expect(testing.targets.lint).toEqual({
+      dependsOn: ['generate-api-testing', '^generate-api-client', '^generate-api-testing'],
+    });
     expect(tree.exists('libs/generated/demo-client/testing/package.json')).toBe(false);
 
     const paths = pathsOf(tree);
@@ -255,7 +257,7 @@ describe('client generator', () => {
     callback();
     expect(info.mock.calls.map(([message]) => message)).toEqual([
       'Client booking-generated-demo-client: libs/booking/generated/demo-client/{openapi.yaml,project.json,types,api,core,testing}, paths in tsconfig.base.json, entry in openapi-clients.json.',
-      'Generate: nx run-many -t generate (build/lint/test/typecheck do it on their own).',
+      'Generate: nx run-many -t generate-api-client generate-api-testing (build/lint/test/typecheck do it on their own).',
       'Use: @mo-transfer/booking/generated/demo-client/api (services) + /types in the booking data-access layer, specs: @mo-transfer/booking/generated/demo-client/testing (demoClientHandlers, demoClientHttp).',
     ]);
     await clientGenerator(tree, { name: 'shared-client', spec: 'specs/demo.yaml', skipFormat: true }).then((done) =>

@@ -110,7 +110,7 @@ export const <domain>Scenarios = {
 
 ## 5. Generated from the contract (`<client>/testing`)
 
-Generated per client from `openapi.yaml|json` (never committed, `generate` target, cached):
+Generated per client from `openapi.yaml|json` (never committed, `generate-api-testing` target, cached):
 
 | File | Tool | Content |
 |---|---|---|

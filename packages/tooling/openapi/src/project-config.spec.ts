@@ -32,7 +32,7 @@ describe('client config (project.json of clients and parts, inferred client targ
   });
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-  it('client project.json: name + tags only; targets: generate (json-field input, adapter inputs), update-spec', () => {
+  it('client project.json: name + tags only; targets: generate-api-client (json-field input, adapter inputs), update-spec', () => {
     client('generated/pet-client');
     expect(clientProjectJson('generated/pet-client')).toEqual({
       name: 'generated-pet-client',
@@ -44,7 +44,7 @@ describe('client config (project.json of clients and parts, inferred client targ
       defaultAdapter: 'openapi-tools',
       clients: { 'generated/pet-client': { url: 'https://x' } },
     });
-    expect(targets['generate']).toEqual({
+    expect(targets['generate-api-client']).toEqual({
       executor: '@mo-transfer/tooling-openapi:generate',
       cache: true,
       inputs: [
@@ -81,7 +81,7 @@ describe('client config (project.json of clients and parts, inferred client targ
     const booking = clientProjectJson('booking/generated/booking-client');
     expect(booking['$schema']).toBe('../../../../node_modules/nx/schemas/project-schema.json');
     expect(booking['tags']).toEqual(['scope:booking', 'generated']);
-    const { generate } = clientTargets(exists, 'booking/generated/booking-client', {
+    const { 'generate-api-client': generate } = clientTargets(exists, 'booking/generated/booking-client', {
       defaultAdapter: 'openapi-tools',
       clients: { 'booking/generated/booking-client': { adapter: 'hey-api' } },
     }) as Record<string, { inputs: unknown[] }>;
@@ -121,7 +121,7 @@ describe('client config (project.json of clients and parts, inferred client targ
       implicitDependencies: ['booking-generated-booking-client'],
       peerDependencies: {},
       targets: {
-        generate: {
+        'generate-api-testing': {
           executor: '@mo-transfer/tooling-openapi:generate-testing',
           cache: true,
           inputs: [
@@ -134,8 +134,8 @@ describe('client config (project.json of clients and parts, inferred client targ
           outputs: ['{projectRoot}/src/generated'],
           options: { client: clientPath },
         },
-        lint: { dependsOn: ['generate', '^generate'] },
-        typecheck: { dependsOn: ['generate', '^generate'] },
+        lint: { dependsOn: ['generate-api-testing', '^generate-api-client', '^generate-api-testing'] },
+        typecheck: { dependsOn: ['generate-api-testing', '^generate-api-client', '^generate-api-testing'] },
       },
     });
     expect(generateTestingTarget(clientPath, 'x.yaml')['inputs']).toContain('{workspaceRoot}/x.yaml');

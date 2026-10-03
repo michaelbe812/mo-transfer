@@ -119,11 +119,11 @@ nx g @mo-transfer/tooling-openapi:client things-client --domain=payment --spec=.
 
 ## Verifikation (tatsächlich ausgeführt, `NX_DAEMON=false`)
 
-**In mo-transfer** (nach der Übernahme, Präfix `@mo-transfer/`): `nx run-many -t build lint test typecheck` grün (49 Projekte + 6 `generate`, 146 Tasks, inkl. `tooling-openapi:test` mit Jar), `pnpm verify` 181/181 Fälle, 0 Probleme, `nx sync:check` grün, `pnpm verify:nx-internals --update-snapshot` 7/7 (dist-Snapshot 532 Dateien), `nx run client:build` grün; Generator-E2E `domain payment` → `feat payment checkout --state --ui` → run-many + verify grün → `remove payment --force` → `git status` wie vorher.
+**In mo-transfer** (nach der Übernahme, Präfix `@mo-transfer/`): `nx run-many -t build lint test typecheck` grün (49 Projekte + 6 Generate-Tasks (`generate-api-client`/`generate-api-testing`), 146 Tasks, inkl. `tooling-openapi:test` mit Jar), `pnpm verify` 181/181 Fälle, 0 Probleme, `nx sync:check` grün, `pnpm verify:nx-internals --update-snapshot` 7/7 (dist-Snapshot 532 Dateien), `nx run client:build` grün; Generator-E2E `domain payment` → `feat payment checkout --state --ui` → run-many + verify grün → `remove payment --force` → `git status` wie vorher.
 
 In `sheriff-blue-print` (Herkunft), Stand nach `data` → `data-access` + `state`:
 
-- `nx run-many -t build lint test typecheck`: 49 Projekte + 6 `generate` grün (inkl. `tooling-openapi:test` mit Jar), 52 Projekte im Graph.
+- `nx run-many -t build lint test typecheck`: 49 Projekte + 6 Generate-Tasks (`generate-api-client`/`generate-api-testing`) grün (inkl. `tooling-openapi:test` mit Jar), 52 Projekte im Graph.
 - `pnpm verify`: **181/181 Fälle** (49 generierte Clients, 20 Tooling, 17 Namensregeln), Config-Wächter 41 Libs, Tag-Schema 43 Libs, Test-Isolation, neue Lib, Tooling-Libs, 9 Affected-Proben, 3 Clients (94 generierte Dateien), client-Bundle (14 Dateien) ohne msw/vitest/faker — 0 Probleme.
 - `pnpm verify:nx-internals --update-snapshot`: 7/7 grün (run-many `--skip-nx-cache`, dist-Snapshot neu: 532 Dateien, Marker „App baut gegen dist“, MSW-Probe auf `booking-state:test`, MSW-Worker, Vitest-UI-Hasher, verify).
 - `nx sync:check` grün, `nx run client:build` grün.

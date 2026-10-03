@@ -237,7 +237,7 @@ describe('serializeSpec', () => {
   it('YAML with source header / JSON by extension, Prettier without config file = defaults', async () => {
     // tmpdir: no .prettierrc above → resolveConfig null → Prettier defaults
     expect(await serializeSpec(document, 'libs/generated/a/openapi.yaml', 'https://a', 'generated-a', dir)).toBe(
-      '# Source: https://a\n# Update: nx run generated-a:update-spec (overwrites this file, normalized). Committed, the only source for generate.\nopenapi: 3.0.3\ninfo:\n  title: T\n  version: "1"\npaths: {}\n',
+      '# Source: https://a\n# Update: nx run generated-a:update-spec (overwrites this file, normalized). Committed, the only source for generate-api-client.\nopenapi: 3.0.3\ninfo:\n  title: T\n  version: "1"\npaths: {}\n',
     );
     expect(await serializeSpec(document, 'libs/generated/a/openapi.json', 'https://a', 'generated-a', dir)).toBe(
       '{\n  "openapi": "3.0.3",\n  "info": {\n    "title": "T",\n    "version": "1"\n  },\n  "paths": {}\n}\n',

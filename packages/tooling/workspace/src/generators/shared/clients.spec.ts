@@ -79,7 +79,7 @@ describe('move / rename / remove with OpenAPI clients', () => {
     const moved = readProject(tree, 'libs/booking/generated/demo-client/project.json');
     expect(moved.name).toBe('booking-generated-demo-client');
     expect(moved.tags).toEqual(['scope:booking', 'generated']);
-    // generate/update-spec follow the moved entry (inferred by the plugin), nothing to rewrite
+    // generate-api-client/update-spec follow the moved entry (inferred by the plugin), nothing to rewrite
     expect(moved.targets).toBeUndefined();
 
     await renameGenerator(tree, { path: 'booking/generated/demo-client', name: 'thing-client', skipFormat: true });
@@ -92,7 +92,7 @@ describe('move / rename / remove with OpenAPI clients', () => {
       'booking-generated-thing-client-core',
     ]);
     const testing = readProject(tree, 'libs/booking/generated/thing-client/testing/project.json');
-    expect(testing.targets.generate.options).toEqual({ client: 'booking/generated/thing-client' });
+    expect(testing.targets['generate-api-testing'].options).toEqual({ client: 'booking/generated/thing-client' });
     expect(pathsOf(tree)).toHaveProperty(['@mo-transfer/booking/generated/thing-client/api']);
     expect(read(tree, 'libs/booking/data-access/src/booking-api.spec.ts')).toBe(
       "import { thingClientHandlers, thingClientHttp } from '@mo-transfer/booking/generated/thing-client/testing';\nexport const h = [thingClientHandlers, thingClientHttp];\n",
@@ -113,8 +113,8 @@ describe('move / rename / remove with OpenAPI clients', () => {
     expect(testing.name).toBe('reservation-generated-demo-client-testing');
     expect(testing.tags).toEqual(['scope:reservation', 'type:testing', 'feat:none', 'generated']);
     expect(testing.implicitDependencies).toEqual(['reservation-generated-demo-client']);
-    expect(testing.targets.generate.options).toEqual({ client: 'reservation/generated/demo-client' });
-    expect(testing.targets.generate.inputs?.[0]).toBe(
+    expect(testing.targets['generate-api-testing'].options).toEqual({ client: 'reservation/generated/demo-client' });
+    expect(testing.targets['generate-api-testing'].inputs?.[0]).toBe(
       '{workspaceRoot}/libs/reservation/generated/demo-client/openapi.yaml',
     );
     expect(readProject(tree, 'libs/reservation/generated/demo-client/project.json').tags).toEqual([

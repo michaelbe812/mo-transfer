@@ -7,12 +7,12 @@
   "implicitDependencies": ["booking-generated-booking-client"],
   "targets": {
     "lint": {
-      "dependsOn": ["generate", "^generate"]
+      "dependsOn": ["generate-api-testing", "^generate-api-client", "^generate-api-testing"]
     },
     "typecheck": {
-      "dependsOn": ["generate", "^generate"]
+      "dependsOn": ["generate-api-testing", "^generate-api-client", "^generate-api-testing"]
     },
-    "generate": {
+    "generate-api-testing": {
       "executor": "@mo-transfer/tooling-openapi:generate-testing",
       "cache": true,
       "inputs": [

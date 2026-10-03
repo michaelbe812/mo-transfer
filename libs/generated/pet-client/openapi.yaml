@@ -1,5 +1,5 @@
 # Source: https://petstore3.swagger.io/api/v3/openapi.json
-# Update: nx run generated-pet-client:update-spec (overwrites this file, normalized). Committed, the only source for generate.
+# Update: nx run generated-pet-client:update-spec (overwrites this file, normalized). Committed, the only source for generate-api-client.
 openapi: 3.0.4
 info:
   title: Swagger Petstore - OpenAPI 3.0

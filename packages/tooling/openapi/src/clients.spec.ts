@@ -120,7 +120,7 @@ describe('openapi-clients.json on the Tree', () => {
         $schema: '../../../node_modules/nx/schemas/project-schema.json',
         tags: ['scope:shared', 'generated'],
         targets: {
-          generate: {
+          'generate-api-client': {
             inputs: ['{workspaceRoot}/libs/generated/x-client/openapi.yaml'],
             options: { client: 'generated/x-client' },
           },
@@ -135,7 +135,7 @@ describe('openapi-clients.json on the Tree', () => {
       $schema: '../../../../node_modules/nx/schemas/project-schema.json',
       tags: ['scope:booking', 'generated'],
       targets: {
-        generate: {
+        'generate-api-client': {
           inputs: ['{workspaceRoot}/libs/booking/generated/x-client/openapi.yaml'],
           options: { client: 'booking/generated/x-client' },
         },

@@ -133,7 +133,7 @@ export async function serializeSpec(document, file, url, projectName, workspaceR
     ? `${JSON.stringify(document, null, 2)}\n`
     : [
         `# Source: ${url}`,
-        `# Update: nx run ${projectName}:update-spec (overwrites this file, normalized). Committed, the only source for generate.`,
+        `# Update: nx run ${projectName}:update-spec (overwrites this file, normalized). Committed, the only source for generate-api-client.`,
         YAML.stringify(document, { lineWidth: 0, aliasDuplicateObjects: false }),
       ].join('\n');
   const prettier = await import('prettier').catch(() => undefined);
@@ -145,7 +145,7 @@ export async function serializeSpec(document, file, url, projectName, workspaceR
 
 /**
  * Downloads the spec from spec.url (JSON or YAML) and writes it normalized to spec.file.
- * The file stays the only source for generate (cache input); nothing is generated from the URL.
+ * The file stays the only source for generate-api-client (cache input); nothing is generated from the URL.
  */
 export async function updateSpec(client, workspaceRoot, projectName) {
   if (!client.spec.url) throw new Error(`${client.name}: no url (openapi-clients.json → clients → <path> → url)`);

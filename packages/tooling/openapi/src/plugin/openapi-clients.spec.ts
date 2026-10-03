@@ -28,7 +28,7 @@ describe('plugin: client targets inferred from openapi-clients.json', () => {
     vi.restoreAllMocks();
   });
 
-  it('generate + update-spec per entry, adapter inputs of the entry (no project.json → no node)', () => {
+  it('generate-api-client + update-spec per entry, adapter inputs of the entry (no project.json → no node)', () => {
     client('generated/pet-client');
     client('booking/generated/booking-client', 'openapi.json');
     config({
@@ -40,16 +40,18 @@ describe('plugin: client targets inferred from openapi-clients.json', () => {
 
     expect(Object.keys(projects)).toEqual(['libs/generated/pet-client', 'libs/booking/generated/booking-client']);
     const pet = projects['libs/generated/pet-client'].targets;
-    expect(Object.keys(pet)).toEqual(['generate', 'update-spec']);
-    expect(pet['generate']['options']).toEqual({ client: 'generated/pet-client' });
-    expect(pet['generate']['inputs']).toContainEqual({
+    expect(Object.keys(pet)).toEqual(['generate-api-client', 'update-spec']);
+    expect(pet['generate-api-client']['options']).toEqual({ client: 'generated/pet-client' });
+    expect(pet['generate-api-client']['inputs']).toContainEqual({
       json: '{workspaceRoot}/openapi-clients.json',
       fields: ['defaultAdapter', 'clients.generated/pet-client'],
     });
-    expect(pet['generate']['inputs']).toContainEqual({
+    expect(pet['generate-api-client']['inputs']).toContainEqual({
       externalDependencies: ['@hey-api/openapi-ts', 'typescript', 'yaml'],
     });
-    const booking = projects['libs/booking/generated/booking-client'].targets['generate']['inputs'] as unknown[];
+    const booking = projects['libs/booking/generated/booking-client'].targets['generate-api-client'][
+      'inputs'
+    ] as unknown[];
     expect(booking[0]).toBe('{workspaceRoot}/libs/booking/generated/booking-client/openapi.json');
     expect(booking).toContainEqual({ runtime: 'java -version 2>&1' });
     expect(warn).not.toHaveBeenCalled();

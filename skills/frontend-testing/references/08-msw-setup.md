@@ -68,8 +68,8 @@ Add the `type:testing` constraints and the bans on test packages to the ESLint c
 
 ## 6. Optional: generated mocks from OpenAPI
 
-Per client a generated `<client>/testing` lib (openapi-typescript + orval + openapi-msw) with a `generate` target;
-the `test` target `dependsOn: ["^generate"]` (→ `05-msw.md` §5).
+Per client a generated `<client>/testing` lib (openapi-typescript + orval + openapi-msw) with a `generate-api-testing` target;
+the `test` target `dependsOn: ["^generate-api-client", "^generate-api-testing"]` (→ `05-msw.md` §5).
 
 ## 7. First spec and verification
 

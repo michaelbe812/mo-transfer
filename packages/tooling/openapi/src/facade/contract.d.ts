@@ -7,7 +7,7 @@
 
 /**
  * One client. Built by the facade (resolveClient) from its entry in openapi-clients.json + the client folder
- * at run time — the `generate` / `update-spec` targets only carry the `client` path (the entry is a json input).
+ * at run time — the `generate-api-client` / `update-spec` targets only carry the `client` path (the entry is a json input).
  */
 export interface ClientDefinition {
   /** folder name, e.g. 'pet-client' */
@@ -61,7 +61,7 @@ export interface GeneratorAdapter {
 
 /**
  * Registry entry (adapters/registry.json), read synchronously by the client generator (project.json inputs) and verify:
- * cache inputs of the `generate` target.
+ * cache inputs of the `generate-api-client` target.
  */
 export interface AdapterRegistration {
   module: string;

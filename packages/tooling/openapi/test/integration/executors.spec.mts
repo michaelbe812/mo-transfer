@@ -45,7 +45,7 @@ describe('executors', () => {
     addClient(root, 'generated/things-client', { entry: { adapter: 'hey-api' } });
     const result = await generateExecutor(
       { client: 'generated/things-client' },
-      executorContext(root, 'generated-things-client', 'generate'),
+      executorContext(root, 'generated-things-client', 'generate-api-client'),
     );
     expect(result).toEqual({ success: true });
     expect(filesBelow(join(root, 'libs/generated/things-client/types/src/generated'))).toContain('types.gen.ts');
@@ -55,7 +55,7 @@ describe('executors', () => {
   it('generate: reports failure (no entry) instead of throwing', async () => {
     const result = await generateExecutor(
       { client: 'generated/missing-client' },
-      executorContext(root, 'x', 'generate'),
+      executorContext(root, 'x', 'generate-api-client'),
     );
     expect(result).toEqual({ success: false });
     expect(console.error).toHaveBeenCalledWith('openapi-clients.json has no entry "generated/missing-client"');
@@ -64,7 +64,7 @@ describe('executors', () => {
   it('generate-testing: the testing lib from the spec only', async () => {
     const result = await generateTestingExecutor(
       { client: 'generated/things-client' },
-      executorContext(root, 'generated-things-client-testing', 'generate'),
+      executorContext(root, 'generated-things-client-testing', 'generate-api-testing'),
     );
     expect(result).toEqual({ success: true });
     expect(existsSync(join(root, 'libs/generated/things-client/testing/src/generated/handlers.ts'))).toBe(true);
@@ -75,7 +75,10 @@ describe('executors', () => {
 
   it('generate-testing: reports failure', async () => {
     expect(
-      await generateTestingExecutor({ client: 'generated/missing-client' }, executorContext(root, 'x', 'generate')),
+      await generateTestingExecutor(
+        { client: 'generated/missing-client' },
+        executorContext(root, 'x', 'generate-api-testing'),
+      ),
     ).toEqual({
       success: false,
     });
@@ -94,7 +97,7 @@ describe('executors', () => {
     expect(spec).toBe(
       [
         `# Source: ${server.url('/remote.json')}`,
-        '# Update: nx run generated-remote-client:update-spec (overwrites this file, normalized). Committed, the only source for generate.',
+        '# Update: nx run generated-remote-client:update-spec (overwrites this file, normalized). Committed, the only source for generate-api-client.',
         'openapi: 3.0.3',
         'info:',
         '  title: Remote',

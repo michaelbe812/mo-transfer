@@ -65,7 +65,7 @@ export const CLIENT_PARTS: Record<string, string> = {
   core: 'data-access',
   testing: TESTING_LAYER,
 };
-/** Parts written by the code generator adapter (the facade); `testing` has its own generate target. */
+/** Parts written by the code generator adapter (the facade); `testing` has its own target generate-api-testing. */
 export const CLIENT_CODE_PARTS = ['types', 'api', 'core'];
 
 /** kebab-case: scope, feat, client, folder and file names (`check-booking`). */

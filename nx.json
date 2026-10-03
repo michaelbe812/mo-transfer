@@ -32,7 +32,7 @@
     "lint": {
       "executor": "nx:run-commands",
       "cache": true,
-      "dependsOn": ["^generate"],
+      "dependsOn": ["^generate-api-client", "^generate-api-testing"],
       "inputs": [
         "default",
         "^default",
@@ -57,7 +57,7 @@
     "typecheck": {
       "executor": "nx:run-commands",
       "cache": true,
-      "dependsOn": ["^generate"],
+      "dependsOn": ["^generate-api-client", "^generate-api-testing"],
       "inputs": [
         "default",
         "^default",
@@ -77,7 +77,7 @@
     "build": {
       "executor": "@nx/angular:ng-packagr-lite",
       "cache": true,
-      "dependsOn": ["^build", "^generate"],
+      "dependsOn": ["^build", "^generate-api-client", "^generate-api-testing"],
       "inputs": [
         "production",
         "^production",
@@ -106,7 +106,7 @@
     "test": {
       "executor": "@mo-transfer/tooling-ng-lib:test",
       "cache": true,
-      "dependsOn": ["^generate"],
+      "dependsOn": ["^generate-api-client", "^generate-api-testing"],
       "inputs": [
         "default",
         "^production",

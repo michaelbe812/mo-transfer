@@ -1,4 +1,4 @@
-# Hand-written (no url): backend contract of the booking domain. Committed, the only source for generate.
+# Hand-written (no url): backend contract of the booking domain. Committed, the only source for generate-api-client.
 openapi: 3.0.3
 info:
   title: Booking API

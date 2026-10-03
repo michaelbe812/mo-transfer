@@ -20,7 +20,7 @@ Voraussetzungen: Node 22, pnpm 10, Java 11+ (OpenAPI-Adapter `openapi-tools`).
 ```sh
 pnpm install
 pnpm exec playwright install chromium               # Browser für Vitest Browser Mode
-pnpm exec nx run-many -t build lint test typecheck  # generiert OpenAPI-Clients per ^generate
+pnpm exec nx run-many -t build lint test typecheck  # generiert OpenAPI-Clients per ^generate-api-client/-testing
 pnpm verify                                         # Boundary-Fälle, Config, Tags, Clients
 pnpm exec nx sync:check                             # app.routes.ts ↔ Slice-Shells, Lib-Tags
 pnpm exec nx serve client

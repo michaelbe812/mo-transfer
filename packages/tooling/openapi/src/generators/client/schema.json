@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/schema",
   "$id": "BlueprintClient",
   "title": "Generierter OpenAPI-Client",
-  "description": "libs/[<domain>/]generated/<name>/{openapi.yaml|json, types, api, core, testing} (nur src/index.ts), Eintrag in openapi-clients.json. Der Code entsteht per generate-Target.",
+  "description": "libs/[<domain>/]generated/<name>/{openapi.yaml|json, types, api, core, testing} (nur src/index.ts), Eintrag in openapi-clients.json. Der Code entsteht per Target generate-api-client (types/api/core) bzw. generate-api-testing (testing).",
   "type": "object",
   "properties": {
     "name": {

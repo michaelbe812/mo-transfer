@@ -1,8 +1,8 @@
 /**
  * `nx` itself in a fixture workspace configured like the repo (nx.json targetDefaults + plugins, lib-scopes.json,
  * exact tooling paths): `nx g @mo-transfer/tooling-openapi:client` writes the config, Nx reads it (tags, edges,
- * targets, inputs from targetDefaults), the plugin infers the client's generate/update-spec (json fields) and
- * `nx run …:generate` runs through the real executors, cached on the second run.
+ * targets, inputs from targetDefaults), the plugin infers the client's generate-api-client/update-spec (json fields) and
+ * `nx run …:generate-api-client` / `…-testing:generate-api-testing` run through the real executors, cached on the second run.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -43,7 +43,7 @@ describe('nx in a fixture workspace', () => {
     // the repo's manifest + lockfile: Nx resolves the externalDependencies inputs (adapter versions) from them
     write(root, 'package.json', readFileSync(join(repoRoot, 'package.json'), 'utf-8'));
     write(root, 'pnpm-lock.yaml', readFileSync(join(repoRoot, 'pnpm-lock.yaml'), 'utf-8'));
-    // the repo's targetDefaults (lint/typecheck/build/test bodies, ^generate, dependentTasksOutputFiles) + plugins
+    // the repo's targetDefaults (lint/typecheck/build/test bodies, ^generate-api-client/-testing, dependentTasksOutputFiles) + plugins
     write(root, 'nx.json', readFileSync(join(repoRoot, 'nx.json'), 'utf-8'));
     write(root, 'lib-scopes.json', JSON.stringify({ scopes: ['booking', 'shared'] }));
     // like the repo: exact paths for the tooling exports (Nx loads generators with swc + these paths)
@@ -62,13 +62,21 @@ describe('nx in a fixture workspace', () => {
   });
   afterAll(() => removeWorkspace(root));
 
-  it('reads the config the generator wrote + the inferred client targets: part libs, edges, generate', () => {
+  it('reads the config the generator wrote + the inferred client targets: part libs, edges, generate targets', () => {
     const testing = project('booking-generated-things-client-testing');
     expect(testing.tags).toEqual(['scope:booking', 'type:testing', 'feat:none', 'generated']);
     expect(testing.implicitDependencies).toEqual(['booking-generated-things-client']);
-    expect(testing.targets.generate.executor).toBe('@mo-transfer/tooling-openapi:generate-testing');
-    expect(testing.targets.lint.dependsOn).toEqual(['generate', '^generate']);
-    expect(testing.targets.typecheck.dependsOn).toEqual(['generate', '^generate']);
+    expect(testing.targets['generate-api-testing'].executor).toBe('@mo-transfer/tooling-openapi:generate-testing');
+    expect(testing.targets.lint.dependsOn).toEqual([
+      'generate-api-testing',
+      '^generate-api-client',
+      '^generate-api-testing',
+    ]);
+    expect(testing.targets.typecheck.dependsOn).toEqual([
+      'generate-api-testing',
+      '^generate-api-client',
+      '^generate-api-testing',
+    ]);
     expect(testing.targets.typecheck.options.command).toBe(
       'tsc -p libs/booking/generated/things-client/testing/tsconfig.json',
     );
@@ -85,19 +93,19 @@ describe('nx in a fixture workspace', () => {
       'booking-generated-things-client-core',
     ]);
     expect(api.targets.build.executor).toBe('@nx/angular:ng-packagr-lite');
-    expect(api.targets.build.dependsOn).toEqual(['^build', '^generate']);
+    expect(api.targets.build.dependsOn).toEqual(['^build', '^generate-api-client', '^generate-api-testing']);
     expect(api.metadata.js.packageName).toBe('@mo-transfer/booking/generated/things-client/api');
 
     const client = project('booking-generated-things-client');
     expect(client.tags).toEqual(['scope:booking', 'generated']);
-    expect(client.targets.generate.inputs).toContainEqual({
+    expect(client.targets['generate-api-client'].inputs).toContainEqual({
       json: '{workspaceRoot}/openapi-clients.json',
       fields: ['defaultAdapter', 'clients.booking/generated/things-client'],
     });
-    expect(client.targets.generate.inputs).toContainEqual({
+    expect(client.targets['generate-api-client'].inputs).toContainEqual({
       externalDependencies: ['@hey-api/openapi-ts', 'typescript', 'yaml'],
     });
-    expect(client.targets.generate.options).toEqual({ client: 'booking/generated/things-client' });
+    expect(client.targets['generate-api-client'].options).toEqual({ client: 'booking/generated/things-client' });
     expect(client.targets['update-spec'].executor).toBe('@mo-transfer/tooling-openapi:update-spec');
     // inferred, not written: the client project.json holds name + tags only
     expect(
@@ -108,16 +116,16 @@ describe('nx in a fixture workspace', () => {
     ]);
   });
 
-  it('nx run …:generate runs the executors; the second run comes from the cache', () => {
-    expect(nx('run', 'booking-generated-things-client:generate')).toContain(
+  it('nx run …:generate-api-client/-testing runs the executors; the second run comes from the cache', () => {
+    expect(nx('run', 'booking-generated-things-client:generate-api-client')).toContain(
       'booking-generated-things-client: hey-api → {"types":1',
     );
     expect(existsSync(join(root, 'libs/booking/generated/things-client/api/src/generated/sdk.gen.ts'))).toBe(true);
-    expect(nx('run', 'booking-generated-things-client:generate')).toMatch(
+    expect(nx('run', 'booking-generated-things-client:generate-api-client')).toMatch(
       /local cache|existing outputs match the cache/,
     );
 
-    expect(nx('run', 'booking-generated-things-client-testing:generate')).toContain(
+    expect(nx('run', 'booking-generated-things-client-testing:generate-api-testing')).toContain(
       'booking-generated-things-client-testing:',
     );
     expect(existsSync(join(root, 'libs/booking/generated/things-client/testing/src/generated/handlers.ts'))).toBe(true);

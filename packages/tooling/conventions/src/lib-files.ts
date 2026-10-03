@@ -36,7 +36,7 @@ export interface LibConfigOptions extends BlueprintLibsOptions {
   peerDependencies?: Record<string, string>;
   /** project.json implicitDependencies (generated client parts: → client, → sibling parts) */
   implicitDependencies?: string[];
-  /** extra or overriding targets (generated client testing part: its own `generate`, dependsOn) */
+  /** extra or overriding targets (generated client testing part: its own `generate-api-testing`, dependsOn) */
   targets?: Record<string, JsonObject>;
 }
 
