@@ -33,7 +33,7 @@ import {
   overlayFiles,
   settingsOf,
 } from './config';
-import { moduleCacheInputs, parseModuleRef } from './registry/module-ref';
+import { findPackageDir, moduleCacheInputs, parseModuleRef } from './registry/module-ref';
 import { adapterCacheInputs, type AdapterRegistry, resolveAdapter, resolveAdapterRegistry } from './registry/registry';
 import {
   type ClientPart,
@@ -197,8 +197,20 @@ function pipelineInputs(entry: ClientEntry | undefined, workspaceRoot: string): 
 
 const unique = <T>(items: T[]): T[] => [...new Set(items)];
 
+/**
+ * Only installed packages become externalDependencies: Nx' hasher fails the task for an unknown one
+ * ("externalDependency … could not be found"). The rest is collected in `missing` (metadata + warning, verify).
+ */
+function installedOnly(workspaceRoot: string, packages: string[], missing?: Set<string>): string[] {
+  return unique(packages).filter((name) => {
+    if (findPackageDir(workspaceRoot, name)) return true;
+    missing?.add(name);
+    return false;
+  });
+}
+
 /** `generate-api-client` of the client project: pipeline (client preset) + the entry's adapter. */
-export function generateTarget(context: InferenceContext, clientPath: string, specFile: string): TargetJson {
+export function generateTarget(context: InferenceContext, clientPath: string, specFile: string, missing?: Set<string>): TargetJson {
   const { config, settings, workspaceRoot } = context;
   const entry = config.clients?.[clientPath];
   const adapter = resolveAdapter(context.registry, adapterIdOf(config, clientPath), clientPath);
@@ -226,7 +238,7 @@ export function generateTarget(context: InferenceContext, clientPath: string, sp
       ...tooling.files,
       ...adapterInputs.files,
       ...pipeline.files,
-      { externalDependencies: unique([...adapterInputs.packages, ...pipeline.packages, ...tooling.packages]) },
+      { externalDependencies: installedOnly(workspaceRoot, [...adapterInputs.packages, ...pipeline.packages, ...tooling.packages], missing) },
       ...adapterInputs.runtime.map((runtime) => ({ runtime })),
     ],
     outputs: codePartsOf(entry).map((part) => `{projectRoot}/${part}/src/${settings.outputDir}`),
@@ -251,7 +263,7 @@ export function updateSpecTarget(clientPath: string): TargetJson {
  * `generate-api-testing` of a client's testing lib: pipeline (testing preset) → openapi-typescript + orval mocks +
  * openapi-msw. Independent of the adapter — a switch keeps its cache.
  */
-export function generateTestingTarget(context: InferenceContext, clientPath: string, specFile: string): TargetJson {
+export function generateTestingTarget(context: InferenceContext, clientPath: string, specFile: string, missing?: Set<string>): TargetJson {
   const { config, settings, workspaceRoot } = context;
   const entry = config.clients?.[clientPath];
   const pipeline = pipelineInputs(entry, workspaceRoot);
@@ -265,7 +277,9 @@ export function generateTestingTarget(context: InferenceContext, clientPath: str
       { json: `{workspaceRoot}/${CLIENTS_CONFIG_FILE}`, fields: ['settings', `clients.${clientPath}.pipeline`] },
       ...tooling.files,
       ...pipeline.files,
-      { externalDependencies: unique([...TESTING_PACKAGES[mockEngineOf(settings, entry)], ...pipeline.packages, ...tooling.packages]) },
+      {
+        externalDependencies: installedOnly(workspaceRoot, [...TESTING_PACKAGES[mockEngineOf(settings, entry)], ...pipeline.packages, ...tooling.packages], missing),
+      },
     ],
     outputs: [`{projectRoot}/src/${settings.outputDir}`],
     options: { client: clientPath },
@@ -313,6 +327,8 @@ export interface ClientMetadata {
   mocks?: MockEngine;
   parts: ClientPart[];
   problem?: string;
+  /** declared packages (adapter, transforms, prettier, testing) that are not installed: left out of the cache inputs */
+  missingPackages?: string[];
   /** experimental features the entry uses with their flag off (generate fails, verify reports) */
   disabledFeatures?: string[];
 }
@@ -345,11 +361,13 @@ export function inferClientTargets(context: InferenceContext, clientPath: string
   try {
     assertClientPath(clientPath, settings);
     const specFile = findSpecFile(exists, settings, clientPath);
-    targets[root][targetNames.client] = generateTarget(context, clientPath, specFile);
+    const missing = new Set<string>();
+    targets[root][targetNames.client] = generateTarget(context, clientPath, specFile, missing);
     const testingRoot = `${root}/${TESTING_PART}`;
     if (hasTesting(entry) && exists(`${testingRoot}/project.json`)) {
-      targets[testingRoot] = { [targetNames.testing]: generateTestingTarget(context, clientPath, specFile) };
+      targets[testingRoot] = { [targetNames.testing]: generateTestingTarget(context, clientPath, specFile, missing) };
     }
+    if (missing.size) metadata.missingPackages = [...missing];
   } catch (error) {
     metadata.problem = (error as Error).message;
   }

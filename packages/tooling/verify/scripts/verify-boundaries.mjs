@@ -622,6 +622,7 @@ function checkGeneratedClients(projectGraph) {
     const openapi = node.data.metadata?.openapi;
     if (!openapi) problems.push(`${node.name}: no openapi metadata (plugin ${OPENAPI_PLUGIN} not run?)`);
     if (openapi?.problem) problems.push(`${root}: ${openapi.problem}`);
+    if (openapi?.missingPackages?.length) problems.push(`${root}: declared but not installed: ${openapi.missingPackages.join(', ')} (no cache input)`);
     for (const feature of openapi?.disabledFeatures ?? []) {
       problems.push(`${root}: uses the experimental feature "${feature}" with its flag off (openapi-clients.json → settings.features.${feature})`);
     }

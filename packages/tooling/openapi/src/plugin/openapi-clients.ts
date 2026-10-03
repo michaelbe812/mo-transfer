@@ -71,6 +71,9 @@ export function inferClientNodes(workspaceRoot: string, options?: OpenApiPluginO
     if (metadata.problem) {
       logger.warn(`${CLIENTS_CONFIG_FILE} → "${clientPath}": ${metadata.problem} — no ${context.targetNames.client} target (verify reports it)`);
     }
+    if (metadata.missingPackages) {
+      logger.warn(`${CLIENTS_CONFIG_FILE} → "${clientPath}": not installed: ${metadata.missingPackages.join(', ')} — left out of the cache inputs (install them or drop them from the config)`);
+    }
     if (metadata.disabledFeatures) {
       logger.warn(`${CLIENTS_CONFIG_FILE} → "${clientPath}": uses ${metadata.disabledFeatures.join(', ')} with the feature flag off — ${context.targetNames.client} will fail (settings.features)`);
     }

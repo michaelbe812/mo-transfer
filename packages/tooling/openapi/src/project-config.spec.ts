@@ -39,6 +39,10 @@ describe('client config (project.json of clients and parts, inferred targets)', 
 
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'openapi-config-'));
+    // installed packages (only those become externalDependencies, M1)
+    for (const name of ['typescript', 'yaml', 'orval', 'openapi-typescript', 'prettier', '@acme/transform', '@openapitools/openapi-generator-cli', '@hey-api/openapi-ts', '@mo-transfer/tooling-openapi']) {
+      write(`node_modules/${name}/package.json`, '{}');
+    }
   });
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
@@ -145,6 +149,17 @@ describe('client config (project.json of clients and parts, inferred targets)', 
     expect(toolingMode(DEFAULT_SETTINGS, root)).toBe('none');
     expect(schemaPathFor(REPO_ROOT)).toBe(`./${relative(REPO_ROOT, join(__dirname, '..'))}/openapi-clients.schema.json`);
     expect(schemaPathFor('/does/not/exist')).toBe('./node_modules/@mo-transfer/tooling-openapi/openapi-clients.schema.json');
+  });
+
+  it('declared but not installed packages stay out of externalDependencies and are reported (M1)', () => {
+    client('generated/pet-client');
+    rmSync(join(root, 'node_modules/prettier'), { recursive: true });
+    const config: ClientsConfig = { clients: { 'generated/pet-client': { pipeline: { format: true, transforms: ['@acme/missing'] } } } };
+    const { targets, metadata } = inferClientTargets(context(config), 'generated/pet-client');
+    expect(metadata.missingPackages).toEqual(['@acme/missing', 'prettier']);
+    expect(targets['libs/generated/pet-client']['generate-api-client']['inputs']).toContainEqual({
+      externalDependencies: ['@openapitools/openapi-generator-cli', 'typescript', 'yaml'],
+    });
   });
 
   it('generate-api-testing: spec, overlays, pipeline field, testing packages — independent of the adapter', () => {
