@@ -125,43 +125,54 @@ async function dynamicImport(specifier: string): Promise<unknown> {
   }
 }
 
-let tsHookInstalled = false;
+type Loader = (module: { _compile(code: string, file: string): void }, file: string) => void;
+const TS_EXTENSIONS = ['.ts', '.cts'];
+
+const insideAny = (file: string, roots: readonly string[]): boolean =>
+  roots.some((root) => file === root || file.startsWith(`${root}${sep}`));
+
+/** TypeScript transpileModule → CommonJS (no type check: that is typecheck's job). */
+const transpile: Loader = (module, file) => {
+  const { outputText } = ts.transpileModule(readFileSync(file, 'utf-8'), {
+    fileName: file,
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true, inlineSourceMap: true },
+  });
+  module._compile(outputText, file);
+};
 
 /**
- * require hook for .ts/.cts outside node_modules: TypeScript transpileModule → CommonJS. Installed once and kept
- * (the modules it loads may require further .ts files lazily); it only handles files the previous handler
- * would not (Node has none for .ts), never touches .js. Type errors are not reported here (that is typecheck's job).
+ * Runs `load` with a require hook for .ts/.cts below `roots` (the folder of the module being loaded): those are
+ * transpiled by TypeScript — also below node_modules, where Node's own type stripping (≥ 22.18) refuses. Every
+ * other .ts goes to the previous handler (Nx' swc hook, Node's type stripping); without one, it is transpiled, too.
+ * The previous handlers are restored afterwards: a module must import its .ts helpers statically (top level) — a
+ * lazy require() of further .ts files at run time is not supported (the same rule Nx sets for this package).
  */
-export function ensureTsRequireHook(): void {
-  if (tsHookInstalled) return;
-  tsHookInstalled = true;
-  type Loader = (module: { _compile(code: string, file: string): void }, file: string) => void;
-  const extensions = (nodeRequire('node:module') as { _extensions: Record<string, Loader> })._extensions;
-  for (const extension of ['.ts', '.cts']) {
-    const previous = extensions[extension];
-    extensions[extension] = (module, file) => {
-      if (previous && file.split(sep).includes('node_modules')) return previous(module, file);
-      const { outputText } = ts.transpileModule(readFileSync(file, 'utf-8'), {
-        fileName: file,
-        compilerOptions: {
-          module: ts.ModuleKind.CommonJS,
-          target: ts.ScriptTarget.ES2022,
-          esModuleInterop: true,
-          inlineSourceMap: true,
-        },
-      });
-      module._compile(outputText, file);
-    };
+export function withTsRequireHook<T>(roots: readonly string[], load: () => T): T {
+  const extensions = (nodeRequire('node:module') as { _extensions: Record<string, Loader | undefined> })._extensions;
+  const saved = TS_EXTENSIONS.map((extension) => [extension, extensions[extension]] as const);
+  for (const [extension, previous] of saved) {
+    extensions[extension] = (module, file) => (previous && !insideAny(file, roots) ? previous(module, file) : transpile(module, file));
+  }
+  try {
+    return load();
+  } finally {
+    for (const [extension, previous] of saved) {
+      if (previous) extensions[extension] = previous;
+      else delete extensions[extension];
+    }
   }
 }
 
-async function loadFile(file: string, format: ModuleFormat): Promise<unknown> {
+/** A module may have changed since the last load in this process (tests, watch): its whole folder loads fresh. */
+function clearRequireCache(root: string): void {
+  for (const key of Object.keys(nodeRequire.cache)) if (insideAny(key, [root])) delete nodeRequire.cache[key];
+}
+
+async function loadFile(file: string, format: ModuleFormat, root: string): Promise<unknown> {
   if (format === 'esm') return dynamicImport(pathToFileURL(file).href);
-  if (format === 'ts') ensureTsRequireHook();
-  // a workspace module may have changed since the last load in this process (tests, watch): load it fresh
-  delete nodeRequire.cache[realpathSync(file)];
+  clearRequireCache(root);
   try {
-    return nodeRequire(file);
+    return format === 'ts' ? withTsRequireHook([root], () => nodeRequire(file)) : nodeRequire(file);
   } catch (error) {
     // .js that is ESM after all, or ESM with top-level await (require(esm) refuses it)
     const code = (error as NodeJS.ErrnoException).code;
@@ -174,12 +185,14 @@ async function loadFile(file: string, format: ModuleFormat): Promise<unknown> {
 export async function loadModule(ref: ModuleRef, workspaceRoot: string): Promise<unknown> {
   if (ref.kind === 'workspace') {
     if (!ref.absoluteFile) throw new Error(`${ref.specifier} not found`);
-    const file = ref.absoluteFile;
-    return loadFile(file, formatOf(file, nearestPackageType(file)));
+    const file = realpathSync(ref.absoluteFile);
+    return loadFile(file, formatOf(file, nearestPackageType(file)), dirname(file));
   }
   if (ref.kind === 'package') {
     const { file, format } = resolvePackageEntry(workspaceRoot, ref.specifier);
-    return loadFile(file, format);
+    const real = realpathSync(file);
+    const packageDir = realpathSync(findPackageDir(workspaceRoot, splitPackageSpecifier(ref.specifier).name) as string);
+    return loadFile(real, format, packageDir);
   }
   throw new Error(`${ref.specifier}: built-in modules are not loaded from disk`);
 }
