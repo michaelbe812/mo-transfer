@@ -6,7 +6,7 @@ import type { Tree } from '@nx/devkit';
 import { KEBAB_CASE } from './settings';
 
 export const readJsonFile = <T = Record<string, unknown>>(tree: Tree, path: string): T =>
-  JSON.parse(tree.read(path, 'utf-8') ?? '{}') as T;
+  JSON.parse(tree.read(path, 'utf-8') as string) as T;
 
 /** 2 spaces + newline; formatFiles (prettier) normalizes the layout afterwards. */
 export const writeJsonFile = (tree: Tree, path: string, json: unknown): void =>
@@ -47,7 +47,7 @@ export function forEachSourceFile(tree: Tree, roots: string[], callback: (path: 
     for (const child of tree.children(dir)) {
       const path = `${dir}/${child}`;
       if (tree.isFile(path)) {
-        if (/\.(ts|mts|cts|js|mjs|cjs|html)$/.test(child)) callback(path, tree.read(path, 'utf-8') ?? '');
+        if (/\.(ts|mts|cts|js|mjs|cjs|html)$/.test(child)) callback(path, tree.read(path, 'utf-8') as string);
       } else if (!['node_modules', 'dist', 'tmp'].includes(child)) {
         visit(path);
       }

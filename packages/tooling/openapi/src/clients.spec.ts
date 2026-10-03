@@ -88,6 +88,9 @@ describe('openapi-clients.json on the Tree', () => {
     );
     tree.write('apps/client/src/main.ts', 'const u = demoClientBaseUrl;\n');
     tree.write('libs/booking/data-access/src/b.ts', 'export const other = 1;\n');
+    // not source: other extensions, node_modules/dist/tmp
+    tree.write('libs/booking/data-access/README.md', 'demoClientHttp\n');
+    tree.write('libs/node_modules/x/index.ts', 'demoClientHttp;\n');
 
     expect(renameClientExports(tree, 'generated/demo-client', 'booking/generated/thing-client')).toEqual([
       'apps/client/src/main.ts',
