@@ -500,7 +500,7 @@ function checkLibConfig(root, paths) {
     if (project.name !== name) problem('project.json', `name must be "${name}"`);
     if (project.sourceRoot !== `${root}/src`) problem('project.json', `sourceRoot must be "${root}/src"`);
     const targets = Object.keys(project.targets ?? {}).sort();
-    const expected = [...(testing ? [] : ['build']), 'lint', 'typecheck', ...(specs ? ['test'] : []), ...(generated && testing ? [TESTING_GENERATE_TARGET] : [])].sort();
+    const expected = [...(testing ? [] : ['build']), 'lint', 'typecheck', ...(specs ? ['test'] : [])].sort(); // generate-api-testing of a client's testing lib is inferred (plugin)
     if (!sameSet(targets, expected)) problem('project.json', `targets ${JSON.stringify(targets)}, expected ${JSON.stringify(expected)}`);
   });
   check('tsconfig.json', (tsconfig) => {
@@ -566,6 +566,9 @@ function checkLibConfigFiles(libRoots = undefined) {
  *   git          nothing below src/generated/ is committed, every generated file is gitignored
  */
 const CLIENT_PARTS = ['types', 'api', 'core', 'testing'];
+/** libs of an entry: core merged into api with `layout: merged-core`, no testing lib with `pipeline.testing: false` */
+const partsOfEntry = (entry) =>
+  CLIENT_PARTS.filter((part) => !(part === 'core' && entry.layout === 'merged-core') && !(part === 'testing' && entry.pipeline?.testing === false));
 const OPENAPI_PLUGIN = '@mo-transfer/tooling-openapi/plugin';
 const COMMITTED_INDEX = "export * from './generated';\n";
 /** target names (packages/tooling/openapi/src/project-config.ts): client project / testing lib */
@@ -580,7 +583,6 @@ function checkGeneratedClients(projectGraph) {
   const nodes = Object.values(projectGraph.nodes).filter(({ data }) => data.root.startsWith('libs/'));
   const clientNodes = nodes.filter(({ data }) => data.tags?.includes('generated') && !isLibRoot(data.root));
   const parts = nodes.filter(({ data }) => data.tags?.includes('generated') && isLibRoot(data.root));
-  const registry = readJson('packages/tooling/openapi/src/facade/adapters/registry.json');
   const clientFolders = readdirSync('libs', { recursive: true })
     .map(String)
     .filter((path) => /^([a-z][a-z0-9-]*\/)?generated\/[a-z][a-z0-9-]*$/.test(path) && statSync(join('libs', path)).isDirectory());
@@ -592,7 +594,11 @@ function checkGeneratedClients(projectGraph) {
     const root = `libs/${clientPath}`;
     const specs = ['openapi.yaml', 'openapi.json'].filter((file) => existsSync(join(root, file)));
     if (specs.length !== 1) problems.push(`${root}: needs exactly one spec (openapi.yaml|json), found ${specs.length}`);
-    for (const part of CLIENT_PARTS) {
+    const expectedParts = partsOfEntry(entries[clientPath]);
+    for (const part of CLIENT_PARTS.filter((name) => !expectedParts.includes(name))) {
+      if (existsSync(join(root, part))) problems.push(`${root}/${part}: no ${part} lib for this entry (layout/pipeline.testing) — remove the folder or the setting`);
+    }
+    for (const part of expectedParts) {
       const index = join(root, part, 'src/index.ts');
       if (!existsSync(index)) problems.push(`${index}: missing`);
       else if (readFileSync(index, 'utf-8') !== COMMITTED_INDEX) problems.push(`${index}: must be exactly "${COMMITTED_INDEX.trim()}"`);
@@ -610,9 +616,15 @@ function checkGeneratedClients(projectGraph) {
     if (!generate?.cache) problems.push(`${node.name}: ${CLIENT_GENERATE_TARGET} must be cached`);
     if (!generate?.inputs?.includes(`{workspaceRoot}/${root}/${specs[0]}`)) problems.push(`${node.name}: spec must be a ${CLIENT_GENERATE_TARGET} input`);
     // generate-api-client/update-spec come from the plugin (packages/tooling/openapi/src/plugin), the adapter inputs
-    // follow the entry; an unknown adapter or a broken spec leaves the client without it (the plugin only warns)
-    const adapter = entries[clientPath].adapter ?? config.defaultAdapter ?? 'openapi-tools';
-    if (!registry[adapter]) problems.push(`${root}: unknown adapter "${adapter}" in openapi-clients.json`);
+    // follow the entry. The plugin runs THE adapter registry (built-ins + openapi-clients.json → adapters) and puts
+    // its verdict into the project metadata: unknown/unloadable adapter, broken spec, features used with their flag off
+    const openapi = node.data.metadata?.openapi;
+    if (!openapi) problems.push(`${node.name}: no openapi metadata (plugin ${OPENAPI_PLUGIN} not run?)`);
+    if (openapi?.problem) problems.push(`${root}: ${openapi.problem}`);
+    for (const feature of openapi?.disabledFeatures ?? []) {
+      problems.push(`${root}: uses the experimental feature "${feature}" with its flag off (openapi-clients.json → settings.features.${feature})`);
+    }
+    if (openapi && JSON.stringify(openapi.parts) !== JSON.stringify(expectedParts)) problems.push(`${node.name}: parts ${JSON.stringify(openapi.parts)} ≠ entry ${JSON.stringify(expectedParts)}`);
     const explicitTargets = Object.keys(readJson(join(root, 'project.json')).targets ?? {}).filter((target) => [CLIENT_GENERATE_TARGET, 'update-spec'].includes(target));
     if (explicitTargets.length) problems.push(`${root}/project.json: ${explicitTargets.join(', ')} explicit — inferred from openapi-clients.json (${OPENAPI_PLUGIN}), remove it`);
     if (!generate?.outputs?.every((output) => output.endsWith('/src/generated'))) problems.push(`${node.name}: outputs must be the src/generated folders`);
@@ -631,6 +643,8 @@ function checkGeneratedClients(projectGraph) {
     }
     if (data.root.endsWith('/testing')) {
       const generate = data.targets?.[TESTING_GENERATE_TARGET];
+      // inferred by the plugin like the client targets — never written into the testing lib's project.json
+      if (readJson(join(data.root, 'project.json')).targets?.[TESTING_GENERATE_TARGET]) problems.push(`${data.root}/project.json: ${TESTING_GENERATE_TARGET} explicit — inferred by ${OPENAPI_PLUGIN}, remove it`);
       if (!generate?.cache || !generate.outputs?.includes('{projectRoot}/src/generated')) problems.push(`${name}: testing lib needs a cached ${TESTING_GENERATE_TARGET} → src/generated`);
       for (const target of ['lint', 'typecheck']) {
         if (!data.targets?.[target]?.dependsOn?.includes(TESTING_GENERATE_TARGET)) problems.push(`${name}: ${target} must depend on its own ${TESTING_GENERATE_TARGET}`);
@@ -757,10 +771,12 @@ const AFFECTED_PROBES = [
   { file: 'packages/tooling/eslint-rules/src/rules/lib-file-naming.ts', expected: ['booking-ui', 'shared-testing', 'generated-pet-client-api', 'client'] },
   { file: 'libs/booking/ui/project.json', expected: ['booking-ui', 'booking-shell', 'client'], notExpected: ['checkin-types'] },
   { file: 'tsconfig.base.json', expected: ['booking-ui', 'shared-testing', 'generated-pet-client-api', 'client'] },
-  { file: 'packages/tooling/openapi/src/facade/facade.ts', expected: ['generated-pet-client', 'booking-data-access', 'booking-state', 'client'] },
+  { file: 'packages/tooling/openapi/src/facade.ts', expected: ['generated-pet-client', 'booking-data-access', 'booking-state', 'client'] },
   // the plugin shapes the client targets: an input of every client's generate-api-client (no tooling fallback in CI)
   { file: 'packages/tooling/openapi/src/plugin/openapi-clients.ts', expected: ['generated-pet-client', 'booking-generated-booking-client', 'booking-data-access', 'client'] },
-  { file: 'packages/tooling/openapi/src/testing/testing.ts', expected: ['booking-generated-booking-client-testing'] },
+  { file: 'packages/tooling/openapi/src/pipeline/testing-preset.ts', expected: ['booking-generated-booking-client-testing'] },
+  // the adapter registry decides the client targets' inputs: every client
+  { file: 'packages/tooling/openapi/src/registry/registry.ts', expected: ['generated-pet-client', 'booking-generated-booking-client', 'client'] },
   { file: 'openapi-clients.json', expected: ['generated-pet-client-api', 'booking-generated-booking-client-testing', 'client'] },
   // integration tests of tooling-openapi run the jar: their workspace inputs affect it
   // openapitools.json is a cache input of openapi-tools clients only (pet-client uses hey-api)
