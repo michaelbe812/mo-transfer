@@ -11,6 +11,9 @@
     "codegen",
     "angular"
   ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
@@ -29,18 +32,68 @@
     "@nx/devkit": ">=23.0.0",
     "nx": ">=23.0.0",
     "typescript": ">=5.5.0",
+    "prettier": ">=3.0.0",
+    "orval": ">=8.0.0",
+    "openapi-typescript": ">=7.0.0",
+    "openapi-msw": ">=2.0.0",
     "msw": ">=2.0.0",
-    "@faker-js/faker": ">=9.0.0"
+    "@faker-js/faker": ">=9.0.0",
+    "@hey-api/openapi-ts": ">=0.83.0",
+    "@openapitools/openapi-generator-cli": ">=2.0.0",
+    "@nx-plugin-openapi/core": ">=1.0.0",
+    "@nx-plugin-openapi/plugin-openapi": ">=1.0.0",
+    "@nx-plugin-openapi/plugin-hey-api": ">=1.0.0"
   },
   "peerDependenciesMeta": {
+    "prettier": {
+      "optional": true
+    },
+    "orval": {
+      "optional": true
+    },
+    "openapi-typescript": {
+      "optional": true
+    },
+    "openapi-msw": {
+      "optional": true
+    },
     "msw": {
       "optional": true
     },
     "@faker-js/faker": {
       "optional": true
+    },
+    "@hey-api/openapi-ts": {
+      "optional": true
+    },
+    "@openapitools/openapi-generator-cli": {
+      "optional": true
+    },
+    "@nx-plugin-openapi/core": {
+      "optional": true
+    },
+    "@nx-plugin-openapi/plugin-openapi": {
+      "optional": true
+    },
+    "@nx-plugin-openapi/plugin-hey-api": {
+      "optional": true
     }
   },
   "devDependencies": {
-    "@mo-transfer/tooling-conventions": "workspace:*"
+    "@faker-js/faker": "10.6.0",
+    "@hey-api/openapi-ts": "0.83.1",
+    "@mo-transfer/tooling-conventions": "workspace:*",
+    "@nx-plugin-openapi/core": "1.0.0",
+    "@nx-plugin-openapi/plugin-hey-api": "1.0.0",
+    "@nx-plugin-openapi/plugin-openapi": "1.0.0",
+    "@nx/devkit": "23.1.0",
+    "@openapitools/openapi-generator-cli": "2.41.0",
+    "msw": "^3.0.0",
+    "nx": "23.1.0",
+    "openapi-msw": "2.0.0",
+    "openapi-typescript": "7.13.0",
+    "orval": "8.38.0",
+    "prettier": "~3.6.2",
+    "typescript": "~6.0.3"
   }
 }

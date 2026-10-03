@@ -229,28 +229,55 @@ importers:
 
   packages/tooling/openapi:
     dependencies:
-      '@faker-js/faker':
-        specifier: '>=9.0.0'
-        version: 10.6.0
-      '@nx/devkit':
-        specifier: '>=23.0.0'
-        version: 23.1.0(nx@23.1.0(@swc-node/register@1.12.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.2(@swc/helpers@0.5.23)))
-      msw:
-        specifier: '>=2.0.0'
-        version: 3.0.0(@types/node@22.20.4)(graphql@16.14.2)(typescript@6.0.3)(vite@7.3.6(@types/node@22.20.4)(jiti@2.7.0)(less@4.5.1)(sass-embedded@1.105.0)(sass@1.105.0)(terser@5.51.2)(yaml@2.9.1))
-      nx:
-        specifier: '>=23.0.0'
-        version: 23.1.0(@swc-node/register@1.12.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.2(@swc/helpers@0.5.23))
-      typescript:
-        specifier: '>=5.5.0'
-        version: 6.0.3
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
     devDependencies:
+      '@faker-js/faker':
+        specifier: 10.6.0
+        version: 10.6.0
+      '@hey-api/openapi-ts':
+        specifier: 0.83.1
+        version: 0.83.1(typescript@6.0.3)
       '@mo-transfer/tooling-conventions':
         specifier: workspace:*
         version: link:../conventions
+      '@nx-plugin-openapi/core':
+        specifier: 1.0.0
+        version: 1.0.0(@nx/devkit@23.1.0(nx@23.1.0(@swc-node/register@1.12.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.2(@swc/helpers@0.5.23))))
+      '@nx-plugin-openapi/plugin-hey-api':
+        specifier: 1.0.0
+        version: 1.0.0(@hey-api/openapi-ts@0.83.1(typescript@6.0.3))(@nx-plugin-openapi/core@1.0.0(@nx/devkit@23.1.0(nx@23.1.0(@swc-node/register@1.12.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.2(@swc/helpers@0.5.23)))))(nx@23.1.0(@swc-node/register@1.12.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.2(@swc/helpers@0.5.23)))
+      '@nx-plugin-openapi/plugin-openapi':
+        specifier: 1.0.0
+        version: 1.0.0(@nx-plugin-openapi/core@1.0.0(@nx/devkit@23.1.0(nx@23.1.0(@swc-node/register@1.12.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.2(@swc/helpers@0.5.23)))))(@openapitools/openapi-generator-cli@2.41.0)(nx@23.1.0(@swc-node/register@1.12.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.2(@swc/helpers@0.5.23)))
+      '@nx/devkit':
+        specifier: 23.1.0
+        version: 23.1.0(nx@23.1.0(@swc-node/register@1.12.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.2(@swc/helpers@0.5.23)))
+      '@openapitools/openapi-generator-cli':
+        specifier: 2.41.0
+        version: 2.41.0
+      msw:
+        specifier: ^3.0.0
+        version: 3.0.0(@types/node@22.20.4)(graphql@16.14.2)(typescript@6.0.3)(vite@7.3.6(@types/node@22.20.4)(jiti@2.7.0)(less@4.5.1)(sass-embedded@1.105.0)(sass@1.105.0)(terser@5.51.2)(yaml@2.9.1))
+      nx:
+        specifier: 23.1.0
+        version: 23.1.0(@swc-node/register@1.12.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.2(@swc/helpers@0.5.23))
+      openapi-msw:
+        specifier: 2.0.0
+        version: 2.0.0(msw@3.0.0(@types/node@22.20.4)(graphql@16.14.2)(typescript@6.0.3)(vite@7.3.6(@types/node@22.20.4)(jiti@2.7.0)(less@4.5.1)(sass-embedded@1.105.0)(sass@1.105.0)(terser@5.51.2)(yaml@2.9.1)))
+      openapi-typescript:
+        specifier: 7.13.0
+        version: 7.13.0(typescript@6.0.3)
+      orval:
+        specifier: 8.38.0
+        version: 8.38.0(@faker-js/faker@10.6.0)(@modelcontextprotocol/sdk@1.29.0(zod@4.6.5))(msw@3.0.0(@types/node@22.20.4)(graphql@16.14.2)(typescript@6.0.3)(vite@7.3.6(@types/node@22.20.4)(jiti@2.7.0)(less@4.5.1)(sass-embedded@1.105.0)(sass@1.105.0)(terser@5.51.2)(yaml@2.9.1)))(prettier@3.6.2)(typescript@6.0.3)(zod@4.6.5)
+      prettier:
+        specifier: ~3.6.2
+        version: 3.6.2
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
 
   packages/tooling/verify: {}
 
@@ -8715,7 +8742,6 @@ snapshots:
     dependencies:
       '@emnapi/wasi-threads': 1.2.3
       tslib: 2.8.1
-    optional: true
 
   '@emnapi/core@1.4.5':
     dependencies:
@@ -8730,7 +8756,6 @@ snapshots:
   '@emnapi/runtime@1.11.3':
     dependencies:
       tslib: 2.8.1
-    optional: true
 
   '@emnapi/runtime@1.4.5':
     dependencies:
@@ -8748,7 +8773,6 @@ snapshots:
   '@emnapi/wasi-threads@1.2.3':
     dependencies:
       tslib: 2.8.1
-    optional: true
 
   '@esbuild/aix-ppc64@0.28.1':
     optional: true
@@ -9592,8 +9616,8 @@ snapshots:
 
   '@napi-rs/wasm-runtime@0.2.4':
     dependencies:
-      '@emnapi/core': 1.4.5
-      '@emnapi/runtime': 1.4.5
+      '@emnapi/core': 1.11.3
+      '@emnapi/runtime': 1.11.3
       '@tybys/wasm-util': 0.9.0
 
   '@napi-rs/wasm-runtime@1.1.6(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)':
@@ -10289,7 +10313,7 @@ snapshots:
       '@scalar/openapi-types': 0.9.7
       acorn: 8.18.0
       compare-versions: 6.1.1
-      esbuild: 0.28.1
+      esbuild: 0.28.2
       esutils: 2.0.3
       jiti: 2.7.0
       jsesc: 3.1.0
@@ -10344,6 +10368,16 @@ snapshots:
       - '@faker-js/faker'
       - zod
 
+  '@orval/hono@8.38.0(@faker-js/faker@10.6.0)(typescript@6.0.3)(zod@4.6.5)':
+    dependencies:
+      '@orval/core': 8.38.0(@faker-js/faker@10.6.0)
+      '@orval/zod': 8.38.0(@faker-js/faker@10.6.0)(zod@4.6.5)
+    optionalDependencies:
+      typescript: 6.0.3
+    transitivePeerDependencies:
+      - '@faker-js/faker'
+      - zod
+
   '@orval/hono@8.39.0(@faker-js/faker@10.6.0)(typescript@5.9.3)(zod@4.6.5)':
     dependencies:
       '@orval/core': 8.39.0(@faker-js/faker@10.6.0)
@@ -10361,6 +10395,17 @@ snapshots:
       '@orval/zod': 8.38.0(@faker-js/faker@10.6.0)(zod@4.4.2)
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.29.0(zod@4.4.2)
+    transitivePeerDependencies:
+      - '@faker-js/faker'
+      - zod
+
+  '@orval/mcp@8.38.0(@faker-js/faker@10.6.0)(@modelcontextprotocol/sdk@1.29.0(zod@4.6.5))(zod@4.6.5)':
+    dependencies:
+      '@orval/core': 8.38.0(@faker-js/faker@10.6.0)
+      '@orval/fetch': 8.38.0(@faker-js/faker@10.6.0)
+      '@orval/zod': 8.38.0(@faker-js/faker@10.6.0)(zod@4.6.5)
+    optionalDependencies:
+      '@modelcontextprotocol/sdk': 1.29.0(zod@4.6.5)
     transitivePeerDependencies:
       - '@faker-js/faker'
       - zod
@@ -10452,6 +10497,15 @@ snapshots:
       jsesc: 3.1.0
     optionalDependencies:
       zod: 4.4.2
+    transitivePeerDependencies:
+      - '@faker-js/faker'
+
+  '@orval/zod@8.38.0(@faker-js/faker@10.6.0)(zod@4.6.5)':
+    dependencies:
+      '@orval/core': 8.38.0(@faker-js/faker@10.6.0)
+      jsesc: 3.1.0
+    optionalDependencies:
+      zod: 4.6.5
     transitivePeerDependencies:
       - '@faker-js/faker'
 
@@ -11723,7 +11777,7 @@ snapshots:
 
   brace-expansion@5.0.6:
     dependencies:
-      balanced-match: 4.0.3
+      balanced-match: 4.0.4
 
   braces@3.0.3:
     dependencies:
@@ -14084,7 +14138,7 @@ snapshots:
       bl: 4.1.0
       chalk: 4.1.2
       cli-cursor: 3.1.0
-      cli-spinners: 2.6.1
+      cli-spinners: 2.9.2
       is-interactive: 1.0.0
       is-unicode-supported: 0.1.0
       log-symbols: 4.1.0
@@ -14121,6 +14175,50 @@ snapshots:
       '@orval/solid-start': 8.38.0(@faker-js/faker@10.6.0)
       '@orval/swr': 8.38.0(@faker-js/faker@10.6.0)
       '@orval/zod': 8.38.0(@faker-js/faker@10.6.0)(zod@4.4.2)
+      '@scalar/json-magic': 0.15.3
+      '@scalar/openapi-parser': 0.29.8
+      '@scalar/openapi-types': 0.9.7
+      chokidar: 5.0.0
+      commander: 15.0.0
+      execa: 9.6.1
+      get-tsconfig: 4.14.3
+      jiti: 2.7.0
+      js-yaml: 4.3.2
+      json5: 2.2.3
+      string-argv: 0.3.2
+    optionalDependencies:
+      prettier: 3.6.2
+    transitivePeerDependencies:
+      - '@faker-js/faker'
+      - '@modelcontextprotocol/sdk'
+      - '@pinia/colada'
+      - '@tanstack/angular-query-experimental'
+      - '@tanstack/react-query'
+      - '@tanstack/solid-query'
+      - '@tanstack/svelte-query'
+      - '@tanstack/vue-query'
+      - effect
+      - msw
+      - swr
+      - typescript
+      - zod
+
+  orval@8.38.0(@faker-js/faker@10.6.0)(@modelcontextprotocol/sdk@1.29.0(zod@4.6.5))(msw@3.0.0(@types/node@22.20.4)(graphql@16.14.2)(typescript@6.0.3)(vite@7.3.6(@types/node@22.20.4)(jiti@2.7.0)(less@4.5.1)(sass-embedded@1.105.0)(sass@1.105.0)(terser@5.51.2)(yaml@2.9.1)))(prettier@3.6.2)(typescript@6.0.3)(zod@4.6.5):
+    dependencies:
+      '@commander-js/extra-typings': 15.0.0(commander@15.0.0)
+      '@orval/angular': 8.38.0(@faker-js/faker@10.6.0)
+      '@orval/axios': 8.38.0(@faker-js/faker@10.6.0)
+      '@orval/core': 8.38.0(@faker-js/faker@10.6.0)
+      '@orval/effect': 8.38.0(@faker-js/faker@10.6.0)
+      '@orval/fetch': 8.38.0(@faker-js/faker@10.6.0)
+      '@orval/hono': 8.38.0(@faker-js/faker@10.6.0)(typescript@6.0.3)(zod@4.6.5)
+      '@orval/mcp': 8.38.0(@faker-js/faker@10.6.0)(@modelcontextprotocol/sdk@1.29.0(zod@4.6.5))(zod@4.6.5)
+      '@orval/mock': 8.38.0(@faker-js/faker@10.6.0)(msw@3.0.0(@types/node@22.20.4)(graphql@16.14.2)(typescript@6.0.3)(vite@7.3.6(@types/node@22.20.4)(jiti@2.7.0)(less@4.5.1)(sass-embedded@1.105.0)(sass@1.105.0)(terser@5.51.2)(yaml@2.9.1)))
+      '@orval/pinia-colada': 8.38.0(@faker-js/faker@10.6.0)
+      '@orval/query': 8.38.0(@faker-js/faker@10.6.0)
+      '@orval/solid-start': 8.38.0(@faker-js/faker@10.6.0)
+      '@orval/swr': 8.38.0(@faker-js/faker@10.6.0)
+      '@orval/zod': 8.38.0(@faker-js/faker@10.6.0)(zod@4.6.5)
       '@scalar/json-magic': 0.15.3
       '@scalar/openapi-parser': 0.29.8
       '@scalar/openapi-types': 0.9.7
