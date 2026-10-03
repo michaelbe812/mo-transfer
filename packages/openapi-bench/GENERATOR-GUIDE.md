@@ -7,7 +7,7 @@ Regeln für jeden Generator unter `generators/<id>/`. Ziel: faire, reproduzierba
 
 ```
 generators/<id>/
-  project.json          Nx-Projekt "openapi-bench-<id>": generate, build (nur für unit-test), test-runtime
+  project.json          Nx-Projekt "openapi-bench-<id>": bench-generate, bench-build (nur für unit-test), test-runtime
   ng-package.json       nur für @nx/angular:unit-test nötig (entryFile bundle/all-ops.ts)
   tsconfig.json         include client/** + client-31/** (extends ../../tsconfig.base.json = Angular-CLI-strict)
   tsconfig.spec.json    Runtime-Tests (Angular-Builder)

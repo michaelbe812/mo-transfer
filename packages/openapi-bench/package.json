@@ -4,11 +4,6 @@
   "private": true,
   "type": "module",
   "description": "Benchmark Angular-/TS-OpenAPI-Client-Generatoren: eine Spec, Case-Katalog, Typ-/Runtime-/Static-Tests je Generator, Vergleichsmatrix.",
-  "scripts": {
-    "generate": "node scripts/generate-all.mjs",
-    "bench": "node scripts/run-bench.mjs",
-    "matrix": "node scripts/build-matrix.mjs"
-  },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.99.0",
     "@ng-openapi/http-resource": "0.2.0",

@@ -7,16 +7,6 @@
     "scope:bench"
   ],
   "targets": {
-    "build": {
-      "executor": "@nx/angular:ng-packagr-lite",
-      "options": {
-        "project": "{projectRoot}/ng-package.json",
-        "tsConfig": "{projectRoot}/tsconfig.spec.json"
-      },
-      "configurations": {
-        "development": {}
-      }
-    },
     "test-runtime": {
       "executor": "@nx/angular:unit-test",
       "options": {
@@ -28,7 +18,8 @@
         "browsers": [
           "chromiumHeadless"
         ],
-        "watch": false
+        "watch": false,
+        "buildTarget": "openapi-bench-nswag:bench-build:development"
       }
     },
     "bench-generate": {
@@ -36,6 +27,16 @@
       "options": {
         "command": "node generate.mjs",
         "cwd": "{projectRoot}"
+      }
+    },
+    "bench-build": {
+      "executor": "@nx/angular:ng-packagr-lite",
+      "options": {
+        "project": "{projectRoot}/ng-package.json",
+        "tsConfig": "{projectRoot}/tsconfig.spec.json"
+      },
+      "configurations": {
+        "development": {}
       }
     }
   }
