@@ -182,9 +182,9 @@ export function generateTestingTarget(clientPath: string, specFile: string): Tar
     cache: true,
     inputs: [
       `{workspaceRoot}/${specFile}`,
-      `{workspaceRoot}/${FACADE_DIR}/facade.mjs`,
+      `{workspaceRoot}/${FACADE_DIR}/facade.ts`,
       `{workspaceRoot}/${TESTING_DIR}/**/*`,
-      `{workspaceRoot}/${EXECUTORS_DIR}/generate-testing.js`,
+      `{workspaceRoot}/${EXECUTORS_DIR}/generate-testing.ts`,
       { externalDependencies: TESTING_PACKAGES },
     ],
     outputs: ['{projectRoot}/src/generated'],

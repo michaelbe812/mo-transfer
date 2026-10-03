@@ -8,11 +8,11 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { classifyHeyApi } from './hey-api.mjs';
-import nxPluginOpenapi from './nx-plugin-openapi.mjs';
-import openapiTools, { classifyOpenApiTools } from './openapi-tools.mjs';
+import { classifyHeyApi } from './hey-api';
+import nxPluginOpenapi from './nx-plugin-openapi';
+import openapiTools, { classifyOpenApiTools } from './openapi-tools';
 
-const { GeneratorRegistry } = createRequire(import.meta.url)('@nx-plugin-openapi/core');
+const { GeneratorRegistry } = createRequire(__filename)('@nx-plugin-openapi/core');
 
 describe('nx-plugin-openapi adapter (stub backend)', () => {
   let root: string;

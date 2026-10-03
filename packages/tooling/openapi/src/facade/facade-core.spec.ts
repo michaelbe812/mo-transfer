@@ -6,9 +6,10 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildBarrel } from './barrel.mjs';
-import { clientRoot, generatedHeader, loadAdapter, partAlias, resolveClient, serializeSpec } from './facade.mjs';
-import { splitIntoParts } from './split.mjs';
+import { buildBarrel } from './barrel';
+import type { Classification } from './contract';
+import { clientRoot, generatedHeader, loadAdapter, partAlias, resolveClient, serializeSpec } from './facade';
+import { splitIntoParts } from './split';
 
 let dir: string;
 const write = (path: string, content: string): void => {
@@ -86,7 +87,8 @@ describe('splitIntoParts', () => {
     write('m.ts', 'export type M = 1;\n');
     const parts = splitIntoParts({
       rawDir: dir,
-      classification: { models: ['m.ts'] },
+      // tolerated at run time (an adapter not type checked against the contract)
+      classification: { models: ['m.ts'] } as Classification,
       aliases: ALIASES,
       allFiles: ['m.ts'],
     });
@@ -249,7 +251,7 @@ describe('serializeSpec', () => {
     vi.doMock('prettier', () => {
       throw new Error('not installed');
     });
-    const { serializeSpec: withoutPrettier } = await import('./facade.mjs');
+    const { serializeSpec: withoutPrettier } = await import('./facade.js');
     expect(await withoutPrettier(document, 'x/openapi.json', 'u', 'p', dir)).toBe(
       `${JSON.stringify(document, null, 2)}\n`,
     );
@@ -260,20 +262,23 @@ describe('serializeSpec', () => {
 describe('generateClient with a stub adapter', () => {
   it('parts the adapter delivers nothing for and that have no lib are skipped; adapter without defaults', async () => {
     vi.resetModules();
-    vi.doMock('./adapters/hey-api.mjs', () => ({
-      // no defaults: the options are the client's only
-      defaults: undefined,
-      default: {
-        id: 'hey-api',
-        async generate({ outDir, options }: { outDir: string; options: object }) {
-          writeFileSync(join(outDir, 'core.ts'), `export const options = ${JSON.stringify(options)};\n`);
-        },
-        async classify() {
-          return { models: [], apis: [], core: ['core.ts'] };
+    vi.doMock('./adapters/index', () => ({
+      ADAPTER_MODULES: {
+        './hey-api.ts': {
+          // no defaults: the options are the client's only
+          default: {
+            id: 'hey-api',
+            async generate({ outDir, options }: { outDir: string; options: object }) {
+              writeFileSync(join(outDir, 'core.ts'), `export const options = ${JSON.stringify(options)};\n`);
+            },
+            async classify() {
+              return { models: [], apis: [], core: ['core.ts'] };
+            },
+          },
         },
       },
     }));
-    const { generateClient: generate } = await import('./facade.mjs');
+    const { generateClient: generate } = await import('./facade.js');
     write('libs/generated/stub-client/openapi.yaml', 'openapi: 3.0.3\n');
     write('libs/generated/stub-client/core/src/index.ts', "export * from './generated';\n");
     const client = {
@@ -286,13 +291,23 @@ describe('generateClient with a stub adapter', () => {
     expect(readFileSync(join(dir, 'libs/generated/stub-client/core/src/generated/core.ts'), 'utf-8')).toContain(
       'export const options = {"a":1};',
     );
-    vi.doUnmock('./adapters/hey-api.mjs');
+    vi.doUnmock('./adapters/index');
+  });
+
+  it('a registry module missing in adapters/index.ts is reported', async () => {
+    vi.resetModules();
+    vi.doMock('./adapters/index', () => ({ ADAPTER_MODULES: {} }));
+    const { loadAdapter: load } = await import('./facade.js');
+    await expect(load('hey-api')).rejects.toThrow(
+      "Adapter 'hey-api': module ./hey-api.ts not listed in adapters/index.ts",
+    );
+    vi.doUnmock('./adapters/index');
   });
 });
 
 describe('updateSpec', () => {
   it('writes a spec file that does not exist yet (changed)', async () => {
-    const { updateSpec } = await import('./facade.mjs');
+    const { updateSpec } = await import('./facade.js');
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response('openapi: 3.0.3\ninfo: { title: T, version: "1" }\npaths: {}\n')),

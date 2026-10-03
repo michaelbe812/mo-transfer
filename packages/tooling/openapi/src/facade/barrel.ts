@@ -6,12 +6,11 @@
  * entry with conflicts is re-exported explicitly (without the duplicates), types via `export type`.
  * The export names come from the TypeScript checker on the raw output.
  */
-import { createRequire } from 'node:module';
 import { join } from 'node:path';
+// namespace import: Nx transpiles with tsconfig.base.json (no esModuleInterop), a default import is undefined there
+import * as ts from 'typescript';
 
-const ts = createRequire(import.meta.url)('typescript');
-
-export function buildBarrel(rawDir, entries) {
+export function buildBarrel(rawDir: string, entries: string[]): string {
   if (!entries.length) return 'export {};';
   const files = entries.map((entry) => join(rawDir, entry));
   const program = ts.createProgram(files, {
@@ -23,10 +22,11 @@ export function buildBarrel(rawDir, entries) {
     types: [],
   });
   const checker = program.getTypeChecker();
-  const seen = new Set();
-  const lines = [];
+  const seen = new Set<string>();
+  const lines: string[] = [];
   entries.forEach((entry, index) => {
-    const moduleSymbol = checker.getSymbolAtLocation(program.getSourceFile(files[index]));
+    // a root file of the program: always there
+    const moduleSymbol = checker.getSymbolAtLocation(program.getSourceFile(files[index]) as ts.SourceFile);
     // not a module (e.g. openapi-tools' empty model/models.ts for a spec without schemas): `export *` would
     // not compile (TS2306), and there is nothing to re-export
     if (!moduleSymbol) return;
@@ -36,8 +36,8 @@ export function buildBarrel(rawDir, entries) {
     if (!duplicates.length) {
       lines.push(`export * from '${specifier}';`);
     } else {
-      const values = [];
-      const types = [];
+      const values: string[] = [];
+      const types: string[] = [];
       for (const symbol of exported.filter((s) => !seen.has(s.name))) {
         const target = symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
         (target.flags & ts.SymbolFlags.Value ? values : types).push(symbol.name);

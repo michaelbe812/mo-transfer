@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createWorkspace, removeWorkspace, repoRoot, THINGS_SPEC, write } from '../helpers.mjs';
+import { createWorkspace, removeWorkspace, repoRoot, THINGS_SPEC, write } from '../helpers';
 
 const TOOLING_PATHS = Object.fromEntries(
   Object.entries(

@@ -10,18 +10,27 @@
  * replaces only the module specifier literals. Deterministic: files sorted, no timestamps.
  */
 import { readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { join, posix } from 'node:path';
+// namespace import: Nx transpiles with tsconfig.base.json (no esModuleInterop), a default import is undefined there
+import * as ts from 'typescript';
+import type { Classification, Part, PartOutput } from './contract';
 
-const ts = createRequire(import.meta.url)('typescript');
+const CATEGORY_TO_PART = { models: 'types', apis: 'api', core: 'core' } as const satisfies Record<
+  'models' | 'apis' | 'core',
+  Part
+>;
 
-const CATEGORY_TO_PART = { models: 'types', apis: 'api', core: 'core' };
+interface Specifier {
+  start: number;
+  end: number;
+  text: string;
+}
 
 /** Module specifier literals of a file (statically resolvable ones only). */
-function moduleSpecifiers(fileName, text) {
+function moduleSpecifiers(fileName: string, text: string): Specifier[] {
   const source = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-  const found = [];
-  const visit = (node) => {
+  const found: ts.StringLiteral[] = [];
+  const visit = (node: ts.Node): void => {
     if (
       (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
       node.moduleSpecifier &&
@@ -49,21 +58,23 @@ function moduleSpecifiers(fileName, text) {
 }
 
 /** Resolves a relative specifier against the known files of the raw output. */
-function resolveRelative(fromFile, specifier, knownFiles) {
+function resolveRelative(fromFile: string, specifier: string, knownFiles: Set<string>): string | undefined {
   const base = posix.normalize(posix.join(posix.dirname(fromFile), specifier));
   const withoutJs = base.replace(/\.(m?js)$/, '');
   const candidates = [base, `${withoutJs}.ts`, `${withoutJs}.d.ts`, `${withoutJs}/index.ts`];
   return candidates.find((candidate) => knownFiles.has(candidate));
 }
 
-/**
- * @param {{ rawDir: string, classification: import('./contract').Classification,
- *           aliases: Record<import('./contract').Part, string>, allFiles: string[] }} input
- * @returns {Record<import('./contract').Part, { files: { path: string, content: string }[], entries: string[] }>}
- */
-export function splitIntoParts({ rawDir, classification, aliases, allFiles }) {
-  const partOf = new Map();
-  for (const [category, part] of Object.entries(CATEGORY_TO_PART)) {
+export interface SplitInput {
+  rawDir: string;
+  classification: Classification;
+  aliases: Record<Part, string>;
+  allFiles: string[];
+}
+
+export function splitIntoParts({ rawDir, classification, aliases, allFiles }: SplitInput): Record<Part, PartOutput> {
+  const partOf = new Map<string, Part>();
+  for (const [category, part] of Object.entries(CATEGORY_TO_PART) as [keyof typeof CATEGORY_TO_PART, Part][]) {
     for (const file of classification[category] ?? []) {
       if (partOf.has(file)) throw new Error(`${file}: classified in several categories`);
       if (file === 'index.ts') throw new Error(`${file}: root index.ts is reserved (the facade writes the barrel)`);
@@ -71,16 +82,16 @@ export function splitIntoParts({ rawDir, classification, aliases, allFiles }) {
     }
   }
   const knownFiles = new Set(allFiles);
-  const result = {
+  const result: Record<Part, PartOutput> = {
     types: { files: [], entries: [] },
     api: { files: [], entries: [] },
     core: { files: [], entries: [] },
   };
 
   for (const file of [...partOf.keys()].sort()) {
-    const part = partOf.get(file);
+    const part = partOf.get(file) as Part;
     const text = readFileSync(join(rawDir, file), 'utf-8');
-    const replacements = [];
+    const replacements: (Specifier & { alias: string })[] = [];
     for (const specifier of moduleSpecifiers(file, text)) {
       if (!specifier.text.startsWith('.')) continue;
       const target = resolveRelative(file, specifier.text, knownFiles);
@@ -101,13 +112,13 @@ export function splitIntoParts({ rawDir, classification, aliases, allFiles }) {
     result[part].files.push({ path: file, content });
   }
 
-  for (const part of Object.keys(result)) {
+  for (const part of Object.keys(result) as Part[]) {
     const files = result[part].files.map((f) => f.path);
     const declared = classification.entries?.[part];
     const entries = declared ?? files;
     const unknown = entries.filter((entry) => !files.includes(entry));
     if (unknown.length) throw new Error(`entries.${part}: ${unknown.join(', ')} not in this part`);
-    // order of the adapter's entries is kept (first wins on duplicate names, see barrel.mjs)
+    // order of the adapter's entries is kept (first wins on duplicate names, see barrel.ts)
     result[part].entries = declared ? [...entries] : [...entries].sort();
   }
   return result;

@@ -757,10 +757,10 @@ const AFFECTED_PROBES = [
   { file: 'packages/tooling/eslint-rules/src/rules/lib-file-naming.ts', expected: ['booking-ui', 'shared-testing', 'generated-pet-client-api', 'client'] },
   { file: 'libs/booking/ui/project.json', expected: ['booking-ui', 'booking-shell', 'client'], notExpected: ['checkin-types'] },
   { file: 'tsconfig.base.json', expected: ['booking-ui', 'shared-testing', 'generated-pet-client-api', 'client'] },
-  { file: 'packages/tooling/openapi/src/facade/facade.mjs', expected: ['generated-pet-client', 'booking-data-access', 'booking-state', 'client'] },
+  { file: 'packages/tooling/openapi/src/facade/facade.ts', expected: ['generated-pet-client', 'booking-data-access', 'booking-state', 'client'] },
   // the plugin shapes the client targets: an input of every client's generate-api-client (no tooling fallback in CI)
   { file: 'packages/tooling/openapi/src/plugin/openapi-clients.ts', expected: ['generated-pet-client', 'booking-generated-booking-client', 'booking-data-access', 'client'] },
-  { file: 'packages/tooling/openapi/src/testing/testing.mjs', expected: ['booking-generated-booking-client-testing'] },
+  { file: 'packages/tooling/openapi/src/testing/testing.ts', expected: ['booking-generated-booking-client-testing'] },
   { file: 'openapi-clients.json', expected: ['generated-pet-client-api', 'booking-generated-booking-client-testing', 'client'] },
   // integration tests of tooling-openapi run the jar: their workspace inputs affect it
   // openapitools.json is a cache input of openapi-tools clients only (pet-client uses hey-api)

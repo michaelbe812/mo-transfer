@@ -126,9 +126,9 @@ describe('client config (project.json of clients and parts, inferred client targ
           cache: true,
           inputs: [
             '{workspaceRoot}/libs/booking/generated/booking-client/openapi.yaml',
-            '{workspaceRoot}/packages/tooling/openapi/src/facade/facade.mjs',
+            '{workspaceRoot}/packages/tooling/openapi/src/facade/facade.ts',
             '{workspaceRoot}/packages/tooling/openapi/src/testing/**/*',
-            '{workspaceRoot}/packages/tooling/openapi/src/executors/generate-testing.js',
+            '{workspaceRoot}/packages/tooling/openapi/src/executors/generate-testing.ts',
             { externalDependencies: ['openapi-typescript', 'orval', 'yaml'] },
           ],
           outputs: ['{projectRoot}/src/generated'],

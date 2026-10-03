@@ -458,11 +458,11 @@ libs/[<domain>/]generated/<client>/
   openapi.yaml | openapi.json          committet, einzige Quelle für generate-api-client (die url dient nur update-spec)
         │
         ▼  <client>:generate-api-client (gecacht) = @mo-transfer/tooling-openapi:generate
- facade.mjs ── adapters/registry.json ──▶ adapter.generate(ctx) ──▶ tmp/openapi/<pfad>/raw/**
+ facade.ts  ── adapters/registry.json ──▶ adapter.generate(ctx) ──▶ tmp/openapi/<pfad>/raw/**
         │                                 adapter.classify(ctx)  ──▶ { models, apis, core, entries }
         ▼
- split.mjs   Struktur pro Teil, relative Imports über Teilgrenzen → @mo-transfer/<pfad>/<teil> (TS-AST)
- barrel.mjs  src/generated/index.ts aus den Entries (Namenskonflikte per TS-Checker aufgelöst)
+ split.ts    Struktur pro Teil, relative Imports über Teilgrenzen → @mo-transfer/<pfad>/<teil> (TS-AST)
+ barrel.ts   src/generated/index.ts aus den Entries (Namenskonflikte per TS-Checker aufgelöst)
  Header      /* eslint-disable */ /* eslint-enable @nx/enforce-module-boundaries, no-restricted-imports */
         ▼
   types/src/generated/**   type:types      Models
@@ -475,10 +475,10 @@ libs/[<domain>/]generated/<client>/
 
 | Datei | Aufgabe |
 |---|---|
-| `packages/tooling/openapi/src/facade/contract.d.ts` | Vertrag `ClientDefinition`, `GeneratorAdapter` (`generate`, `classify`), `Classification`, `AdapterRegistration` |
-| `…/openapi/facade.mjs`, `split.mjs`, `barrel.mjs` | `resolveClient` (Eintrag + Ordner → Definition), `generateClient`, `updateSpec`, Aufteilen, Barrel, Header |
-| `…/openapi/adapters/*.mjs`, `registry.json` | 3 Adapter, Registry mit Cache-Inputs je Adapter (Pakete, `openapitools.json`, `java -version`) |
-| `…/openapi/testing/testing.mjs` | Testing-Lib aus der Spec |
+| `packages/tooling/openapi/src/facade/contract.ts` | Vertrag `ClientDefinition`, `GeneratorAdapter` (`generate`, `classify`), `Classification`, `AdapterRegistration` |
+| `…/openapi/facade.ts`, `split.ts`, `barrel.ts` | `resolveClient` (Eintrag + Ordner → Definition), `generateClient`, `updateSpec`, Aufteilen, Barrel, Header |
+| `…/openapi/adapters/*.ts`, `registry.json` | 3 Adapter, Registry mit Cache-Inputs je Adapter (Pakete, `openapitools.json`, `java -version`) |
+| `…/openapi/testing/testing.ts` | Testing-Lib aus der Spec |
 | `…/executors/openapi/*` | `openapi-generate`, `openapi-generate-testing`, `openapi-update-spec` (Option nur `client`) |
 | `…/openapi/project-config.ts`, `conventions/lib-files.ts`, `lib-conventions.ts` | `project.json` der Clients (Name, Tags) und Teil-Libs (Kanten, `generate-api-testing`), Client-Targets (`clientTargets`), Tags, Pfad-Konvention |
 | `…/openapi/plugin/openapi-clients.ts` | Plugin (`createNodesV2` auf `openapi-clients.json`): `generate-api-client` + `update-spec` pro Eintrag am Client-Projekt |
@@ -782,7 +782,7 @@ Das Werkzeug liegt in **`packages/tooling`**, aufgeteilt in sechs Nx-Libs (je ei
 
 Abhängigkeiten (Paket-Imports, `depConstraints` + 20 Verify-Fälle, zyklenfrei): `openapi` → `conventions`; `eslint-rules` → `conventions`; `workspace` → `conventions`, `openapi` (move/remove pflegen `openapi-clients.json` und Client-`project.json`); `conventions`, `ng-lib`, `verify` → nichts. `workspace` → `ng-lib` ist entfallen (keine inferierten Targets mehr).
 
-**Kein Build-Schritt:** Nx lädt Generatoren und Executoren als TypeScript/JS aus den Quellen (eigener swc-Transpiler), aufgelöst über die Workspace-Links in der Root-`package.json` (`@mo-transfer/tooling-workspace`, `-openapi`, `-ng-lib`) und in den `package.json` der Libs. Jeder importierte Tooling-Export hat einen exakten `paths`-Eintrag (`verify` prüft `exports` ↔ `paths`). Einziges Plugin, das bei jeder Graph-Berechnung geladen wird: `@mo-transfer/tooling-openapi/plugin` (liest `openapi-clients.json` + `registry.json`, prüft Dateien per `existsSync`).
+**Kein Build-Schritt:** Nx lädt Generatoren und Executoren als TypeScript/JS aus den Quellen (eigener swc-Transpiler), aufgelöst über die Workspace-Links in der Root-`package.json` (`@mo-transfer/tooling-workspace`, `-openapi`, `-ng-lib`) und in den `package.json` der Libs. Jeder importierte Tooling-Export hat einen exakten `paths`-Eintrag (`verify` prüft `exports` ↔ `paths`). Einziges Plugin, das bei jeder Graph-Berechnung geladen wird: `@mo-transfer/tooling-openapi/plugin` (liest `openapi-clients.json` + `registry.json`, prüft Dateien per `existsSync`). `tooling-openapi` ist durchgehend TypeScript (Executoren, Facade, Adapter, Testing); Regeln für das Laden als CommonJS per swc (kein `import.meta`, kein Default-Import von CJS-Paketen, keine `.ts`-Module per `import()` zur Laufzeit): [README](../packages/tooling/openapi/README.md#typescript-und-laden-durch-nx).
 
 ### Anleitungen
 

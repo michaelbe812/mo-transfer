@@ -5,35 +5,42 @@
  *     ──splitIntoParts──▶ <client>/{types,api,core}/src/generated/** (gitignored) + generated/index.ts
  *
  * The facade owns placement, split, import rewriting and the lint header; the adapter only raw
- * output + classification. Contract: contract.d.ts.
+ * output + classification. Contract: contract.ts.
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { pathToFileURL } from 'node:url';
-import YAML from 'yaml';
-import { listTsFiles } from './adapters/files.mjs';
-import { buildBarrel } from './barrel.mjs';
-import { splitIntoParts } from './split.mjs';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
+import { listTsFiles } from './adapters/files';
+import { ADAPTER_MODULES } from './adapters/index';
+import { buildBarrel } from './barrel';
+import type { AdapterRegistration, ClientDefinition, GenerateContext, GeneratorAdapter, Part } from './contract';
+import { splitIntoParts } from './split';
 
-const registry = JSON.parse(readFileSync(join(import.meta.dirname, 'adapters/registry.json'), 'utf-8'));
+// __dirname: the package has no "type": "module", Nx loads its .ts sources as CommonJS (swc)
+const registry = JSON.parse(readFileSync(join(__dirname, 'adapters/registry.json'), 'utf-8')) as Record<
+  string,
+  AdapterRegistration
+>;
 
-export const PARTS = ['types', 'api', 'core'];
+export const PARTS: readonly Part[] = ['types', 'api', 'core'];
 /** gitignored subfolder of every client lib; the committed src/index.ts re-exports it */
 export const GENERATED_DIR = 'generated';
 
-/** @param {Pick<import('./contract').ClientDefinition, 'name' | 'placement'>} client */
-export const clientRoot = (client) =>
+type ClientLocation = Pick<ClientDefinition, 'name' | 'placement'>;
+
+export const clientRoot = (client: ClientLocation): string =>
   client.placement === 'shared'
     ? `libs/generated/${client.name}`
     : `libs/${client.placement.domain}/generated/${client.name}`;
-export const partRoot = (client, part) => `${clientRoot(client)}/${part}`;
-export const partAlias = (client, part) => `@mo-transfer/${partRoot(client, part).slice('libs/'.length)}`;
+export const partRoot = (client: ClientLocation, part: Part): string => `${clientRoot(client)}/${part}`;
+export const partAlias = (client: ClientLocation, part: Part): string =>
+  `@mo-transfer/${partRoot(client, part).slice('libs/'.length)}`;
 
 /**
  * Lint on generated code: everything off, only the boundary rules on. So tags (types → api
  * forbidden) and the deep-import ban still apply to generated files.
  */
-export const generatedHeader = (source, specFile) =>
+export const generatedHeader = (source: string, specFile: string): string =>
   [
     '/* eslint-disable */',
     '/* eslint-enable @nx/enforce-module-boundaries, no-restricted-imports */',
@@ -41,13 +48,17 @@ export const generatedHeader = (source, specFile) =>
     '',
   ].join('\n');
 
+interface ClientsJson {
+  defaultAdapter?: string;
+  clients?: Record<string, { url?: string; adapter?: string; options?: Record<string, unknown> }>;
+}
+
 /**
  * ClientDefinition of `clientPath` (below libs/) from openapi-clients.json + the client folder — read at run
  * time by the executors (their options are only `{ client }`, so the entry never enters the project config).
- * @returns {import('./contract').ClientDefinition}
  */
-export function resolveClient(workspaceRoot, clientPath) {
-  const config = JSON.parse(readFileSync(join(workspaceRoot, 'openapi-clients.json'), 'utf-8'));
+export function resolveClient(workspaceRoot: string, clientPath: string): ClientDefinition {
+  const config = JSON.parse(readFileSync(join(workspaceRoot, 'openapi-clients.json'), 'utf-8')) as ClientsJson;
   const entry = config.clients?.[clientPath];
   if (!entry) throw new Error(`openapi-clients.json has no entry "${clientPath}"`);
   const segments = clientPath.split('/');
@@ -57,14 +68,17 @@ export function resolveClient(workspaceRoot, clientPath) {
   );
   if (specs.length !== 1) throw new Error(`libs/${clientPath}: needs exactly one spec (openapi.yaml | openapi.json)`);
   return {
-    name: segments.at(-1),
+    name: segments.at(-1) as string,
     placement,
     spec: { file: `libs/${clientPath}/${specs[0]}`, ...(entry.url ? { url: entry.url } : {}) },
     generator: { adapter: entry.adapter ?? config.defaultAdapter ?? 'openapi-tools', options: entry.options ?? {} },
   };
 }
 
-export async function loadAdapter(id) {
+/** Adapter of a registry id: its module (registry.json → module, see adapters/index.ts) + defaults. */
+export async function loadAdapter(
+  id: string,
+): Promise<{ adapter: GeneratorAdapter; defaults: Record<string, unknown> }> {
   const registration = registry[id];
   if (!registration || id.startsWith('$')) {
     throw new Error(
@@ -73,12 +87,15 @@ export async function loadAdapter(id) {
         .join(', ')}`,
     );
   }
-  const module = await import(pathToFileURL(join(import.meta.dirname, 'adapters', registration.module)).href);
+  const module = ADAPTER_MODULES[registration.module];
+  if (!module) throw new Error(`Adapter '${id}': module ${registration.module} not listed in adapters/index.ts`);
   return { adapter: module.default, defaults: module.defaults ?? {} };
 }
 
-/** @param {import('./contract').ClientDefinition} client */
-export async function generateClient(client, workspaceRoot) {
+export async function generateClient(
+  client: ClientDefinition,
+  workspaceRoot: string,
+): Promise<Partial<Record<Part, number>>> {
   const specFile = join(workspaceRoot, client.spec.file);
   if (!existsSync(specFile))
     throw new Error(`${client.spec.file} missing (spec.url set? → nx run <client>:update-spec)`);
@@ -87,16 +104,21 @@ export async function generateClient(client, workspaceRoot) {
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
 
-  /** @type {import('./contract').GenerateContext} */
-  const context = { specFile, outDir, options: { ...defaults, ...client.generator.options }, workspaceRoot, client };
+  const context: GenerateContext = {
+    specFile,
+    outDir,
+    options: { ...defaults, ...client.generator.options },
+    workspaceRoot,
+    client,
+  };
   await adapter.generate(context);
   const classification = await adapter.classify(context);
 
-  const aliases = Object.fromEntries(PARTS.map((part) => [part, partAlias(client, part)]));
+  const aliases = Object.fromEntries(PARTS.map((part) => [part, partAlias(client, part)])) as Record<Part, string>;
   const parts = splitIntoParts({ rawDir: outDir, classification, aliases, allFiles: listTsFiles(outDir) });
   const header = generatedHeader(`adapter ${client.generator.adapter}`, client.spec.file);
 
-  const written = {};
+  const written: Partial<Record<Part, number>> = {};
   for (const part of PARTS) {
     const { files, entries } = parts[part];
     const libRoot = join(workspaceRoot, partRoot(client, part));
@@ -128,13 +150,19 @@ export async function generateClient(client, workspaceRoot) {
  * Prettier with the workspace config — the same result the generators' formatFiles produce, so
  * `update-spec` right after `nx g …:client` reports "unchanged".
  */
-export async function serializeSpec(document, file, url, projectName, workspaceRoot) {
+export async function serializeSpec(
+  document: unknown,
+  file: string,
+  url: string,
+  projectName: string,
+  workspaceRoot: string,
+): Promise<string> {
   const text = file.endsWith('.json')
     ? `${JSON.stringify(document, null, 2)}\n`
     : [
         `# Source: ${url}`,
         `# Update: nx run ${projectName}:update-spec (overwrites this file, normalized). Committed, the only source for generate-api-client.`,
-        YAML.stringify(document, { lineWidth: 0, aliasDuplicateObjects: false }),
+        stringifyYaml(document, { lineWidth: 0, aliasDuplicateObjects: false }),
       ].join('\n');
   const prettier = await import('prettier').catch(() => undefined);
   if (!prettier) return text;
@@ -147,11 +175,15 @@ export async function serializeSpec(document, file, url, projectName, workspaceR
  * Downloads the spec from spec.url (JSON or YAML) and writes it normalized to spec.file.
  * The file stays the only source for generate-api-client (cache input); nothing is generated from the URL.
  */
-export async function updateSpec(client, workspaceRoot, projectName) {
+export async function updateSpec(
+  client: ClientDefinition,
+  workspaceRoot: string,
+  projectName: string,
+): Promise<{ changed: boolean }> {
   if (!client.spec.url) throw new Error(`${client.name}: no url (openapi-clients.json → clients → <path> → url)`);
   const response = await fetch(client.spec.url);
   if (!response.ok) throw new Error(`GET ${client.spec.url}: ${response.status}`);
-  const document = YAML.parse(await response.text());
+  const document: unknown = parseYaml(await response.text());
   const normalized = await serializeSpec(document, client.spec.file, client.spec.url, projectName, workspaceRoot);
   const file = join(workspaceRoot, client.spec.file);
   const before = existsSync(file) ? readFileSync(file, 'utf-8') : undefined;

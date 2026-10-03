@@ -72,3 +72,16 @@ export interface AdapterRegistration {
   /** runtime inputs, e.g. `java -version 2>&1` */
   runtime: string[];
 }
+
+/** Module a registration points to (`module` in registry.json): the adapter as default export + optional defaults. */
+export interface AdapterModule {
+  default: GeneratorAdapter;
+  /** adapter defaults, `generator.options` are merged over them */
+  defaults?: Record<string, unknown>;
+}
+
+/** Split result of one part: files (path relative to src/generated) + the entries of its barrel. */
+export interface PartOutput {
+  files: { path: string; content: string }[];
+  entries: string[];
+}

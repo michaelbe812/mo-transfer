@@ -6,10 +6,10 @@
 import { chmodSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import generateExecutor from '../../src/executors/generate.js';
-import generateTestingExecutor from '../../src/executors/generate-testing.js';
-import updateSpecExecutor from '../../src/executors/update-spec.js';
-import { generateClient, resolveClient } from '../../src/facade/facade.mjs';
+import generateExecutor from '../../src/executors/generate';
+import generateTestingExecutor from '../../src/executors/generate-testing';
+import updateSpecExecutor from '../../src/executors/update-spec';
+import { generateClient, resolveClient } from '../../src/facade/facade';
 import {
   addClient,
   createWorkspace,
@@ -20,7 +20,7 @@ import {
   startSpecServer,
   THINGS_SPEC,
   write,
-} from '../helpers.mjs';
+} from '../helpers';
 
 describe('executors', () => {
   let root: string;

@@ -1,17 +1,17 @@
 {
   "executors": {
     "generate": {
-      "implementation": "./src/executors/generate.js",
+      "implementation": "./src/executors/generate.ts",
       "schema": "./src/executors/client.schema.json",
       "description": "OpenAPI client via the configured adapter (openapi-clients.json), split into the libs types/api/core (src/generated/**, gitignored)."
     },
     "update-spec": {
-      "implementation": "./src/executors/update-spec.js",
+      "implementation": "./src/executors/update-spec.ts",
       "schema": "./src/executors/client.schema.json",
       "description": "Downloads the spec from its url (openapi-clients.json) and writes it normalized into the committed spec file."
     },
     "generate-testing": {
-      "implementation": "./src/executors/generate-testing.js",
+      "implementation": "./src/executors/generate-testing.ts",
       "schema": "./src/executors/client.schema.json",
       "description": "Testing lib of a client from its spec: openapi-typescript (paths), orval msw mocks (faker), openapi-msw (<client>Http), default handlers (src/generated/**, gitignored)."
     }

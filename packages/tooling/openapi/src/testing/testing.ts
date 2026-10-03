@@ -14,21 +14,25 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import YAML from 'yaml';
-import { clientRoot, GENERATED_DIR, generatedHeader } from '../facade/facade.mjs';
+import { parse as parseYaml } from 'yaml';
+import type { ClientDefinition } from '../facade/contract';
+import { clientRoot, GENERATED_DIR, generatedHeader } from '../facade/facade';
 
 /** `pet-client` → `petClient` */
-export const camelCase = (name) => name.replace(/-([a-z0-9])/g, (_, char) => char.toUpperCase());
+export const camelCase = (name: string): string =>
+  name.replace(/-([a-z0-9])/g, (_, char: string) => char.toUpperCase());
 
-/** @param {Pick<import('../facade/contract').ClientDefinition, 'name' | 'placement' | 'spec'>} client */
-export async function generateTestingLib(client, workspaceRoot) {
+export async function generateTestingLib(
+  client: Pick<ClientDefinition, 'name' | 'placement' | 'spec'>,
+  workspaceRoot: string,
+): Promise<{ baseUrl: string; files: number }> {
   const specFile = join(workspaceRoot, client.spec.file);
   if (!existsSync(specFile)) throw new Error(`${client.spec.file} missing`);
   const libRoot = join(workspaceRoot, clientRoot(client), 'testing');
   if (!existsSync(join(libRoot, 'src/index.ts'))) {
     throw new Error(`${clientRoot(client)}/testing/src/index.ts missing (export * from './${GENERATED_DIR}';)`);
   }
-  const document = YAML.parse(readFileSync(specFile, 'utf-8'));
+  const document = parseYaml(readFileSync(specFile, 'utf-8')) as { servers?: { url?: string }[] };
   const baseUrl = document.servers?.[0]?.url ?? '';
   const name = camelCase(client.name);
   const header = generatedHeader('testing', client.spec.file);
@@ -64,7 +68,7 @@ export async function generateTestingLib(client, workspaceRoot) {
   const aggregate = /export const (get\w+Mock) = \(\) => \[/.exec(mocks)?.[1];
   if (!aggregate) throw new Error(`${client.spec.file}: orval produced no msw handlers (no operations?)`);
 
-  const files = {
+  const files: Record<string, string> = {
     'schema.ts': schema,
     'mocks.ts': mocks,
     'http.ts': [
@@ -104,7 +108,7 @@ export async function generateTestingLib(client, workspaceRoot) {
 }
 
 /** .ts files below dir, absolute, sorted. */
-function listFiles(dir) {
+function listFiles(dir: string): string[] {
   return readdirSync(dir, { recursive: true })
     .map((file) => join(dir, String(file)))
     .filter((file) => file.endsWith('.ts') && statSync(file).isFile())

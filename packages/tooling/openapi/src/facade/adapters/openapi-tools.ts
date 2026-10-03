@@ -9,7 +9,8 @@
  */
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
-import { listTsFiles } from './files.mjs';
+import type { Classification, GeneratorAdapter } from '../contract';
+import { listTsFiles } from './files';
 
 // fixed: the classification depends on these folders
 const MODEL_PACKAGE = 'model';
@@ -18,7 +19,7 @@ const API_PACKAGE = 'api';
 const DROPPED = new Set(['index.ts', 'api.module.ts']);
 
 /** Overridable per client: openapi-clients.json → clients → <path> → options. */
-export const defaults = {
+export const defaults: Record<string, unknown> = {
   ngVersion: '22.0.0',
   providedIn: 'root',
   fileNaming: 'kebab-case',
@@ -30,13 +31,15 @@ export const defaults = {
   // (export * from './x.serviceInterface' without the file). Off by default anyway.
 };
 
-/** @type {import('../contract').GeneratorAdapter} */
-const openapiToolsAdapter = {
+/** execFileSync error with the child's output (stdio: 'pipe'). */
+type ExecError = Error & { stdout?: Buffer | string; stderr?: Buffer | string };
+
+const openapiToolsAdapter: GeneratorAdapter = {
   id: 'openapi-tools',
   async generate({ specFile, outDir, options, workspaceRoot }) {
     const properties = { ...options, modelPackage: MODEL_PACKAGE, apiPackage: API_PACKAGE };
     const additional = Object.entries(properties)
-      .map(([key, value]) => `${key}=${value}`)
+      .map(([key, value]) => `${key}=${String(value)}`)
       .join(',');
     const cli = join(workspaceRoot, 'node_modules/.bin/openapi-generator-cli');
     const args = ['generate', '-g', 'typescript-angular', '-i', specFile, '-o', outDir];
@@ -46,8 +49,9 @@ const openapiToolsAdapter = {
       // First run downloads the jar (network); parallel downloads are safe (tmp file + move).
       execFileSync(cli, args, { cwd: workspaceRoot, stdio: 'pipe', env: { ...process.env, PWD: workspaceRoot } });
     } catch (error) {
+      const { stdout = '', stderr = '' } = error as ExecError;
       throw new Error(
-        `openapi-generator-cli failed (Java 11+ in PATH? network for the first jar download?):\n${error.stdout ?? ''}${error.stderr ?? ''}`,
+        `openapi-generator-cli failed (Java 11+ in PATH? network for the first jar download?):\n${String(stdout)}${String(stderr)}`,
       );
     }
   },
@@ -58,7 +62,7 @@ const openapiToolsAdapter = {
 export default openapiToolsAdapter;
 
 /** Also used by the nx-plugin-openapi adapter (same output). */
-export function classifyOpenApiTools(outDir) {
+export function classifyOpenApiTools(outDir: string): Classification {
   const files = listTsFiles(outDir);
   return {
     models: files.filter((file) => file.startsWith(`${MODEL_PACKAGE}/`)),

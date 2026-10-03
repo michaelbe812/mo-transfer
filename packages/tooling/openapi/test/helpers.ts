@@ -21,8 +21,8 @@ import type { AddressInfo } from 'node:net';
 import { dirname, join, relative, resolve } from 'node:path';
 import ts from 'typescript';
 
-export const repoRoot = resolve(import.meta.dirname, '../../../..');
-export const fixture = (name: string): string => readFileSync(join(import.meta.dirname, 'fixtures', name), 'utf-8');
+export const repoRoot = resolve(__dirname, '../../../..');
+export const fixture = (name: string): string => readFileSync(join(__dirname, 'fixtures', name), 'utf-8');
 export const THINGS_SPEC = fixture('things.yaml');
 
 let counter = 0;
