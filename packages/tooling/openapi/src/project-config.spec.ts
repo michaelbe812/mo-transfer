@@ -192,6 +192,7 @@ describe('client config (project.json of clients and parts, inferred targets)', 
     expect(covers(clientInputs, 'adapters/hey-api.ts')).toBe(true);
     expect(covers(testing, 'adapters/hey-api.ts')).toBe(false);
     expect(covers(clientInputs, 'pipeline/client-preset.ts')).toBe(true);
+    expect(covers(testing, 'pipeline/client-preset.ts')).toBe(false);
   });
 
   it('M3: testing target runs adapters/files.ts (readRawFiles) — an input; package mode includes yaml', () => {
