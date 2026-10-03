@@ -572,9 +572,14 @@ const partsOfEntry = (entry) =>
   CLIENT_PARTS.filter((part) => !(part === 'core' && entry.layout === 'merged-core') && !(part === 'testing' && entry.pipeline?.testing === false));
 const OPENAPI_PLUGIN = '@mo-transfer/tooling-openapi/plugin';
 const COMMITTED_INDEX = "export * from './generated';\n";
-/** target names (packages/tooling/openapi/src/project-config.ts): client project / testing lib */
-const CLIENT_GENERATE_TARGET = 'generate-api-client';
-const TESTING_GENERATE_TARGET = 'generate-api-testing';
+/** target names: defaults of packages/tooling/openapi/src/project-config.ts, renamed by the plugin options in nx.json */
+const openapiPluginOptions = (() => {
+  const entry = (JSON.parse(readFileSync('nx.json', 'utf-8')).plugins ?? []).find((plugin) => (typeof plugin === 'string' ? plugin : plugin.plugin) === OPENAPI_PLUGIN);
+  return (typeof entry === 'object' && entry.options) || {};
+})();
+const CLIENT_GENERATE_TARGET = openapiPluginOptions.clientTargetName ?? 'generate-api-client';
+const TESTING_GENERATE_TARGET = openapiPluginOptions.testingTargetName ?? 'generate-api-testing';
+const UPDATE_SPEC_TARGET = openapiPluginOptions.updateSpecTargetName ?? 'update-spec';
 const GENERATE_TARGETS = [CLIENT_GENERATE_TARGET, TESTING_GENERATE_TARGET];
 
 function checkGeneratedClients(projectGraph) {
@@ -627,10 +632,10 @@ function checkGeneratedClients(projectGraph) {
       problems.push(`${root}: uses the experimental feature "${feature}" with its flag off (openapi-clients.json → settings.features.${feature})`);
     }
     if (openapi && JSON.stringify(openapi.parts) !== JSON.stringify(expectedParts)) problems.push(`${node.name}: parts ${JSON.stringify(openapi.parts)} ≠ entry ${JSON.stringify(expectedParts)}`);
-    const explicitTargets = Object.keys(readJson(join(root, 'project.json')).targets ?? {}).filter((target) => [CLIENT_GENERATE_TARGET, 'update-spec'].includes(target));
+    const explicitTargets = Object.keys(readJson(join(root, 'project.json')).targets ?? {}).filter((target) => [CLIENT_GENERATE_TARGET, UPDATE_SPEC_TARGET].includes(target));
     if (explicitTargets.length) problems.push(`${root}/project.json: ${explicitTargets.join(', ')} explicit — inferred from openapi-clients.json (${OPENAPI_PLUGIN}), remove it`);
     if (!generate?.outputs?.every((output) => output.endsWith('/src/generated'))) problems.push(`${node.name}: outputs must be the src/generated folders`);
-    if (!node.data.targets?.['update-spec']) problems.push(`${node.name}: update-spec target missing`);
+    if (!node.data.targets?.[UPDATE_SPEC_TARGET]) problems.push(`${node.name}: ${UPDATE_SPEC_TARGET} target missing`);
   }
   for (const { name, data } of parts) {
     const client = data.root.split('/').slice(0, -1).join('/');

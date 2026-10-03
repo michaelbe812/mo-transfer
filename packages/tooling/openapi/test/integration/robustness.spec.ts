@@ -295,7 +295,8 @@ describe('L5: renamed targets (plugin options) keep dependsOn working', () => {
     expect(fx.project('generated-l-client-testing').targets.lint.dependsOn).toEqual(['codegen-testing', '^codegen', '^codegen-testing']);
     expect(Object.keys(fx.project('generated-l-client').targets).sort()).toEqual(['codegen', 'refresh-spec']);
     // the task graph: typecheck of the api lib runs the client's codegen first
-    const graph = JSON.parse(fx.nx('run', 'generated-l-client-api:typecheck', '--graph=stdout'));
+    fx.nx('run', 'generated-l-client-api:typecheck', '--graph=task-graph.json');
+    const graph = JSON.parse(readFileSync(join(fx.root, 'task-graph.json'), 'utf-8'));
     expect(Object.keys(graph.tasks.tasks)).toContain('generated-l-client:codegen');
   });
 });
