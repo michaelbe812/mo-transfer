@@ -46,3 +46,73 @@ describe('H1: a malformed openapi-clients.json never breaks the graph', () => {
     expect(fx.project('generated-a-client').metadata.openapi.problem).toBe('pipeline.transforms[0]: module missing');
   });
 });
+
+/** a Node script as generator (built-in command adapter): model + api in separate files */
+const GENERATOR = [
+  "import { mkdirSync, writeFileSync } from 'node:fs';",
+  'const [out] = process.argv.slice(2);',
+  "mkdirSync(out + '/model', { recursive: true });",
+  "writeFileSync(out + '/model/thing.ts', 'export type Thing = { id: string };\\n');",
+  "writeFileSync(out + '/client.ts', \"import type { Thing } from './model/thing';\\nexport const get = (): Thing => ({ id: 'x' });\\n\");",
+].join('\n');
+const COMMAND_ADAPTER = {
+  module: 'builtin:command',
+  options: { command: 'node', args: ['{workspaceRoot}/tools/gen.mjs', '{outDir}'], classify: { models: ['model/*.ts'], apis: ['client.ts'] } },
+};
+const commitClient = (root: string, clientPath: string, parts = ['types', 'api', 'core']): void => {
+  write(root, `libs/${clientPath}/project.json`, JSON.stringify({ name: clientPath.replaceAll('/', '-'), tags: ['scope:shared', 'generated'] }));
+  write(root, `libs/${clientPath}/openapi.yaml`, THINGS_SPEC);
+  for (const part of parts) write(root, `libs/${clientPath}/${part}/src/index.ts`, "export * from './generated';\n");
+};
+
+describe('H2: paths from settings, transforms and classify cannot escape', () => {
+  let fx: NxFixture;
+  beforeAll(() => {
+    fx = createNxFixture('h2');
+    write(fx.root, 'tools/gen.mjs', GENERATOR);
+    commitClient(fx.root, 'generated/b-client');
+  });
+  afterAll(() => removeWorkspace(fx.root));
+
+  it('settings.outputDir ".." never deletes the committed lib: invalid settings, no targets, a warning', () => {
+    fx.clients({ settings: { outputDir: '..' }, adapters: { cmd: COMMAND_ADAPTER }, clients: { 'generated/b-client': { adapter: 'cmd' } } });
+    const run = fx.tryNx('run', 'generated-b-client:generate-api-client', '--skip-nx-cache');
+    expect(existsSync(join(fx.root, 'libs/generated/b-client/types/src/index.ts'))).toBe(true);
+    expect(run.ok).toBe(false);
+    expect(fx.tryNx('show', 'projects', '--json').output).toContain('settings.outputDir: must be one kebab-case folder name');
+  });
+
+  it.each([
+    [{ libsDir: '/tmp' }, 'settings.libsDir: must be a relative path inside the workspace'],
+    [{ libsDir: '../outside' }, 'settings.libsDir: must be a relative path inside the workspace'],
+    [{ clientFolder: 'a/b' }, 'settings.clientFolder: must be one kebab-case folder name'],
+    [{ specFiles: ['../spec.yaml'] }, 'settings.specFiles: plain file names only'],
+  ])('settings %j are rejected with a warning', (settings, message) => {
+    fx.clients({ settings, clients: { 'generated/b-client': {} } });
+    const result = fx.tryNx('show', 'projects', '--json');
+    expect(result.ok).toBe(true);
+    expect(result.output).toContain(message);
+  });
+
+  it('a transform returning a path outside its part fails; nothing is written outside src/generated', () => {
+    write(
+      fx.root,
+      'tools/escape/escape.ts',
+      "export default { apiVersion: 1, id: 'escape', transform(files: { path: string; part: string; content: string }[]) { return [...files, { path: '../../../../../escaped.ts', part: 'api', content: 'x' }]; } };\n",
+    );
+    fx.clients({ adapters: { cmd: COMMAND_ADAPTER }, clients: { 'generated/b-client': { adapter: 'cmd', pipeline: { transforms: ['./tools/escape/escape.ts'] } } } });
+    const run = fx.tryNx('run', 'generated-b-client:generate-api-client', '--skip-nx-cache');
+    expect(run.ok).toBe(false);
+    expect(run.output).toContain('transform escape: invalid file path "../../../../../escaped.ts" (relative, inside its part)');
+    expect(existsSync(join(fx.root, 'libs/escaped.ts'))).toBe(false);
+    expect(existsSync(join(fx.root, 'escaped.ts'))).toBe(false);
+  });
+
+  it('a classification pointing outside the raw output is rejected', () => {
+    write(fx.root, 'tools/out/out.ts', "export default { apiVersion: 1, id: 'out', generate() {}, classify() { return { models: ['../outside.ts'], apis: [], core: [] }; } };\n");
+    fx.clients({ adapters: { out: { module: './tools/out/out.ts' } }, clients: { 'generated/b-client': { adapter: 'out' } } });
+    const run = fx.tryNx('run', 'generated-b-client:generate-api-client', '--skip-nx-cache');
+    expect(run.ok).toBe(false);
+    expect(run.output).toContain('../outside.ts: classified, but no .ts file of the raw output');
+  });
+});

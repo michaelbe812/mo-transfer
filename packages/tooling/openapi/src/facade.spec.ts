@@ -100,6 +100,9 @@ describe('settings helpers + errors', () => {
     expect(generatedHeader(settings, 'testing', 's.yaml')).toBe(`${DEFAULT_SETTINGS.header.lint.join('\n')}\n// gen testing s.yaml {unknown}\n`);
     expect(camelCase('pet-client-2')).toBe('petClient2');
     expect(parseClientPath('generated/generated')).toBeUndefined();
+    // H2: only kebab-case folders (no `..`, no separators sneaking into project names / paths)
+    expect(parseClientPath('generated/Bad_Client')).toBeUndefined();
+    expect(parseClientPath('../generated/x-client')).toBeUndefined();
     expect(parseClientPath('generated/generated/x')).toBeUndefined();
     expect(parseClientPath('booking/generated/b')).toEqual({ path: 'booking/generated/b', name: 'b', scope: 'booking', placement: { domain: 'booking' } });
   });
