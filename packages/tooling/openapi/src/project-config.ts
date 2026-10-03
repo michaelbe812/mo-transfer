@@ -86,7 +86,7 @@ const TESTING_PACKAGES: Record<MockEngine, string[]> = {
 /** source files every generate target runs (relative to src/); the client target adds the built-in adapters */
 const PIPELINE_SOURCES = [
   // listed one by one, no negations (`nx affected` ignores them): testing-only code stays out of the client hash
-  ...['barrel', 'client-preset', 'glob', 'jsonpath', 'overlay', 'run-process', 'runner', 'spec', 'split', 'transform'].map((name) => `pipeline/${name}.ts`),
+  ...['barrel', 'glob', 'jsonpath', 'overlay', 'run-process', 'runner', 'spec', 'split', 'transform'].map((name) => `pipeline/${name}.ts`),
   'registry/**/*',
   'executors/**/*',
   // the plugin + project-config shape the inferred targets: a change must reach `nx affected` (no tooling fallback in CI)
@@ -232,7 +232,7 @@ export function generateTarget(context: InferenceContext, clientPath: string, sp
   const adapter = resolveAdapter(context.registry, adapterIdOf(config, clientPath), clientPath);
   const adapterInputs = adapterCacheInputs(adapter);
   const pipeline = pipelineInputs(entry, workspaceRoot);
-  const tooling = toolingInputs(workspaceRoot, ['adapters/**/*']);
+  const tooling = toolingInputs(workspaceRoot, ['pipeline/client-preset.ts', 'adapters/**/*']);
   return {
     executor: OPENAPI_EXECUTORS.generate,
     cache: true,

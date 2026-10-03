@@ -2,10 +2,8 @@
  * Preset `client` (target generate-api-client): the entry's adapter (registry) generates, its classification
  * splits into types / api / core (core merged into api with layout merged-core), one barrel per part.
  */
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import type { AdapterContext, AdapterDefinition, Classification, ClientPart, Part, PipelineFile } from '../adapter';
-import { listTsFiles } from '../adapters/files';
+import { readRawFiles } from '../adapters/files';
 import { codePartsOf, type Layout } from '../config';
 import { OpenApiError } from '../errors';
 import { loadAdapter } from '../registry/load';
@@ -13,11 +11,6 @@ import type { ResolvedAdapter } from '../registry/registry';
 import { unmetRequirements, validateOptions } from '../registry/validate';
 import { runProcess } from './run-process';
 import type { ClassifiedFiles, PipelineContext, PipelinePreset } from './runner';
-
-/** raw output of a folder: every .ts file, relative posix path → content */
-export function readRawFiles(dir: string): Map<string, string> {
-  return new Map(listTsFiles(dir).map((file) => [file, readFileSync(join(dir, file), 'utf-8')]));
-}
 
 const CATEGORIES = [
   ['models', 'types'],

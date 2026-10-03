@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parse as parseYaml } from 'yaml';
 import { camelCase, type MockEngine, partRoot, TESTING_PART } from '../settings';
-import { readRawFiles } from './client-preset';
+import { readRawFiles } from '../adapters/files';
 import type { PipelineContext, PipelinePreset } from './runner';
 import { generateSchemaFakerMocks } from './schema-faker/mocks';
 
