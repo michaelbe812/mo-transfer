@@ -108,7 +108,7 @@ export async function runPipeline(preset: PipelinePreset, input: PipelineInput):
 }
 
 /** One barrel per part with files: its entries (declared, else every file) from the in-memory files. */
-function buildBarrels(
+export function buildBarrels(
   parts: readonly ClientPart[],
   files: readonly PipelineFile[],
   declared: Partial<Record<ClientPart, string[]>>,

@@ -80,7 +80,7 @@ describe('runAdapterContract', () => {
     await expect(contract(adapter({ classify: () => ({ models: [], apis: [], core: [] }) }))).rejects.toThrow('classify put no file into models/apis/core');
     await expect(contract(adapter({}))).rejects.toThrow("adapter contract: a.ts: Import './b' points to a dropped or unknown file (not found)");
     await expect(
-      contract(adapter({ generate: ({ outDir }) => writeFileSync(join(outDir, 'a.ts'), ''), classify: () => ({ models: [], apis: ['a.ts'], core: [], entries: { api: ['z.ts'] } }) })),
+      contract(adapter({ generate: ({ outDir, log }) => { log('silent'); writeFileSync(join(outDir, 'a.ts'), ''); }, classify: () => ({ models: [], apis: ['a.ts'], core: [], entries: { api: ['z.ts'] } }) })),
     ).rejects.toThrow('entries.api: z.ts not in this part');
     await expect(contract(commandAdapter, { ...commandOptions, env: { FAIL: '1' } })).rejects.toThrow('generator says no');
   });

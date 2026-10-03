@@ -19,9 +19,9 @@ import { isAbsolute, join, relative, resolve } from 'node:path';
 import type { AdapterContext, AdapterDefinition, ClientDefinition, ClientPart, Layout } from './adapter';
 import { codePartsOf } from './config';
 import { OpenApiError } from './errors';
-import { buildBarrel } from './pipeline/barrel';
 import { classifyFiles, readRawFiles } from './pipeline/client-preset';
 import { runProcess } from './pipeline/run-process';
+import { buildBarrels } from './pipeline/runner';
 import { splitIntoParts } from './pipeline/split';
 import { definitionProblem, unmetRequirements, validateOptions } from './registry/validate';
 
@@ -92,17 +92,11 @@ export async function runAdapterContract<TOptions>(adapter: AdapterDefinition<TO
     const parts = codePartsOf({ layout });
     const aliases = Object.fromEntries(parts.map((part) => [part, `@contract/${part}`]));
     const split = splitIntoParts({ files: classified.files, knownFiles: [...raw.keys()], aliases });
-    const contents = new Map(classified.files.map((file) => [file.path, file.content]));
-    const report: AdapterContractReport = { parts: {}, barrels: {}, outDir };
-    for (const part of parts) {
-      const own = split.filter((file) => file.part === part).map((file) => file.path);
-      const entries = classified.entries[part] ?? own;
-      const unknown = entries.filter((entry) => !own.includes(entry));
-      if (unknown.length) fail(definition.id, `entries.${part}: ${unknown.join(', ')} not in this part`);
-      report.parts[part] = own;
-      report.barrels[part] = buildBarrel(outDir, contents, entries);
-    }
-    return report;
+    return {
+      parts: Object.fromEntries(parts.map((part) => [part, split.filter((file) => file.part === part).map((file) => file.path)])),
+      barrels: buildBarrels(parts, classified.files, classified.entries, outDir),
+      outDir,
+    };
   } catch (error) {
     throw error instanceof OpenApiError ? error : new OpenApiError(`adapter contract: ${(error as Error).message}`, { phase: 'classify', adapter: definition.id, cause: error });
   } finally {
