@@ -1,11 +1,15 @@
 {
   "name": "@mo-transfer/tooling-openapi",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
-  "description": "Generierte OpenAPI-Clients: Projekt-Config (project.json der Clients, Plugin für generate-api-client/update-spec), Facade (Vertrag, Registry, Adapter, Split, Barrel), Testing-Generierung, Executoren generate/update-spec/generate-testing (Targets generate-api-client/update-spec/generate-api-testing), Generator client.",
-  "main": "./src/project-config.ts",
+  "description": "Generierte OpenAPI-Clients für Nx: Pipeline (spec/Overlays → generate → classify → transform → split → barrel → finalize → write), Adapter-SPI v1, Crystal-Plugin (generate-api-client/generate-api-testing/update-spec), Executoren, Generator client.",
+  "license": "MIT",
+  "keywords": ["nx", "nx-plugin", "openapi", "codegen", "angular"],
+  "main": "./src/index.ts",
   "exports": {
-    ".": "./src/project-config.ts",
+    ".": "./src/index.ts",
+    "./adapter": "./src/adapter.ts",
+    "./adapter-testing": "./src/adapter-testing.ts",
     "./clients": "./src/clients.ts",
     "./plugin": "./src/plugin/openapi-clients.ts",
     "./package.json": "./package.json"
@@ -13,6 +17,14 @@
   "executors": "./executors.json",
   "generators": "./generators.json",
   "dependencies": {
+    "yaml": "^2.9.1"
+  },
+  "peerDependencies": {
+    "@nx/devkit": ">=23.0.0",
+    "nx": ">=23.0.0",
+    "typescript": ">=5.5.0"
+  },
+  "devDependencies": {
     "@mo-transfer/tooling-conventions": "workspace:*"
   }
 }

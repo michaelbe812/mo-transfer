@@ -2,18 +2,21 @@
   "$schema": "https://json-schema.org/schema",
   "$id": "BlueprintClient",
   "title": "Generierter OpenAPI-Client",
-  "description": "libs/[<domain>/]generated/<name>/{openapi.yaml|json, types, api, core, testing} (nur src/index.ts), Eintrag in openapi-clients.json. Der Code entsteht per Target generate-api-client (types/api/core) bzw. generate-api-testing (testing).",
+  "description": "<libsDir>/[<domain>/]generated/<name>/{openapi.yaml|json, types, api, core?, testing?} (nur src/index.ts), Eintrag in openapi-clients.json. Der Code entsteht per Target generate-api-client (types/api/core) bzw. generate-api-testing (testing).",
   "type": "object",
   "properties": {
     "name": {
       "type": "string",
       "description": "Client-Name = Ordner, kebab-case (z.B. pet-client).",
-      "$default": { "$source": "argv", "index": 0 },
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      },
       "x-prompt": "Client-Name?"
     },
     "domain": {
       "type": "string",
-      "description": "Besitzende Domain (libs/<domain>/generated/<name>). Ohne: shared (libs/generated/<name>)."
+      "description": "Besitzende Domain (<libsDir>/<domain>/generated/<name>). Ohne: shared (<libsDir>/generated/<name>)."
     },
     "spec": {
       "type": "string",
@@ -26,10 +29,24 @@
     },
     "adapter": {
       "type": "string",
-      "description": "Code-Generator (Default: defaultAdapter in openapi-clients.json).",
-      "enum": ["openapi-tools", "hey-api", "nx-plugin-openapi"]
+      "description": "Code-Generator (Default: defaultAdapter in openapi-clients.json): eingebaut oder eigener Adapter aus openapi-clients.json → adapters.",
+      "examples": ["openapi-tools", "hey-api", "nx-plugin-openapi", "command"]
     },
-    "skipFormat": { "type": "boolean", "default": false, "x-priority": "internal" }
+    "layout": {
+      "type": "string",
+      "description": "merged-core: Runtime (core) in der api-Lib, keine core-Lib. Default: types/api/core.",
+      "enum": ["merged-core"]
+    },
+    "testing": {
+      "type": "boolean",
+      "description": "Testing-Lib (msw) anlegen. false: keine Testing-Lib, Eintrag pipeline.testing: false.",
+      "default": true
+    },
+    "skipFormat": {
+      "type": "boolean",
+      "default": false,
+      "x-priority": "internal"
+    }
   },
   "additionalProperties": false,
   "required": ["name", "spec"]

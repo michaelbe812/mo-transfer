@@ -1,162 +1,232 @@
 /**
- * Nx config of the generated OpenAPI clients (docs/nx-umsetzung.md → "OpenAPI-Clients"): what the client
- * generator writes into the project.json files, and the client targets the plugin (src/plugin) infers.
+ * Nx config of the generated OpenAPI clients: what the plugin infers (targets + cache inputs) and what the client
+ * generator writes into project.json files (docs/openapi-pipeline-architektur.md).
  *
- *   openapi-clients.json (workspace root)    one entry per client, key = client path below libs/:
- *     { "defaultAdapter": "openapi-tools",
- *       "clients": { "generated/pet-client": { "url": "https://…", "adapter"?: "hey-api", "options"?: {…} } } }
- *   libs/<client path>/openapi.yaml|json     committed spec — the only source for `generate-api-client`
- *   libs/<client path>/project.json          client project (generated-pet-client): name, tags scope:<shared|domain>
- *                                            + generated, no targets, no code, no alias
- *   inferred per entry (plugin, clientTargets):
- *     generate-api-client  @mo-transfer/tooling-openapi:generate, cached, outputs <part>/src/generated (types, api, core)
- *     update-spec          @mo-transfer/tooling-openapi:update-spec, fails without `url`, not cached
- *   libs/<client path>/<part>/project.json   ordinary lib config (tooling-conventions) + implicitDependencies
- *                                            part → client (→ sibling parts); the testing part has its own
- *                                            generate-api-testing (@mo-transfer/tooling-openapi:generate-testing)
+ *   <libsDir>/<client path>/openapi.yaml|json   committed spec — the only source of generation
+ *   <libsDir>/<client path>/project.json        client project: name + tags (no targets, no code, no alias)
+ *   inferred (plugin, inferClientTargets):
+ *     client project   generate-api-client   executor generate, cached, outputs <part>/src/generated
+ *                      update-spec           executor update-spec, fails without `url`, not cached
+ *     testing lib      generate-api-testing  executor generate-testing, cached (unless pipeline.testing: false)
+ *   <libsDir>/<client path>/<part>/project.json ordinary lib config (scaffold) + implicitDependencies
+ *                                               part → client (→ sibling parts below)
  *
- * Target names: two distinct names, so `^generate-api-client` / `^generate-api-testing` (nx.json targetDefaults
- * of build/lint/test/typecheck) say exactly which generated code a lib waits for; both outputs are hashed via
- * `dependentTasksOutputFiles` (src/generated). The executor names stay generate / generate-testing.
- *
- * The entry stays in openapi-clients.json and is a `json` input (fields) of `generate-api-client`, never its options:
+ * The entry stays in openapi-clients.json and is a `json` input (fields) of the targets, never their options:
  * Nx hashes the ProjectConfiguration of every dependency into `^default`/`^production`, target options there
  * would invalidate every dependent on any entry change. The options hold only `client`.
- * Adapter-dependent inputs (registry.json) follow the entry's adapter — derived, so they cannot drift.
+ * Adapter-dependent inputs follow the entry's adapter (registry) — derived, so they cannot drift.
  */
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, realpathSync } from 'node:fs';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import {
-  CLIENT_CODE_PARTS,
-  CLIENT_SPEC_FILES,
+  adapterIdOf,
+  type ClientEntry,
   CLIENTS_CONFIG_FILE,
-  GENERATED_TAG,
-  LIBS_DIR,
+  type ClientsConfig,
+  clientPartsOf,
+  codePartsOf,
+  disabledFeaturesOf,
+  findSpecFile,
+  hasTesting,
+  normalizeTransform,
+  overlayFiles,
+  settingsOf,
+} from './config';
+import { moduleCacheInputs, parseModuleRef } from './registry/module-ref';
+import { adapterCacheInputs, type AdapterRegistry, resolveAdapter, resolveAdapterRegistry } from './registry/registry';
+import {
+  type ClientPart,
+  clientRoot,
+  DEFAULT_SETTINGS,
+  fillTemplate,
+  type OpenApiSettings,
   parseClientPath,
   projectNameFor,
-  TESTING_LAYER,
-} from '@mo-transfer/tooling-conventions';
+  TESTING_PART,
+} from './settings';
 
-export interface ClientEntry {
-  /** adapter id (adapters/registry.json), default: `defaultAdapter` */
-  adapter?: string;
-  /** source for update-spec; generate-api-client always reads the committed spec file */
-  url?: string;
-  /** adapter options, merged over the adapter's defaults */
-  options?: Record<string, unknown>;
-}
+export type { ClientEntry, ClientsConfig } from './config';
 
-export interface ClientsConfig {
-  defaultAdapter?: string;
-  /** key = client path below libs/, e.g. `generated/pet-client`, `booking/generated/booking-client` */
-  clients?: Record<string, ClientEntry>;
-}
-
-interface AdapterRegistration {
-  packages: string[];
-  inputs: string[];
-  runtime: string[];
-}
-
-/** A target as written into project.json. */
+/** A target as written into project.json / inferred by the plugin. */
 export type TargetJson = Record<string, unknown>;
 
 /** Checks for files relative to the workspace root (fs or an Nx Tree). */
 export type Exists = (path: string) => boolean;
 
+/** Target names (plugin options in nx.json: `clientTargetName`, `testingTargetName`, `updateSpecTargetName`). */
+export interface TargetNames {
+  client: string;
+  testing: string;
+  updateSpec: string;
+}
+export const DEFAULT_TARGET_NAMES: TargetNames = {
+  client: 'generate-api-client',
+  testing: 'generate-api-testing',
+  updateSpec: 'update-spec',
+};
 /** Target of the client project (inferred): adapter code of types/api/core. */
-export const CLIENT_GENERATE_TARGET = 'generate-api-client';
-/** Target of the client's testing lib (project.json): openapi-typescript + msw. */
-export const TESTING_GENERATE_TARGET = 'generate-api-testing';
+export const CLIENT_GENERATE_TARGET = DEFAULT_TARGET_NAMES.client;
+/** Target of the client's testing lib (inferred): openapi-typescript + msw. */
+export const TESTING_GENERATE_TARGET = DEFAULT_TARGET_NAMES.testing;
 /** dependsOn of every lib target: the generated code of all dependencies (both target kinds). */
 export const GENERATED_DEPENDS_ON = [`^${CLIENT_GENERATE_TARGET}`, `^${TESTING_GENERATE_TARGET}`];
 
+/** Root of this package (src/.. — the same in the sources and in the built dist). */
+const PACKAGE_ROOT = resolve(__dirname, '..');
+export const PACKAGE_NAME = (JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf-8')) as { name: string }).name;
+
 /** Executors of this package (executors.json). */
 export const OPENAPI_EXECUTORS = {
-  generate: '@mo-transfer/tooling-openapi:generate',
-  generateTesting: '@mo-transfer/tooling-openapi:generate-testing',
-  updateSpec: '@mo-transfer/tooling-openapi:update-spec',
+  generate: `${PACKAGE_NAME}:generate`,
+  generateTesting: `${PACKAGE_NAME}:generate-testing`,
+  updateSpec: `${PACKAGE_NAME}:update-spec`,
 };
-/** npm packages of the testing pipeline (cache inputs of the testing lib's generate-api-testing) */
+/** npm packages of the testing pipeline (cache inputs of generate-api-testing) */
 const TESTING_PACKAGES = ['openapi-typescript', 'orval', 'yaml'];
-export const DEFAULT_ADAPTER = 'openapi-tools';
-const PACKAGE_DIR = 'packages/tooling/openapi/src';
-const FACADE_DIR = `${PACKAGE_DIR}/facade`;
-const TESTING_DIR = `${PACKAGE_DIR}/testing`;
-const EXECUTORS_DIR = `${PACKAGE_DIR}/executors`;
-/** code that shapes the inferred client targets: a change must reach `nx affected` (no tooling fallback in CI) */
-const INFERENCE_FILES = [`${PACKAGE_DIR}/plugin/**/*`, `${PACKAGE_DIR}/project-config.ts`];
-const REGISTRY_FILE = join(__dirname, 'facade/adapters/registry.json');
+/** source files every generate target runs (relative to src/); the client target adds the built-in adapters */
+const PIPELINE_SOURCES = [
+  'pipeline/**/*',
+  'registry/**/*',
+  'executors/**/*',
+  // the plugin + project-config shape the inferred targets: a change must reach `nx affected` (no tooling fallback in CI)
+  'plugin/**/*',
+  'adapter.ts',
+  'config.ts',
+  'errors.ts',
+  'facade.ts',
+  'settings.ts',
+  'project-config.ts',
+];
 
-/** Adapter registry (cache inputs per adapter), read once. */
-let registry: Record<string, AdapterRegistration> | undefined;
-export function adapterRegistry(): Record<string, AdapterRegistration> {
-  registry ??= Object.fromEntries(
-    Object.entries(JSON.parse(readFileSync(REGISTRY_FILE, 'utf-8')) as Record<string, AdapterRegistration>).filter(
-      ([id]) => !id.startsWith('$'),
-    ),
-  );
-  return registry;
-}
-
-/** Adapter of an entry: its own, else the file's default, else openapi-tools. Throws for an unknown one. */
-export function adapterOf(clientPath: string, config: ClientsConfig): string {
-  const adapter = config.clients?.[clientPath]?.adapter ?? config.defaultAdapter ?? DEFAULT_ADAPTER;
-  if (!adapterRegistry()[adapter]) {
-    throw new Error(
-      `${CLIENTS_CONFIG_FILE} → "${clientPath}": unknown adapter "${adapter}" (known: ${Object.keys(adapterRegistry()).join(', ')})`,
-    );
+/** realpath, or the resolved path of a folder that does not exist (a virtual Tree root) */
+const realpath = (path: string): string => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
   }
-  return adapter;
+};
+
+/** This package's folder relative to the workspace root (posix), undefined outside or below node_modules. */
+function packageFolderIn(workspaceRoot: string): string | undefined {
+  const packageRoot = realpath(PACKAGE_ROOT);
+  const fromRoot = relative(realpath(workspaceRoot), packageRoot);
+  if (packageRoot.split(sep).includes('node_modules') || fromRoot.startsWith('..') || isAbsolute(fromRoot)) return undefined;
+  return fromRoot.split(sep).join('/');
 }
 
-/** The committed spec of a client folder: exactly one of openapi.yaml / openapi.json. */
-export function findSpecFile(exists: Exists, clientPath: string): string {
-  const found = CLIENT_SPEC_FILES.filter((file) => exists(`${LIBS_DIR}/${clientPath}/${file}`));
-  if (found.length !== 1) {
-    throw new Error(
-      `${CLIENTS_CONFIG_FILE} → "${clientPath}": ${LIBS_DIR}/${clientPath} needs exactly one spec file ` +
-        `(${CLIENT_SPEC_FILES.join(' | ')}), found ${found.length ? found.join(', ') : 'none'}. ` +
-        `New client: nx g @mo-transfer/tooling-openapi:client <name> --spec=<file|url>`,
-    );
+/** How the tooling itself enters the hash (settings.toolingInputs, `auto` decided by where this package lives). */
+export function toolingMode(settings: OpenApiSettings, workspaceRoot: string): 'source' | 'package' | 'none' {
+  if (settings.toolingInputs !== 'auto') return settings.toolingInputs;
+  if (realpath(PACKAGE_ROOT).split(sep).includes('node_modules')) return 'package';
+  return packageFolderIn(workspaceRoot) === undefined ? 'none' : 'source';
+}
+
+/** `$schema` of a new openapi-clients.json: the package's schema, in the workspace or below node_modules. */
+export function schemaPathFor(workspaceRoot: string): string {
+  const folder = packageFolderIn(workspaceRoot);
+  return `./${folder ?? `node_modules/${PACKAGE_NAME}`}/openapi-clients.schema.json`;
+}
+
+interface ToolingInputs {
+  files: string[];
+  packages: string[];
+}
+
+function toolingInputs(settings: OpenApiSettings, workspaceRoot: string, extraSources: string[]): ToolingInputs {
+  const mode = toolingMode(settings, workspaceRoot);
+  if (mode === 'package') return { files: [], packages: [PACKAGE_NAME, 'typescript'] };
+  if (mode === 'none') return { files: [], packages: ['typescript', 'yaml'] };
+  const src = `${packageFolderIn(workspaceRoot) ?? '.'}/src`;
+  return {
+    files: [
+      ...[...PIPELINE_SOURCES, ...extraSources].map((source) => `{workspaceRoot}/${src}/${source}`),
+      // specs never run in a generate target (hash only: `nx affected` ignores negations)
+      `!{workspaceRoot}/${src}/**/*.spec.ts`,
+    ],
+    packages: ['typescript', 'yaml'],
+  };
+}
+
+/** Everything the plugin needs per createNodes call — built fresh each time (no memo across calls). */
+export interface InferenceContext {
+  workspaceRoot: string;
+  config: ClientsConfig;
+  settings: OpenApiSettings;
+  registry: AdapterRegistry;
+  exists: Exists;
+  targetNames: TargetNames;
+}
+
+export function createInferenceContext(
+  workspaceRoot: string,
+  config: ClientsConfig,
+  exists: Exists,
+  targetNames: Partial<TargetNames> = {},
+): InferenceContext {
+  return {
+    workspaceRoot,
+    config,
+    settings: settingsOf(config),
+    registry: resolveAdapterRegistry(workspaceRoot, config),
+    exists,
+    targetNames: { ...DEFAULT_TARGET_NAMES, ...targetNames },
+  };
+}
+
+/** Cache inputs of the transform hooks + prettier (pipeline.format). */
+function pipelineInputs(entry: ClientEntry | undefined, workspaceRoot: string): { files: string[]; packages: string[] } {
+  const files: string[] = [];
+  const packages: string[] = [];
+  for (const transform of entry?.pipeline?.transforms ?? []) {
+    const inputs = moduleCacheInputs(parseModuleRef(normalizeTransform(transform).module, workspaceRoot));
+    files.push(...inputs.files);
+    packages.push(...inputs.packages);
   }
-  return `${LIBS_DIR}/${clientPath}/${found[0]}`;
+  if (entry?.pipeline?.format) {
+    files.push('{workspaceRoot}/.prettierrc*', '{workspaceRoot}/.editorconfig');
+    packages.push('prettier');
+  }
+  return { files, packages };
 }
 
-/**
- * implicitDependencies of a part lib: its client (`^generate-api-client`, affected — the generated code is gitignored,
- * so Nx sees no import edges) and the parts below it (build order).
- */
-export function clientPartEdges(exists: Exists, client: { path: string; part: string }): string[] {
-  const below: Record<string, string[]> = { types: [], core: ['types'], api: ['types', 'core'], testing: [] };
-  const siblings = (below[client.part] ?? [])
-    .filter((part) => exists(`${LIBS_DIR}/${client.path}/${part}/src/index.ts`))
-    .map((part) => projectNameFor(`${client.path}/${part}`));
-  return [projectNameFor(client.path), ...siblings];
-}
+const unique = <T>(items: T[]): T[] => [...new Set(items)];
 
-/** `generate-api-client` of the client project: the facade + the entry's adapter. */
-export function generateTarget(clientPath: string, specFile: string, adapter: string): TargetJson {
-  const registration = adapterRegistry()[adapter];
+/** `generate-api-client` of the client project: pipeline (client preset) + the entry's adapter. */
+export function generateTarget(context: InferenceContext, clientPath: string, specFile: string): TargetJson {
+  const { config, settings, workspaceRoot } = context;
+  const entry = config.clients?.[clientPath];
+  const adapter = resolveAdapter(context.registry, adapterIdOf(config, clientPath), clientPath);
+  const adapterInputs = adapterCacheInputs(adapter);
+  const pipeline = pipelineInputs(entry, workspaceRoot);
+  const tooling = toolingInputs(settings, workspaceRoot, ['adapters/**/*']);
   return {
     executor: OPENAPI_EXECUTORS.generate,
     cache: true,
     inputs: [
       `{workspaceRoot}/${specFile}`,
-      // this client's entry only (+ the default adapter it may fall back to) — not the whole file
-      { json: `{workspaceRoot}/${CLIENTS_CONFIG_FILE}`, fields: ['defaultAdapter', `clients.${clientPath}`] },
-      // which parts are committed (core is optional) — the parts are projects of their own
-      ...CLIENT_CODE_PARTS.map((part) => `{workspaceRoot}/${LIBS_DIR}/${clientPath}/${part}/src/index.ts`),
-      // the facade only — the testing pipeline has its own target (generate-api-testing of <client>/testing)
-      `{workspaceRoot}/${FACADE_DIR}/**/*`,
-      `{workspaceRoot}/${EXECUTORS_DIR}/**/*`,
-      ...INFERENCE_FILES.map((file) => `{workspaceRoot}/${file}`),
-      ...registration.inputs,
-      { externalDependencies: [...registration.packages, 'typescript', 'yaml'] },
-      ...registration.runtime.map((runtime) => ({ runtime })),
+      ...overlayFiles(settings, clientPath, entry?.pipeline?.overlays).map((file) => `{workspaceRoot}/${file}`),
+      // this client's entry only (+ the default adapter it may fall back to, settings, its consumer adapter)
+      {
+        json: `{workspaceRoot}/${CLIENTS_CONFIG_FILE}`,
+        fields: [
+          'defaultAdapter',
+          'settings',
+          ...(adapter.custom ? [`adapters.${adapter.id}`] : []),
+          `clients.${clientPath}`,
+        ],
+      },
+      // which parts are committed — the parts are projects of their own
+      ...codePartsOf(entry).map((part) => `{workspaceRoot}/${clientRoot(settings, clientPath)}/${part}/src/index.ts`),
+      ...tooling.files,
+      ...adapterInputs.files,
+      ...pipeline.files,
+      { externalDependencies: unique([...adapterInputs.packages, ...pipeline.packages, ...tooling.packages]) },
+      ...adapterInputs.runtime.map((runtime) => ({ runtime })),
     ],
-    outputs: CLIENT_CODE_PARTS.map((part) => `{projectRoot}/${part}/src/generated`),
+    outputs: codePartsOf(entry).map((part) => `{projectRoot}/${part}/src/${settings.outputDir}`),
     options: { client: clientPath },
+    metadata: { description: `OpenAPI client code (adapter ${adapter.id}) → ${codePartsOf(entry).join(', ')}` },
   };
 }
 
@@ -166,86 +236,138 @@ export function updateSpecTarget(clientPath: string): TargetJson {
     executor: OPENAPI_EXECUTORS.updateSpec,
     cache: false,
     // reads the url from the file at run time; not cached, so this input only feeds `nx affected`:
-    // an edited openapi-clients.json affects every client (the cache of generate-api-client stays per entry)
+    // an edited openapi-clients.json affects every client (the cache of the generate targets stays per entry)
     inputs: [`{workspaceRoot}/${CLIENTS_CONFIG_FILE}`],
     options: { client: clientPath },
   };
 }
 
 /**
- * `generate-api-testing` of a client's testing lib (<client>/testing): spec → openapi-typescript + orval mocks +
+ * `generate-api-testing` of a client's testing lib: pipeline (testing preset) → openapi-typescript + orval mocks +
  * openapi-msw. Independent of the adapter — a switch keeps its cache.
  */
-export function generateTestingTarget(clientPath: string, specFile: string): TargetJson {
+export function generateTestingTarget(context: InferenceContext, clientPath: string, specFile: string): TargetJson {
+  const { config, settings, workspaceRoot } = context;
+  const entry = config.clients?.[clientPath];
+  const pipeline = pipelineInputs(entry, workspaceRoot);
+  const tooling = toolingInputs(settings, workspaceRoot, []);
   return {
     executor: OPENAPI_EXECUTORS.generateTesting,
     cache: true,
     inputs: [
       `{workspaceRoot}/${specFile}`,
-      `{workspaceRoot}/${FACADE_DIR}/facade.ts`,
-      `{workspaceRoot}/${TESTING_DIR}/**/*`,
-      `{workspaceRoot}/${EXECUTORS_DIR}/generate-testing.ts`,
-      { externalDependencies: TESTING_PACKAGES },
+      ...overlayFiles(settings, clientPath, entry?.pipeline?.overlays).map((file) => `{workspaceRoot}/${file}`),
+      { json: `{workspaceRoot}/${CLIENTS_CONFIG_FILE}`, fields: ['settings', `clients.${clientPath}.pipeline`] },
+      ...tooling.files,
+      ...pipeline.files,
+      { externalDependencies: unique([...TESTING_PACKAGES, ...pipeline.packages, ...tooling.packages]) },
     ],
-    outputs: ['{projectRoot}/src/generated'],
+    outputs: [`{projectRoot}/src/${settings.outputDir}`],
     options: { client: clientPath },
+    metadata: { description: 'OpenAPI testing lib (openapi-typescript, orval msw mocks, openapi-msw)' },
   };
 }
 
-/** Throws unless `clientPath` is generated/<client> or <domain>/generated/<client>. */
-function assertClientPath(clientPath: string) {
-  const client = parseClientPath(clientPath);
+/** Throws unless `clientPath` is <clientFolder>/<client> or <domain>/<clientFolder>/<client>. */
+function assertClientPath(clientPath: string, settings: OpenApiSettings) {
+  const client = parseClientPath(clientPath, settings);
   if (!client) {
     throw new Error(
-      `${CLIENTS_CONFIG_FILE} → "${clientPath}": not a client path (generated/<client> or <domain>/generated/<client>)`,
+      `${CLIENTS_CONFIG_FILE} → "${clientPath}": not a client path (${settings.clientFolder}/<client> or <domain>/${settings.clientFolder}/<client>)`,
     );
   }
   return client;
 }
 
-/** project.json of the client project (libs/<client path>/project.json): name + tags, the targets are inferred. */
-export function clientProjectJson(clientPath: string): Record<string, unknown> {
-  const client = assertClientPath(clientPath);
-  const root = `${LIBS_DIR}/${clientPath}`;
+/** project.json of the client project: name + tags, the targets are inferred. */
+export function clientProjectJson(clientPath: string, settings: OpenApiSettings = DEFAULT_SETTINGS): Record<string, unknown> {
+  const client = assertClientPath(clientPath, settings);
+  const root = clientRoot(settings, clientPath);
   return {
     name: projectNameFor(clientPath),
     $schema: `${'../'.repeat(root.split('/').length)}node_modules/nx/schemas/project-schema.json`,
     projectType: 'library',
-    tags: [`scope:${client.scope}`, GENERATED_TAG],
+    tags: settings.clientTags.map((tag) => fillTemplate(tag, { scope: client.scope })),
   };
 }
 
-/**
- * Targets of the client project, inferred from its entry by the plugin (src/plugin/openapi-clients.ts).
- * Throws for a bad path, a missing/duplicate spec or an unknown adapter.
- */
-export function clientTargets(exists: Exists, clientPath: string, config: ClientsConfig): Record<string, TargetJson> {
-  assertClientPath(clientPath);
-  return {
-    [CLIENT_GENERATE_TARGET]: generateTarget(
-      clientPath,
-      findSpecFile(exists, clientPath),
-      adapterOf(clientPath, config),
-    ),
-    'update-spec': updateSpecTarget(clientPath),
-  };
+export interface InferredClientNodes {
+  /** project root → targets */
+  projects: Record<string, Record<string, TargetJson>>;
+  /** client path → metadata the plugin attaches (verify reads it from the graph) */
+  metadata: Record<string, ClientMetadata>;
+}
+
+/** What verify reads from the graph instead of re-implementing the registry (project metadata `openapi`). */
+export interface ClientMetadata {
+  adapter: string;
+  adapterSource?: 'builtin' | 'workspace' | 'package';
+  layout: string;
+  testing: boolean;
+  parts: ClientPart[];
+  problem?: string;
+  /** experimental features the entry uses with their flag off (generate fails, verify reports) */
+  disabledFeatures?: string[];
 }
 
 /**
- * Lib config options of a client part (for writeLibConfig of tooling-conventions): edges; the testing part
- * generates its own code before lint/typecheck. No peerDependencies: the generated code is gitignored
- * (dist identical to the former inferred setup).
+ * Targets of the client project (+ its testing lib), inferred from its entry by the plugin. A broken entry
+ * (bad path, missing/duplicate spec, unknown or unusable adapter) gets only `update-spec` + the problem.
  */
-export function clientPartConfig(exists: Exists, clientPath: string, part: string) {
-  const implicitDependencies = clientPartEdges(exists, { path: clientPath, part });
-  if (part !== TESTING_LAYER) return { implicitDependencies, peerDependencies: {} };
-  return {
-    implicitDependencies,
-    peerDependencies: {},
-    targets: {
-      [TESTING_GENERATE_TARGET]: generateTestingTarget(clientPath, findSpecFile(exists, clientPath)),
-      lint: { dependsOn: [TESTING_GENERATE_TARGET, ...GENERATED_DEPENDS_ON] },
-      typecheck: { dependsOn: [TESTING_GENERATE_TARGET, ...GENERATED_DEPENDS_ON] },
-    },
+export function inferClientTargets(context: InferenceContext, clientPath: string): { targets: Record<string, Record<string, TargetJson>>; metadata: ClientMetadata } {
+  const { config, settings, targetNames, exists } = context;
+  const entry = config.clients?.[clientPath];
+  const root = clientRoot(settings, clientPath);
+  const metadata: ClientMetadata = {
+    adapter: adapterIdOf(config, clientPath),
+    adapterSource: context.registry.adapters[adapterIdOf(config, clientPath)]?.module.kind,
+    layout: entry?.layout ?? 'default',
+    testing: hasTesting(entry),
+    parts: clientPartsOf(entry),
   };
+  const disabled = disabledFeaturesOf(settings, entry);
+  if (disabled.length) metadata.disabledFeatures = disabled;
+  const targets: Record<string, Record<string, TargetJson>> = { [root]: { [targetNames.updateSpec]: updateSpecTarget(clientPath) } };
+  try {
+    assertClientPath(clientPath, settings);
+    const specFile = findSpecFile(exists, settings, clientPath);
+    targets[root][targetNames.client] = generateTarget(context, clientPath, specFile);
+    const testingRoot = `${root}/${TESTING_PART}`;
+    if (hasTesting(entry) && exists(`${testingRoot}/project.json`)) {
+      targets[testingRoot] = { [targetNames.testing]: generateTestingTarget(context, clientPath, specFile) };
+    }
+  } catch (error) {
+    metadata.problem = (error as Error).message;
+  }
+  return { targets, metadata };
+}
+
+/**
+ * implicitDependencies of a part lib: its client (`^generate-api-client`, affected — the generated code is
+ * gitignored, so Nx sees no import edges) and the existing parts below it (build order).
+ */
+export function clientPartEdges(exists: Exists, client: { path: string; part: string }, settings: OpenApiSettings = DEFAULT_SETTINGS): string[] {
+  const below: Record<string, string[]> = { types: [], core: ['types'], api: ['types', 'core'], testing: [] };
+  const siblings = (below[client.part] ?? [])
+    .filter((part) => exists(`${clientRoot(settings, client.path)}/${part}/src/index.ts`))
+    .map((part) => projectNameFor(`${client.path}/${part}`));
+  return [projectNameFor(client.path), ...siblings];
+}
+
+/**
+ * Lib config of a client part (what the scaffold writes besides its convention files): edges; the testing lib
+ * generates its own code before lint/typecheck. No peerDependencies: the generated code is gitignored.
+ */
+export function clientPartConfig(
+  exists: Exists,
+  clientPath: string,
+  part: string,
+  options: { settings?: OpenApiSettings; targetNames?: TargetNames } = {},
+): { implicitDependencies: string[]; peerDependencies: Record<string, string>; targets?: Record<string, TargetJson> } {
+  const settings = options.settings ?? DEFAULT_SETTINGS;
+  const names = options.targetNames ?? DEFAULT_TARGET_NAMES;
+  const implicitDependencies = clientPartEdges(exists, { path: clientPath, part }, settings);
+  if (part !== TESTING_PART) return { implicitDependencies, peerDependencies: {} };
+  const dependsOn = [names.testing, `^${names.client}`, `^${names.testing}`];
+  return { implicitDependencies, peerDependencies: {}, targets: { lint: { dependsOn }, typecheck: { dependsOn } } };
 }

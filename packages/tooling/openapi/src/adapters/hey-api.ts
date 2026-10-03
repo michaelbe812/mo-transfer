@@ -6,7 +6,7 @@
  *   client.gen.ts, client/**, core/**     → core  (client runtime, provideHeyApiClient)
  *   index.ts                              → dropped
  */
-import type { Classification, GeneratorAdapter } from '../contract';
+import { type Classification, defineAdapter } from '../adapter';
 import { listTsFiles } from './files';
 
 const isApi = (file: string): boolean => file === 'sdk.gen.ts' || file.startsWith('@angular/');
@@ -22,8 +22,13 @@ export const defaults = {
   ],
 };
 
-export const heyApiAdapter: GeneratorAdapter = {
+export const heyApiAdapter = defineAdapter<Record<string, unknown>>({
+  apiVersion: 1,
   id: 'hey-api',
+  defaults,
+  // passed to createClient as is (plugins, output options …)
+  optionsSchema: { type: 'object', properties: { plugins: { type: 'array' } } },
+  requires: { packages: ['@hey-api/openapi-ts'], node: '>=22.10' },
   async generate({ specFile, outDir, options }) {
     // pinned to 0.83.x: Node >= 22.10 (0.96 needs >= 22.13, 0.98 >= 22.18), peer of nx-plugin-openapi
     const { createClient } = await import('@hey-api/openapi-ts');
@@ -36,10 +41,10 @@ export const heyApiAdapter: GeneratorAdapter = {
       logs: { level: 'silent', file: false },
     } as Parameters<typeof createClient>[0]);
   },
-  async classify({ outDir }) {
+  classify({ outDir }) {
     return classifyHeyApi(outDir);
   },
-};
+});
 export default heyApiAdapter;
 
 /** Also used by the nx-plugin-openapi adapter (same output). */

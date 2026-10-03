@@ -7,9 +7,9 @@
  *   *.ts in the root      → core    (Configuration, BASE_PATH, encoder, provideApi, BaseService …)
  *   index.ts, api.module.ts, README, git_push.sh, .openapi-generator/ → dropped
  */
-import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
-import type { Classification, GeneratorAdapter } from '../contract';
+import { type Classification, defineAdapter } from '../adapter';
+import { OpenApiError } from '../errors';
 import { listTsFiles } from './files';
 
 // fixed: the classification depends on these folders
@@ -31,12 +31,14 @@ export const defaults: Record<string, unknown> = {
   // (export * from './x.serviceInterface' without the file). Off by default anyway.
 };
 
-/** execFileSync error with the child's output (stdio: 'pipe'). */
-type ExecError = Error & { stdout?: Buffer | string; stderr?: Buffer | string };
-
-const openapiToolsAdapter: GeneratorAdapter = {
+const openapiToolsAdapter = defineAdapter<Record<string, unknown>>({
+  apiVersion: 1,
   id: 'openapi-tools',
-  async generate({ specFile, outDir, options, workspaceRoot }) {
+  defaults,
+  // typescript-angular additional properties: key=value pairs
+  optionsSchema: { type: 'object', additionalProperties: { type: ['string', 'number', 'boolean'] } },
+  requires: { packages: ['@openapitools/openapi-generator-cli'] },
+  generate({ specFile, outDir, options, workspaceRoot, run }) {
     const properties = { ...options, modelPackage: MODEL_PACKAGE, apiPackage: API_PACKAGE };
     const additional = Object.entries(properties)
       .map(([key, value]) => `${key}=${String(value)}`)
@@ -45,20 +47,21 @@ const openapiToolsAdapter: GeneratorAdapter = {
     const args = ['generate', '-g', 'typescript-angular', '-i', specFile, '-o', outDir];
     args.push('--openapitools', join(workspaceRoot, 'openapitools.json'), `--additional-properties=${additional}`);
     try {
-      // the cli resolves generator-cli.storageDir against $PWD (not cwd): pin it to the workspace root.
+      // run() pins $PWD to the cwd: the cli resolves generator-cli.storageDir against $PWD (not cwd).
       // First run downloads the jar (network); parallel downloads are safe (tmp file + move).
-      execFileSync(cli, args, { cwd: workspaceRoot, stdio: 'pipe', env: { ...process.env, PWD: workspaceRoot } });
+      run(cli, args);
     } catch (error) {
-      const { stdout = '', stderr = '' } = error as ExecError;
-      throw new Error(
-        `openapi-generator-cli failed (Java 11+ in PATH? network for the first jar download?):\n${String(stdout)}${String(stderr)}`,
-      );
+      throw new OpenApiError('openapi-generator-cli failed', {
+        phase: 'generate',
+        cause: error,
+        hint: 'Java 11+ in PATH? network for the first jar download?',
+      });
     }
   },
-  async classify({ outDir }) {
+  classify({ outDir }) {
     return classifyOpenApiTools(outDir);
   },
-};
+});
 export default openapiToolsAdapter;
 
 /** Also used by the nx-plugin-openapi adapter (same output). */

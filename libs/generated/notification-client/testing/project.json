@@ -11,23 +11,6 @@
     },
     "typecheck": {
       "dependsOn": ["generate-api-testing", "^generate-api-client", "^generate-api-testing"]
-    },
-    "generate-api-testing": {
-      "executor": "@mo-transfer/tooling-openapi:generate-testing",
-      "cache": true,
-      "inputs": [
-        "{workspaceRoot}/libs/generated/notification-client/openapi.yaml",
-        "{workspaceRoot}/packages/tooling/openapi/src/facade/facade.ts",
-        "{workspaceRoot}/packages/tooling/openapi/src/testing/**/*",
-        "{workspaceRoot}/packages/tooling/openapi/src/executors/generate-testing.ts",
-        {
-          "externalDependencies": ["openapi-typescript", "orval", "yaml"]
-        }
-      ],
-      "outputs": ["{projectRoot}/src/generated"],
-      "options": {
-        "client": "generated/notification-client"
-      }
     }
   }
 }

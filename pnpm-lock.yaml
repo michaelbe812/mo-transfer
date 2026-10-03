@@ -229,6 +229,19 @@ importers:
 
   packages/tooling/openapi:
     dependencies:
+      '@nx/devkit':
+        specifier: '>=23.0.0'
+        version: 23.1.0(nx@23.1.0(@swc-node/register@1.12.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.2(@swc/helpers@0.5.23)))
+      nx:
+        specifier: '>=23.0.0'
+        version: 23.1.0(@swc-node/register@1.12.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.2(@swc/helpers@0.5.23))
+      typescript:
+        specifier: '>=5.5.0'
+        version: 6.0.3
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
+    devDependencies:
       '@mo-transfer/tooling-conventions':
         specifier: workspace:*
         version: link:../conventions

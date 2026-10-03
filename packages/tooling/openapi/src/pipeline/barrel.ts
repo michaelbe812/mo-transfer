@@ -1,32 +1,53 @@
 /**
- * Barrel src/generated/index.ts of a client lib, built from the entries.
+ * Stage `barrel`: src/generated/index.ts of a part lib, built from its entries — from the in-memory files
+ * (after transform, before split: relative imports still resolve), never from the raw folder on disk.
  *
  * `export *` from several entries fails on duplicate names (TS2308), e.g. hey-api core:
  * client.gen.ts and client/index.ts both export `CreateClientConfig`. So the first entry wins; a later
  * entry with conflicts is re-exported explicitly (without the duplicates), types via `export type`.
- * The export names come from the TypeScript checker on the raw output.
+ * The export names come from the TypeScript checker; the in-memory files sit at their raw paths (`rootDir`),
+ * anything else (node_modules) comes from disk as before.
  */
 import { join } from 'node:path';
 // namespace import: Nx transpiles with tsconfig.base.json (no esModuleInterop), a default import is undefined there
 import * as ts from 'typescript';
 
-export function buildBarrel(rawDir: string, entries: string[]): string {
+const COMPILER_OPTIONS: ts.CompilerOptions = {
+  target: ts.ScriptTarget.ES2022,
+  module: ts.ModuleKind.ESNext,
+  moduleResolution: ts.ModuleResolutionKind.Bundler,
+  noEmit: true,
+  skipLibCheck: true,
+  types: [],
+};
+
+/** Compiler host over `files` (relative path → content) placed below rootDir, the rest from disk. */
+function inMemoryHost(rootDir: string, files: ReadonlyMap<string, string>): ts.CompilerHost {
+  const host = ts.createCompilerHost(COMPILER_OPTIONS);
+  const virtual = new Map([...files].map(([path, content]) => [join(rootDir, path), content]));
+  const { getSourceFile, fileExists, readFile } = host;
+  return {
+    ...host,
+    fileExists: (fileName) => virtual.has(fileName) || (!fileName.startsWith(rootDir) && fileExists(fileName)),
+    readFile: (fileName) => virtual.get(fileName) ?? (fileName.startsWith(rootDir) ? undefined : readFile(fileName)),
+    getSourceFile: (fileName, languageVersion, ...rest) => {
+      const content = virtual.get(fileName);
+      if (content !== undefined) return ts.createSourceFile(fileName, content, languageVersion, true);
+      return fileName.startsWith(rootDir) ? undefined : getSourceFile(fileName, languageVersion, ...rest);
+    },
+  };
+}
+
+export function buildBarrel(rootDir: string, files: ReadonlyMap<string, string>, entries: readonly string[]): string {
   if (!entries.length) return 'export {};';
-  const files = entries.map((entry) => join(rawDir, entry));
-  const program = ts.createProgram(files, {
-    target: ts.ScriptTarget.ES2022,
-    module: ts.ModuleKind.ESNext,
-    moduleResolution: ts.ModuleResolutionKind.Bundler,
-    noEmit: true,
-    skipLibCheck: true,
-    types: [],
-  });
+  const rootNames = entries.map((entry) => join(rootDir, entry));
+  const program = ts.createProgram({ rootNames, options: COMPILER_OPTIONS, host: inMemoryHost(rootDir, files) });
   const checker = program.getTypeChecker();
   const seen = new Set<string>();
   const lines: string[] = [];
   entries.forEach((entry, index) => {
     // a root file of the program: always there
-    const moduleSymbol = checker.getSymbolAtLocation(program.getSourceFile(files[index]) as ts.SourceFile);
+    const moduleSymbol = checker.getSymbolAtLocation(program.getSourceFile(rootNames[index]) as ts.SourceFile);
     // not a module (e.g. openapi-tools' empty model/models.ts for a spec without schemas): `export *` would
     // not compile (TS2306), and there is nothing to re-export
     if (!moduleSymbol) return;

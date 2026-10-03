@@ -65,9 +65,12 @@
       "@mo-transfer/shared/ui": ["./libs/shared/ui/src/index.ts"],
       "@mo-transfer/shared/utils": ["./libs/shared/utils/src/index.ts"],
       "@mo-transfer/tooling-conventions": ["./packages/tooling/conventions/src/lib-conventions.ts"],
+      "@mo-transfer/tooling-conventions/openapi-scaffold": ["./packages/tooling/conventions/src/openapi-scaffold.ts"],
       "@mo-transfer/tooling-conventions/testing": ["./packages/tooling/conventions/src/testing/blueprint-tree.ts"],
       "@mo-transfer/tooling-conventions/tree": ["./packages/tooling/conventions/src/tree.ts"],
-      "@mo-transfer/tooling-openapi": ["./packages/tooling/openapi/src/project-config.ts"],
+      "@mo-transfer/tooling-openapi": ["./packages/tooling/openapi/src/index.ts"],
+      "@mo-transfer/tooling-openapi/adapter": ["./packages/tooling/openapi/src/adapter.ts"],
+      "@mo-transfer/tooling-openapi/adapter-testing": ["./packages/tooling/openapi/src/adapter-testing.ts"],
       "@mo-transfer/tooling-openapi/clients": ["./packages/tooling/openapi/src/clients.ts"],
       "@mo-transfer/tooling-openapi/plugin": ["./packages/tooling/openapi/src/plugin/openapi-clients.ts"]
     }

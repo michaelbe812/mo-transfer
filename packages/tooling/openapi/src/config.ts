@@ -1,0 +1,131 @@
+/**
+ * openapi-clients.json (workspace root): one entry per client, consumer adapters, workspace settings.
+ *
+ *   { "defaultAdapter": "openapi-tools",
+ *     "settings": { … },                                         src/settings.ts
+ *     "adapters": { "orval": { "module": "./tools/orval.ts", "packages": ["orval"] } },   src/registry
+ *     "clients": { "generated/pet-client": { "url": "…", "adapter": "hey-api", "options": {…},
+ *                  "layout": "merged-core", "pipeline": { "overlays": [], "transforms": [], "format": false, "testing": "msw" } } } }
+ *
+ * Read fresh on every call (no memo): executors, plugin (every createNodes), generator and verify see the file as it is.
+ */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { OpenApiError } from './errors';
+import { type ClientPart, clientRoot, type OpenApiSettings, type Part, PARTS, resolveSettings, TESTING_PART } from './settings';
+
+export const CLIENTS_CONFIG_FILE = 'openapi-clients.json';
+export const DEFAULT_ADAPTER = 'openapi-tools';
+
+/** Only variant besides the default (types, api, core): core merged into api (both data-access). */
+export type Layout = 'default' | 'merged-core';
+
+/** A transform hook: module specifier (workspace path or package) or with options. */
+export type TransformEntry = string | { module: string; options?: Record<string, unknown> };
+
+export interface PipelineConfig {
+  /** OpenAPI Overlay 1.0 files, relative to the client folder, applied in order before generate (committed, cache inputs) */
+  overlays?: string[];
+  /** code hooks on the classified files before split (both presets), see docs: trade-off flexibility vs. determinism */
+  transforms?: TransformEntry[];
+  /** prettier (workspace config) on every generated file, default false */
+  format?: boolean;
+  /** testing lib: `msw` (default) or none (`false`: the client generator skips it, no generate-api-testing) */
+  testing?: 'msw' | false;
+}
+
+export interface ClientEntry {
+  /** adapter id (built-in or `adapters` key), default: `defaultAdapter` */
+  adapter?: string;
+  /** source for update-spec; generate-api-client always reads the committed spec file */
+  url?: string;
+  /** adapter options, merged over the adapter's defaults (+ the registration's `options`) */
+  options?: Record<string, unknown>;
+  layout?: Layout;
+  pipeline?: PipelineConfig;
+}
+
+/** Consumer adapter: where its code lives + declarative metadata (the plugin never imports adapter code). */
+export interface AdapterRegistrationJson {
+  /** workspace path (`./tools/x.ts`), package specifier (`@acme/openapi-x`) or built-in (`builtin:command`) */
+  module: string;
+  /** npm packages whose version is a cache input */
+  packages?: string[];
+  /** further workspace files/globs as cache inputs (`{workspaceRoot}/…`) */
+  inputs?: string[];
+  /** runtime cache inputs, e.g. `java -version 2>&1` */
+  runtime?: string[];
+  /** adapter options for every client of this registration (between the module defaults and the entry's options) */
+  options?: Record<string, unknown>;
+}
+
+export interface ClientsConfig {
+  $schema?: string;
+  defaultAdapter?: string;
+  settings?: Partial<OpenApiSettings>;
+  adapters?: Record<string, AdapterRegistrationJson>;
+  /** key = client path below libsDir, e.g. `generated/pet-client`, `booking/generated/booking-client` */
+  clients?: Record<string, ClientEntry>;
+}
+
+/** openapi-clients.json of a workspace (fs). Throws a config error with the file name. */
+export function readClientsConfig(workspaceRoot: string): ClientsConfig {
+  try {
+    return JSON.parse(readFileSync(join(workspaceRoot, CLIENTS_CONFIG_FILE), 'utf-8')) as ClientsConfig;
+  } catch (error) {
+    throw new OpenApiError(`${CLIENTS_CONFIG_FILE}: not readable (${(error as Error).message})`, {
+      phase: 'config',
+      cause: error,
+      hint: `create ${CLIENTS_CONFIG_FILE} in the workspace root: { "clients": {} }`,
+    });
+  }
+}
+
+export const settingsOf = (config: ClientsConfig): OpenApiSettings => resolveSettings(config.settings);
+export const layoutOf = (entry: ClientEntry | undefined): Layout => entry?.layout ?? 'default';
+export const hasTesting = (entry: ClientEntry | undefined): boolean => entry?.pipeline?.testing !== false;
+
+/** Code parts the adapter output is split into: types, api (+ core unless merged into api). */
+export const codePartsOf = (entry: ClientEntry | undefined): Part[] =>
+  layoutOf(entry) === 'merged-core' ? PARTS.filter((part) => part !== 'core') : [...PARTS];
+
+/** Every lib of a client: code parts + testing (unless `pipeline.testing: false`). */
+export const clientPartsOf = (entry: ClientEntry | undefined): ClientPart[] => [
+  ...codePartsOf(entry),
+  ...(hasTesting(entry) ? [TESTING_PART as ClientPart] : []),
+];
+
+/** Adapter id of an entry: its own, else the file's default, else openapi-tools. */
+export const adapterIdOf = (config: ClientsConfig, clientPath: string): string =>
+  config.clients?.[clientPath]?.adapter ?? config.defaultAdapter ?? DEFAULT_ADAPTER;
+
+/** Transform entry → { module, options } */
+export const normalizeTransform = (entry: TransformEntry): { module: string; options: Record<string, unknown> } =>
+  typeof entry === 'string' ? { module: entry, options: {} } : { module: entry.module, options: entry.options ?? {} };
+
+/**
+ * Workspace-relative overlay files of a client (cache inputs of both generate targets) — only with the feature
+ * flag settings.features.overlays; disabled, they are no input (the target fails, see disabledFeaturesOf).
+ */
+export const overlayFiles = (settings: OpenApiSettings, clientPath: string, overlays: readonly string[] = []): string[] =>
+  settings.features.overlays ? overlays.map((overlay) => `${clientRoot(settings, clientPath)}/${overlay}`) : [];
+
+export const OVERLAYS_DISABLED_HINT =
+  'experimental feature flag "overlays" disabled: set openapi-clients.json → settings.features.overlays: true, or remove pipeline.overlays';
+
+/** Features an entry uses although their flag is off (plugin metadata → verify, generate fails). */
+export const disabledFeaturesOf = (settings: OpenApiSettings, entry: ClientEntry | undefined): string[] =>
+  entry?.pipeline?.overlays?.length && !settings.features.overlays ? ['overlays'] : [];
+
+/** The committed spec of a client folder: exactly one of settings.specFiles (workspace-relative). */
+export function findSpecFile(exists: (path: string) => boolean, settings: OpenApiSettings, clientPath: string): string {
+  const root = clientRoot(settings, clientPath);
+  const found = settings.specFiles.filter((file) => exists(`${root}/${file}`));
+  if (found.length !== 1) {
+    throw new OpenApiError(
+      `${root} needs exactly one spec file (${settings.specFiles.join(' | ')}), found ${found.length ? found.join(', ') : 'none'}`,
+      { phase: 'config', client: clientPath, hint: 'new client: nx g @mo-transfer/tooling-openapi:client <name> --spec=<file|url>' },
+    );
+  }
+  return `${root}/${found[0]}`;
+}

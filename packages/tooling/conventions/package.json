@@ -8,6 +8,7 @@
     ".": "./src/lib-conventions.ts",
     "./tree": "./src/tree.ts",
     "./testing": "./src/testing/blueprint-tree.ts",
+    "./openapi-scaffold": "./src/openapi-scaffold.ts",
     "./package.json": "./package.json"
   }
 }

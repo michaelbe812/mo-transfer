@@ -1,6 +1,9 @@
 {
   "$schema": "./packages/tooling/openapi/openapi-clients.schema.json",
   "defaultAdapter": "openapi-tools",
+  "settings": {
+    "scaffold": "@mo-transfer/tooling-conventions/openapi-scaffold"
+  },
   "clients": {
     "generated/pet-client": {
       "url": "https://petstore3.swagger.io/api/v3/openapi.json",

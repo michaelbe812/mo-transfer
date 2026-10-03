@@ -1,24 +1,16 @@
-// Executor @mo-transfer/tooling-openapi:generate. Option `client` = client path below libs/; the definition
-// (adapter, options, spec) comes from openapi-clients.json at run time. Facade: src/facade/facade.ts.
-import type { ExecutorContext } from '@nx/devkit';
-import { generateClient, resolveClient } from '../facade/facade';
+// Executor @mo-transfer/tooling-openapi:generate (target generate-api-client): pipeline, preset client.
+// Option `client` = client path; adapter, options and pipeline come from openapi-clients.json at run time.
+import { generateClient } from '../facade';
+import { type ClientExecutorOptions, type ExecutorRunContext, runClientExecutor } from './run';
 
-export interface ClientExecutorOptions {
-  /** client path below libs/, e.g. `generated/pet-client` */
-  client: string;
-}
+export type { ClientExecutorOptions } from './run';
 
 export default async function openapiGenerateExecutor(
-  { client: clientPath }: ClientExecutorOptions,
-  context: Pick<ExecutorContext, 'root' | 'projectName'>,
+  options: ClientExecutorOptions,
+  context: ExecutorRunContext,
 ): Promise<{ success: boolean }> {
-  try {
-    const client = resolveClient(context.root, clientPath);
-    const written = await generateClient(client, context.root);
-    console.log(`${context.projectName}: ${client.generator.adapter} → ${JSON.stringify(written)} files`);
-    return { success: true };
-  } catch (error) {
-    console.error((error as Error).message);
-    return { success: false };
-  }
+  return runClientExecutor(options, context, async (client, verbose) => {
+    const written = await generateClient(client, context.root, { verbose });
+    return `${context.projectName}: ${client.generator.adapter} → ${JSON.stringify(written)} files`;
+  });
 }

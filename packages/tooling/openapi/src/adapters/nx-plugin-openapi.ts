@@ -16,7 +16,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, relative } from 'node:path';
-import type { GeneratorAdapter } from '../contract';
+import { defineAdapter } from '../adapter';
 import { classifyHeyApi, defaults as heyApiDefaults } from './hey-api';
 import { classifyOpenApiTools, defaults as openapiToolsDefaults } from './openapi-tools';
 
@@ -40,8 +40,20 @@ const pluginDefaults: Record<PluginId, Record<string, unknown>> = {
   'hey-api': { plugins: heyApiDefaults.plugins, logs: { level: 'silent', file: false } },
 };
 
-const nxPluginOpenapiAdapter: GeneratorAdapter = {
+const nxPluginOpenapiAdapter = defineAdapter<Record<string, unknown>>({
+  apiVersion: 1,
   id: 'nx-plugin-openapi',
+  defaults,
+  optionsSchema: {
+    type: 'object',
+    properties: {
+      plugin: { enum: ['openapi-tools', 'hey-api'] },
+      generatorOptions: { type: 'object' },
+      additionalProperties: { type: 'object' },
+    },
+    additionalProperties: false,
+  },
+  requires: { packages: ['@nx-plugin-openapi/core'] },
   async generate({ specFile, outDir, options, workspaceRoot }) {
     const {
       plugin: pluginId,
@@ -72,8 +84,8 @@ const nxPluginOpenapiAdapter: GeneratorAdapter = {
       throw new Error(`nx-plugin-openapi/${pluginId}: ${failure.message ?? 'failed'}`);
   },
   // ctx instead of outDir only: which plugin ran is in the options (contract refinement from S2)
-  async classify({ outDir, options }) {
+  classify({ outDir, options }) {
     return options.plugin === 'hey-api' ? classifyHeyApi(outDir) : classifyOpenApiTools(outDir);
   },
-};
+});
 export default nxPluginOpenapiAdapter;
