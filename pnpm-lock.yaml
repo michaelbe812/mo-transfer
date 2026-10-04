@@ -57,6 +57,9 @@ importers:
       '@hey-api/openapi-ts':
         specifier: 0.83.1
         version: 0.83.1(typescript@6.0.3)
+      '@mo-transfer/tooling-conventions':
+        specifier: workspace:*
+        version: link:packages/tooling/conventions
       '@mo-transfer/tooling-ng-lib':
         specifier: workspace:*
         version: link:packages/tooling/ng-lib
