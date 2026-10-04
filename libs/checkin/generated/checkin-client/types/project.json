@@ -1,0 +1,13 @@
+{
+  "name": "checkin-generated-checkin-client-types",
+  "$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "libs/checkin/generated/checkin-client/types/src",
+  "tags": ["scope:checkin", "type:types", "feat:none", "generated"],
+  "implicitDependencies": ["checkin-generated-checkin-client"],
+  "targets": {
+    "build": {},
+    "lint": {},
+    "typecheck": {}
+  }
+}

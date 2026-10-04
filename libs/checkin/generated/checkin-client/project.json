@@ -1,0 +1,6 @@
+{
+  "name": "checkin-generated-checkin-client",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "tags": ["scope:checkin", "generated"]
+}

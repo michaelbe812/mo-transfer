@@ -1,0 +1,101 @@
+# Hand-written (no url): backend contract of the checkin domain (check-ins, desk arrivals). Committed, the only source for generate-api-client.
+openapi: 3.0.3
+info:
+  title: Checkin API
+  version: 1.0.0
+servers:
+  - url: /api
+tags:
+  - name: checkins
+  - name: arrivals
+paths:
+  /checkins:
+    get:
+      tags:
+        - checkins
+      operationId: listCheckins
+      summary: Check-ins of today (raw backend shape, snake_case)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Checkin'
+        default:
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /arrivals:
+    get:
+      tags:
+        - arrivals
+      operationId: listArrivals
+      summary: Guests expected at the desk
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Arrival'
+              example:
+                - bookingId: b-100
+                  guestName: Katherine Johnson
+                - bookingId: b-101
+                  guestName: Margaret Hamilton
+        default:
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Checkin:
+      type: object
+      required:
+        - id
+        - booking_id
+        - guest_name
+        - checked_in_at
+      properties:
+        id:
+          type: string
+          example: c-100
+        booking_id:
+          type: string
+          example: b-101
+        guest_name:
+          type: string
+          example: Margaret Hamilton
+        checked_in_at:
+          type: string
+          format: date-time
+          example: '2026-10-01T09:30:00.000Z'
+    Arrival:
+      type: object
+      required:
+        - bookingId
+        - guestName
+      properties:
+        bookingId:
+          type: string
+          example: b-100
+        guestName:
+          type: string
+          example: Katherine Johnson
+    Error:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          example: boom

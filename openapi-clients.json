@@ -13,6 +13,7 @@
       "adapter": "hey-api"
     },
     "generated/notification-client": {},
-    "booking/generated/booking-client": {}
+    "booking/generated/booking-client": {},
+    "checkin/generated/checkin-client": {}
   }
 }

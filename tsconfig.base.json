@@ -40,6 +40,16 @@
       "@mo-transfer/checkin/feat-checkin/feature": ["./libs/checkin/feat-checkin/feature/src/index.ts"],
       "@mo-transfer/checkin/feat-checkin/state": ["./libs/checkin/feat-checkin/state/src/index.ts"],
       "@mo-transfer/checkin/feat-history/feature": ["./libs/checkin/feat-history/feature/src/index.ts"],
+      "@mo-transfer/checkin/generated/checkin-client/api": ["./libs/checkin/generated/checkin-client/api/src/index.ts"],
+      "@mo-transfer/checkin/generated/checkin-client/core": [
+        "./libs/checkin/generated/checkin-client/core/src/index.ts"
+      ],
+      "@mo-transfer/checkin/generated/checkin-client/testing": [
+        "./libs/checkin/generated/checkin-client/testing/src/index.ts"
+      ],
+      "@mo-transfer/checkin/generated/checkin-client/types": [
+        "./libs/checkin/generated/checkin-client/types/src/index.ts"
+      ],
       "@mo-transfer/checkin/shell": ["./libs/checkin/shell/src/index.ts"],
       "@mo-transfer/checkin/state": ["./libs/checkin/state/src/index.ts"],
       "@mo-transfer/checkin/testing": ["./libs/checkin/testing/src/index.ts"],

@@ -1,0 +1,16 @@
+{
+  "name": "checkin-generated-checkin-client-testing",
+  "$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "libs/checkin/generated/checkin-client/testing/src",
+  "tags": ["scope:checkin", "type:testing", "feat:none", "generated"],
+  "implicitDependencies": ["checkin-generated-checkin-client"],
+  "targets": {
+    "lint": {
+      "dependsOn": ["generate-api-testing", "^generate-api-client", "^generate-api-testing"]
+    },
+    "typecheck": {
+      "dependsOn": ["generate-api-testing", "^generate-api-client", "^generate-api-testing"]
+    }
+  }
+}
