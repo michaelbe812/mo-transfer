@@ -176,5 +176,8 @@ describe('openapi-clients.json on the Tree', () => {
     ]);
     expect(domainClientTestingExports(tree, 'layout')).toEqual([]);
     expect(domainClientTestingExports(createTreeWithEmptyWorkspace(), 'booking')).toEqual([]);
+    const withoutClients = createTreeWithEmptyWorkspace();
+    writeClientsJson(withoutClients, {});
+    expect(domainClientTestingExports(withoutClients, 'booking')).toEqual([]);
   });
 });
