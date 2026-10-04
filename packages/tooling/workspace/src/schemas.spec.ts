@@ -19,4 +19,8 @@ describe('generator schemas', () => {
       expect(readJson(schema).additionalProperties).toBe(false);
     },
   );
+
+  it.each(['testing', 'domain'])('%s: --examples (example fixtures/handlers/scenarios + spec) is opt-in, default scaffold only', (name) => {
+    expect(readJson(generators[name].schema).properties.examples).toMatchObject({ type: 'boolean', default: false });
+  });
 });

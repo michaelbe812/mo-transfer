@@ -44,10 +44,11 @@ describe('domain generator', () => {
     expect(readJsonFile(tree, 'libs/payment/testing/project.json')).toMatchObject({
       targets: { lint: {}, typecheck: {} },
     });
-    expect(readJsonFile(tree, 'libs/payment/state/project.json')).toMatchObject({
-      targets: { build: {}, lint: {}, typecheck: {}, test: {} },
-    });
-    expect(tree.exists('libs/payment/state/tsconfig.spec.json')).toBe(true);
+    // scaffold-only testing lib (default): no example spec, so no spec config
+    expect(readJsonFile(tree, 'libs/payment/state/project.json')).toEqual(
+      expect.objectContaining({ targets: { build: {}, lint: {}, typecheck: {} } }),
+    );
+    expect(tree.exists('libs/payment/state/tsconfig.spec.json')).toBe(false);
     expect(tree.exists('libs/payment/data-access/tsconfig.spec.json')).toBe(false);
     expect(tree.exists('libs/payment/ui/tsconfig.spec.json')).toBe(false);
     for (const removed of ['api', 'events', 'data']) expect(tree.exists(`libs/payment/${removed}`)).toBe(false);
@@ -76,8 +77,19 @@ describe('domain generator', () => {
     expect(read(tree, 'libs/payment/shell/src/payment.routes.ts')).toContain('providers: [providePayment()]');
   });
 
-  it('adds testing (fixtures, handlers, scenarios) and a state spec in the beforeEach/worker.use style', async () => {
+  it('adds a scaffold-only testing lib by default: typed empty handlers/scenarios, no fixtures, no example spec', async () => {
     await domainGenerator(tree, { name: 'payment' });
+
+    expect(read(tree, 'libs/payment/testing/src/index.ts')).toBe("export * from './handlers/payment.handlers';\n");
+    expect(tree.exists('libs/payment/testing/src/fixtures')).toBe(false);
+    const handlers = read(tree, 'libs/payment/testing/src/handlers/payment.handlers.ts');
+    expect(handlers).toContain('export const paymentHandlers: HttpHandler[] = withBaseline(curatedPaymentHandlers);');
+    expect(handlers).toContain('export const paymentScenarios = {} satisfies Scenarios;');
+    expect(tree.exists('libs/payment/state/src/payment.store.spec.ts')).toBe(false);
+  });
+
+  it('--examples: testing (fixtures, handlers, scenarios) and a state spec in the beforeEach/worker.use style', async () => {
+    await domainGenerator(tree, { name: 'payment', examples: true });
 
     expect(read(tree, 'libs/payment/testing/src/index.ts')).toBe(
       "export * from './fixtures/payment.fixture';\nexport * from './handlers/payment.handlers';\n",
@@ -91,6 +103,17 @@ describe('domain generator', () => {
     const spec = read(tree, 'libs/payment/state/src/payment.store.spec.ts');
     expect(spec).toContain('beforeEach(() => worker.use(...paymentHandlers));');
     expect(spec).toContain("import { test, worker } from '@mo-transfer/shared/testing';");
+    expect(readJsonFile(tree, 'libs/payment/state/project.json')).toMatchObject({
+      targets: { build: {}, lint: {}, typecheck: {}, test: {} },
+    });
+    expect(tree.exists('libs/payment/state/tsconfig.spec.json')).toBe(true);
+  });
+
+  it('--no-testing: neither testing lib nor example spec, even with --examples', async () => {
+    await domainGenerator(tree, { name: 'payment', testing: false, examples: true });
+
+    expect(tree.exists('libs/payment/testing')).toBe(false);
+    expect(tree.exists('libs/payment/state/src/payment.store.spec.ts')).toBe(false);
   });
 
   it('registers the shell lazily in the app routes, before the redirect', async () => {

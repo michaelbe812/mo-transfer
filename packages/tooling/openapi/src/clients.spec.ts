@@ -3,6 +3,7 @@ import { createTreeWithEmptyWorkspace } from '@nx/devkit/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   addClientEntry,
+  domainClientTestingExports,
   readClientsJson,
   relocateClientProject,
   renameClientExports,
@@ -144,5 +145,36 @@ describe('openapi-clients.json on the Tree', () => {
     });
     expect(relocateClientProject(tree, 'generated/y-client', 'generated/z-client')).toBe('generated-z-client');
     expect(tree.exists('libs/generated/z-client/project.json')).toBe(false);
+  });
+
+  it('domainClientTestingExports: testing exports of a slice\'s own clients — <client>Handlers only for a faking engine', () => {
+    const testingLib = (clientPath: string) => tree.write(`libs/${clientPath}/testing/src/index.ts`, "export * from './generated';\n");
+    writeClientsJson(tree, {
+      settings: { testing: { mocks: 'schema-faker' } },
+      clients: {
+        'booking/generated/booking-client': {},
+        'booking/generated/lean-client': { pipeline: { testing: { mocks: 'none' } } },
+        'booking/generated/no-testing-client': { pipeline: { testing: false } },
+        'booking/generated/missing-client': {},
+        'checkin/generated/checkin-client': {},
+        'generated/pet-client': {},
+        'booking/not-a-client': {},
+      },
+    });
+    for (const clientPath of ['booking/generated/booking-client', 'booking/generated/lean-client', 'checkin/generated/checkin-client', 'generated/pet-client']) {
+      testingLib(clientPath);
+    }
+
+    expect(domainClientTestingExports(tree, 'booking')).toEqual([
+      {
+        clientPath: 'booking/generated/booking-client',
+        alias: '@mo-transfer/booking/generated/booking-client/testing',
+        http: 'bookingClientHttp',
+        handlers: 'bookingClientHandlers',
+      },
+      { clientPath: 'booking/generated/lean-client', alias: '@mo-transfer/booking/generated/lean-client/testing', http: 'leanClientHttp' },
+    ]);
+    expect(domainClientTestingExports(tree, 'layout')).toEqual([]);
+    expect(domainClientTestingExports(createTreeWithEmptyWorkspace(), 'booking')).toEqual([]);
   });
 });
