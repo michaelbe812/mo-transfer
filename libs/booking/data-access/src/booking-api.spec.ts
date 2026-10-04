@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
-import { bookingClientHandlers } from '@mo-transfer/booking/generated/booking-client/testing';
-import { test } from '@mo-transfer/shared/testing';
-import { describe, expect, vi } from 'vitest';
+import { bookingClientHandlers, bookingClientHttp } from '@mo-transfer/booking/generated/booking-client/testing';
+import { test, worker } from '@mo-transfer/shared/testing';
+import { beforeEach, describe, expect, vi } from 'vitest';
 import { BookingApi } from './booking-api';
 
 describe('BookingApi without a matching MSW handler', () => {
@@ -23,9 +23,10 @@ describe('BookingApi without a matching MSW handler', () => {
 });
 
 describe('BookingApi with the generated default handlers of the booking-client', () => {
-  test('maps the spec examples to domain bookings', async ({ worker }) => {
-    worker.use(...bookingClientHandlers);
+  // generated baseline: every operation of the booking-client answers with the spec examples
+  beforeEach(() => worker.use(...bookingClientHandlers));
 
+  test('maps the spec examples to domain bookings', async () => {
     const bookings = await TestBed.inject(BookingApi).loadBookings();
 
     expect(bookings.length).toBeGreaterThan(0);
@@ -36,5 +37,17 @@ describe('BookingApi with the generated default handlers of the booking-client',
       checkinDate: '2026-10-01',
       status: 'confirmed',
     });
+  });
+
+  test('a typed override wins over the baseline: the documented error response becomes an Error', async ({
+    worker,
+  }) => {
+    worker.use(
+      bookingClientHttp.get('/bookings', ({ response }) =>
+        response('default').json({ message: 'boom' }, { status: 503 }),
+      ),
+    );
+
+    await expect(TestBed.inject(BookingApi).loadBookings()).rejects.toThrow('GET /api/bookings failed: 503');
   });
 });
