@@ -2,7 +2,10 @@
   "$schema": "./packages/tooling/openapi/openapi-clients.schema.json",
   "defaultAdapter": "openapi-tools",
   "settings": {
-    "scaffold": "@mo-transfer/tooling-conventions/openapi-scaffold"
+    "scaffold": "@mo-transfer/tooling-conventions/openapi-scaffold",
+    "testing": {
+      "mocks": "schema-faker"
+    }
   },
   "clients": {
     "generated/pet-client": {
