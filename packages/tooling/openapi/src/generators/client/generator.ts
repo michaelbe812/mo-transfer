@@ -156,13 +156,15 @@ export async function clientGenerator(tree: Tree, options: ClientGeneratorSchema
   if (!options.skipFormat) await formatFiles(tree);
   const alias = `${settings.aliasPrefix}${clientPath}`;
   const prefix = camelCase(options.name);
+  const testingExports =
+    settings.testing.mocks === 'none' ? `${prefix}Http; no fake data: settings.testing.mocks = none` : `${prefix}Handlers, ${prefix}Http`;
   return () => {
     logger.info(
       `Client ${projectName}: ${root}/{${spec.file},project.json,${parts.join(',')}}, paths in tsconfig.base.json, entry in openapi-clients.json.`,
     );
     logger.info(`Generate: nx run-many -t ${targetNames.client} ${targetNames.testing} (build/lint/test/typecheck do it on their own).`);
     logger.info(
-      `Use: ${alias}/api (services) + /types in the ${domain ?? settings.sharedScope} data-access layer${parts.includes(TESTING_PART) ? `, specs: ${alias}/testing (${prefix}Handlers, ${prefix}Http)` : ''}.`,
+      `Use: ${alias}/api (services) + /types in the ${domain ?? settings.sharedScope} data-access layer${parts.includes(TESTING_PART) ? `, specs: ${alias}/testing (${testingExports})` : ''}.`,
     );
   };
 }

@@ -70,7 +70,9 @@ describe('executors', () => {
       executorContext(root, 'generated-things-client-testing', 'generate-api-testing'),
     );
     expect(result).toEqual({ success: true });
-    expect(existsSync(join(root, 'libs/generated/things-client/testing/src/generated/handlers.ts'))).toBe(true);
+    // mocks: none (library default): typed http only, no generated handlers
+    expect(existsSync(join(root, 'libs/generated/things-client/testing/src/generated/http.ts'))).toBe(true);
+    expect(existsSync(join(root, 'libs/generated/things-client/testing/src/generated/handlers.ts'))).toBe(false);
     expect(console.log).toHaveBeenCalledWith(
       expect.stringMatching(/generated-things-client-testing: \d+ files \(baseUrl "http:\/\/api.test\/v1"\)/),
     );

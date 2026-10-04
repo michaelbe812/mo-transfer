@@ -130,6 +130,8 @@ describe('nx in a fixture workspace', () => {
     expect(nx('run', 'booking-generated-things-client-testing:generate-api-testing')).toContain(
       'booking-generated-things-client-testing:',
     );
-    expect(existsSync(join(root, 'libs/booking/generated/things-client/testing/src/generated/handlers.ts'))).toBe(true);
+    // mocks: none (library default): typed http only, no generated handlers
+    expect(existsSync(join(root, 'libs/booking/generated/things-client/testing/src/generated/http.ts'))).toBe(true);
+    expect(existsSync(join(root, 'libs/booking/generated/things-client/testing/src/generated/handlers.ts'))).toBe(false);
   });
 });

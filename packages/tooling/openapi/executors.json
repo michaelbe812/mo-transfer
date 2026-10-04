@@ -13,7 +13,7 @@
     "generate-testing": {
       "implementation": "./src/executors/generate-testing",
       "schema": "./src/executors/client.schema.json",
-      "description": "Testing lib of a client from its spec: openapi-typescript (paths), orval msw mocks (faker), openapi-msw (<client>Http), default handlers (src/generated/**, gitignored)."
+      "description": "Testing lib of a client from its spec: openapi-typescript (paths), openapi-msw (<client>Http); with mocks schema-faker/orval also faker mocks + default handlers <client>Handlers (src/generated/**, gitignored)."
     }
   }
 }

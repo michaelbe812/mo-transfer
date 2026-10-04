@@ -80,8 +80,21 @@ const OPENAPI_EXECUTORS = {
 };
 /** npm packages of the testing preset (cache inputs of generate-api-testing): orval only in its (deprecated) mode */
 const TESTING_PACKAGES: Record<MockEngine, string[]> = {
+  none: ['openapi-typescript', 'yaml'],
   'schema-faker': ['openapi-typescript', 'yaml'],
   orval: ['openapi-typescript', 'orval', 'yaml'],
+};
+/** tooling sources of the testing preset (relative to src/): the schema-faker generator only in its mode */
+const TESTING_SOURCES: Record<MockEngine, string[]> = {
+  // the testing preset reads the raw output with adapters/files.ts
+  none: ['adapters/files.ts', 'pipeline/testing-preset.ts'],
+  'schema-faker': ['adapters/files.ts', 'pipeline/testing-preset.ts', 'pipeline/schema-faker/**/*'],
+  orval: ['adapters/files.ts', 'pipeline/testing-preset.ts'],
+};
+const TESTING_DESCRIPTIONS: Record<MockEngine, string> = {
+  none: 'OpenAPI testing lib (openapi-typescript, openapi-msw; mocks: none — no fake data)',
+  'schema-faker': 'OpenAPI testing lib (openapi-typescript, schema-faker msw mocks, openapi-msw)',
+  orval: 'OpenAPI testing lib (openapi-typescript, orval msw mocks, openapi-msw)',
 };
 /** source files every generate target runs (relative to src/); the client target adds the built-in adapters */
 const PIPELINE_SOURCES = [
@@ -276,15 +289,15 @@ export function updateSpecTarget(clientPath: string): TargetJson {
 }
 
 /**
- * `generate-api-testing` of a client's testing lib: pipeline (testing preset) → openapi-typescript + orval mocks +
- * openapi-msw. Independent of the adapter — a switch keeps its cache.
+ * `generate-api-testing` of a client's testing lib: pipeline (testing preset) → openapi-typescript + openapi-msw
+ * (+ the mocks engine's fake data). Independent of the adapter — a switch keeps its cache.
  */
 export function generateTestingTarget(context: InferenceContext, clientPath: string, specFile: string, missing?: Set<string>): TargetJson {
   const { config, settings, workspaceRoot } = context;
   const entry = config.clients?.[clientPath];
+  const engine = mockEngineOf(settings, entry);
   const pipeline = pipelineInputs(entry, workspaceRoot);
-  // the testing preset reads the raw output with adapters/files.ts
-  const tooling = toolingInputs(workspaceRoot, ['adapters/files.ts', 'pipeline/testing-preset.ts', 'pipeline/schema-faker/**/*']);
+  const tooling = toolingInputs(workspaceRoot, TESTING_SOURCES[engine]);
   return {
     executor: OPENAPI_EXECUTORS.generateTesting,
     cache: true,
@@ -295,12 +308,12 @@ export function generateTestingTarget(context: InferenceContext, clientPath: str
       ...tooling.files,
       ...pipeline.files,
       {
-        externalDependencies: installedOnly(workspaceRoot, [...TESTING_PACKAGES[mockEngineOf(settings, entry)], ...pipeline.packages, ...tooling.packages], missing),
+        externalDependencies: installedOnly(workspaceRoot, [...TESTING_PACKAGES[engine], ...pipeline.packages, ...tooling.packages], missing),
       },
     ],
     outputs: [`{projectRoot}/src/${settings.outputDir}`],
     options: { client: clientPath },
-    metadata: { description: `OpenAPI testing lib (openapi-typescript, ${mockEngineOf(settings, entry)} msw mocks, openapi-msw)` },
+    metadata: { description: TESTING_DESCRIPTIONS[engine] },
   };
 }
 

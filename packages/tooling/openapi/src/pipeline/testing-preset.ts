@@ -1,15 +1,17 @@
 /**
  * Preset `testing` (target generate-api-testing): the client's testing lib <client>/testing/src/generated/**
- * (gitignored), from the spec only — independent of the code generator adapter. Two mocks engines:
+ * (gitignored), from the spec only — independent of the code generator adapter. Mocks engines:
  *
- *   both          schema.ts (openapi-typescript: paths, components, operations), http.ts (openapi-msw: `<client>Http`,
- *                 `<client>BaseUrl`), handlers.ts (`<client>Handlers`), index.ts
- *   schema-faker  (default) mocks.ts + model.ts + mock-runtime.ts: own spec walk, faker at test time (./schema-faker)
- *   orval         (deprecated, removed next iteration) mocks.ts + model/** from orval (msw mocks only, faker)
+ *   all           schema.ts (openapi-typescript: paths, components, operations), http.ts (openapi-msw: `<client>Http`,
+ *                 `<client>BaseUrl`), index.ts
+ *   none          (default) nothing else: scaffold only, no fake data — handlers are written by hand on `<client>Http`
+ *   schema-faker  (opt-in) + mocks.ts, model.ts, mock-runtime.ts, handlers.ts (`<client>Handlers`): own spec walk,
+ *                 faker at test time (./schema-faker)
+ *   orval         (deprecated, removed next iteration) + mocks.ts, model/**, handlers.ts from orval (msw mocks, faker)
  *
- * Both export get<Op>ResponseMock() / get<Op>MockHandler() per operation and the component types. Same runner as
- * the client: overlays, transforms, format and header apply here, too. Deterministic output; faker values are
- * seeded per test by the `worker` fixture of shared/testing.
+ * The faking engines export get<Op>ResponseMock() / get<Op>MockHandler() per operation and the component types.
+ * Same runner as the client: overlays, transforms, format and header apply here, too. Deterministic output; faker
+ * values are seeded per test by the `worker` fixture of shared/testing.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -76,7 +78,10 @@ async function orvalMocks({ client, workspaceRoot, specFile, rawDir }: PipelineC
   return files;
 }
 
-export function testingPreset(mocks: MockEngine = 'schema-faker'): TestingPreset {
+/** Barrel of mocks engine `none`: types + typed http, nothing faked. */
+const SCAFFOLD_INDEX = ["export type { components, operations, paths } from './schema';", "export * from './http';", ''].join('\n');
+
+export function testingPreset(mocks: MockEngine = 'none'): TestingPreset {
   const preset: TestingPreset = {
     id: 'testing',
     source: 'testing',
@@ -113,7 +118,9 @@ export function testingPreset(mocks: MockEngine = 'schema-faker'): TestingPreset
         ['schema.ts', schema],
         ['http.ts', http],
       ]);
-      if (mocks === 'orval') {
+      if (mocks === 'none') {
+        files.set('index.ts', SCAFFOLD_INDEX);
+      } else if (mocks === 'orval') {
         console.warn('mocks engine orval is deprecated (removed next iteration): pipeline.testing.mocks / settings.testing.mocks → schema-faker');
         for (const [file, content] of await orvalMocks(context, name)) files.set(file, content);
       } else {

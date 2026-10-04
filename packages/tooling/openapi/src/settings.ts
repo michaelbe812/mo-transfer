@@ -17,9 +17,13 @@ export interface FeatureFlags {
   overlays: boolean;
 }
 
-/** Mocks engine of the testing preset: `schema-faker` (default, own generator) or `orval` (deprecated, removed next iteration). */
-export type MockEngine = 'schema-faker' | 'orval';
-export const MOCK_ENGINES: readonly MockEngine[] = ['schema-faker', 'orval'];
+/**
+ * Mocks engine of the testing preset: `none` (default: scaffold only — schema + typed `<client>Http`, no fake data,
+ * no generated handlers), `schema-faker` (opt-in, own generator: `get<Op>…Mock`, `<client>Handlers`) or `orval`
+ * (deprecated, removed next iteration).
+ */
+export type MockEngine = 'none' | 'schema-faker' | 'orval';
+export const MOCK_ENGINES: readonly MockEngine[] = ['none', 'schema-faker', 'orval'];
 
 export interface TestingSettings {
   /** workspace default, a client overrides it with pipeline.testing: { mocks } */
@@ -56,7 +60,7 @@ export const DEFAULT_SETTINGS: OpenApiSettings = {
   sharedScope: 'shared',
   specFiles: ['openapi.yaml', 'openapi.json'],
   features: { overlays: false },
-  testing: { mocks: 'schema-faker' },
+  testing: { mocks: 'none' },
 };
 
 /** A relative posix path without `.`/`..` segments: stays inside the workspace. */
