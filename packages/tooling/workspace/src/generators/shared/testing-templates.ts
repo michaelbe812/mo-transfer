@@ -18,8 +18,8 @@ export function testingScaffoldFiles(n: SliceNames, clients: readonly ClientTest
   const baselines = clients.filter((client) => client.handlers);
   const imports = baselines.map((client) => `import { ${client.handlers} } from '${client.alias}';\n`).join('');
   const typedHttp = clients.length
-    ? ` on the typed\n * ${clients.map((client) => `\`${client.http}\` (${client.alias})`).join(', ')}:\n * \`${clients[0].http}.get('/path', ({ response }) => response(200).json(<fixture>))\``
-    : `; once the slice has a generated\n * client (nx g @mo-transfer/tooling-openapi:client <name> --domain=${n.scope}), build them on its typed \`<client>Http\``;
+    ? ` * Build them on the typed ${clients.map((client) => `\`${client.http}\` (${client.alias})`).join(', ')}:\n * \`${clients[0].http}.get('/path', ({ response }) => response(200).json(<fixture>))\`.`
+    : ` * Build them on the typed \`<client>Http\` of a generated client of the slice\n * (nx g @mo-transfer/tooling-openapi:client <name> --domain=${n.scope}).`;
   return {
     files: {
       [`handlers/${n.scope}.handlers.ts`]: `${imports}import { type Scenarios, withBaseline } from '${SHARED_TESTING}';
@@ -27,7 +27,8 @@ import type { HttpHandler } from 'msw';
 
 /**
  * Curated handlers of the ${n.scope} slice: hand-written fixtures in the domain model, they win over the generated
- * baseline${typedHttp}.
+ * baseline.
+${typedHttp}
  */
 const curated${n.entity}Handlers: HttpHandler[] = [];
 
