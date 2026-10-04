@@ -29,8 +29,20 @@
       "inputs": [
         "default",
         "^default",
+        "{workspaceRoot}/libs/shared/testing/src/**/*",
+        "{workspaceRoot}/libs/shared/data-access/src/http-client.ts",
         {
-          "externalDependencies": ["vitest", "@nx/devkit", "typescript"]
+          "externalDependencies": [
+            "vitest",
+            "@nx/devkit",
+            "typescript",
+            "msw",
+            "openapi-msw",
+            "openapi-typescript",
+            "@faker-js/faker",
+            "@angular/core",
+            "yaml"
+          ]
         }
       ],
       "options": {

@@ -83,7 +83,7 @@ describe('domain generator', () => {
     expect(read(tree, 'libs/payment/testing/src/index.ts')).toBe("export * from './handlers/payment.handlers';\n");
     expect(tree.exists('libs/payment/testing/src/fixtures')).toBe(false);
     const handlers = read(tree, 'libs/payment/testing/src/handlers/payment.handlers.ts');
-    expect(handlers).toContain('export const paymentHandlers: HttpHandler[] = withBaseline(curatedPaymentHandlers);');
+    expect(handlers).toMatch(/export const paymentHandlers: HttpHandler\[\] = withBaseline\(\s*curatedPaymentHandlers,?\s*\);/);
     expect(handlers).toContain('export const paymentScenarios = {} satisfies Scenarios;');
     expect(tree.exists('libs/payment/state/src/payment.store.spec.ts')).toBe(false);
   });

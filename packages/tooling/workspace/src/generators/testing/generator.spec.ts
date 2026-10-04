@@ -19,7 +19,7 @@ describe('testing generator', () => {
 
   describe('default: scaffold only (no examples, no fake data)', () => {
     it('writes empty-but-typed handlers + scenarios wired to shared/testing — no fixtures, no data', async () => {
-      await testingGenerator(tree, { domain: 'booking' });
+      await testingGenerator(tree, { domain: 'booking', skipFormat: true });
 
       expect(read(tree, 'libs/booking/testing/src/index.ts')).toBe("export * from './handlers/booking.handlers';\n");
       expect(tree.exists('libs/booking/testing/src/fixtures')).toBe(false);
@@ -46,7 +46,7 @@ describe('testing generator', () => {
         addTestingClient(tree, clientPath);
       }
 
-      await testingGenerator(tree, { domain: 'booking' });
+      await testingGenerator(tree, { domain: 'booking', skipFormat: true });
 
       const handlers = read(tree, HANDLERS);
       expect(handlers).toContain(

@@ -1,11 +1,49 @@
 /**
- * Testing lib (libs/<slice>/testing): fixtures (builders) + MSW handlers (defaults) + scenarios
- * (deviations per test). Imports only msw, the slice's types and shared/testing.
+ * Testing lib (libs/<slice>/testing). Default: the scaffold only — typed, empty curated handlers + scenarios on top
+ * of the generated baseline of the slice's own clients (`withBaseline` from shared/testing), no fixtures, no data.
+ * `--examples`: example fixtures (builders) + MSW handlers (defaults) + scenarios (deviations per test).
+ * Imports only msw, the slice's types, its clients' testing libs and shared/testing.
  */
 import { aliasFor } from '@mo-transfer/tooling-conventions';
+import type { ClientTestingExports } from '@mo-transfer/tooling-openapi/clients';
 import type { LibFiles, SliceNames } from './slice-templates';
 
+const SHARED_TESTING = aliasFor('shared/testing');
+
 /**
+ * Scaffold: `<slice>Handlers` = curated (empty) + the `<client>Handlers` baseline of every own client with fake data
+ * (mocks engine schema-faker/orval); `<slice>Scenarios` empty. The comment points at each client's typed `<client>Http`.
+ */
+export function testingScaffoldFiles(n: SliceNames, clients: readonly ClientTestingExports[]): LibFiles {
+  const baselines = clients.filter((client) => client.handlers);
+  const imports = baselines.map((client) => `import { ${client.handlers} } from '${client.alias}';\n`).join('');
+  const typedHttp = clients.length
+    ? ` on the typed\n * ${clients.map((client) => `\`${client.http}\` (${client.alias})`).join(', ')}:\n * \`${clients[0].http}.get('/path', ({ response }) => response(200).json(<fixture>))\``
+    : `; once the slice has a generated\n * client (nx g @mo-transfer/tooling-openapi:client <name> --domain=${n.scope}), build them on its typed \`<client>Http\``;
+  return {
+    files: {
+      [`handlers/${n.scope}.handlers.ts`]: `${imports}import { type Scenarios, withBaseline } from '${SHARED_TESTING}';
+import type { HttpHandler } from 'msw';
+
+/**
+ * Curated handlers of the ${n.scope} slice: hand-written fixtures in the domain model, they win over the generated
+ * baseline${typedHttp}.
+ */
+const curated${n.entity}Handlers: HttpHandler[] = [];
+
+/** Slice defaults, set per spec: \`beforeEach(() => worker.use(...${n.property}Handlers))\`. */
+export const ${n.property}Handlers: HttpHandler[] = withBaseline(${[`curated${n.entity}Handlers`, ...baselines.map((client) => client.handlers)].join(', ')});
+
+/** Deviations for a single test: \`worker.use(${n.property}Scenarios.<name>())\`. */
+export const ${n.property}Scenarios = {} satisfies Scenarios;
+`,
+    },
+    exports: [`handlers/${n.scope}.handlers`],
+  };
+}
+
+/**
+ * \`--examples\`: example fixtures, handlers and scenarios.
  * @param entityInTypes true if `libs/<slice>/types` exports the entity interface; otherwise the
  *   fixture declares the backend shape itself (a testing lib may only import types).
  */

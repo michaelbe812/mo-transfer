@@ -13,7 +13,6 @@ import {
   addSpecConfig,
   APP_ROUTES_FILE,
   assertKebabCase,
-  libExists,
   writeIfMissing,
 } from '../shared/workspace';
 
@@ -22,6 +21,8 @@ export interface DomainGeneratorSchema {
   /** comma-separated or list, default types,data-access,state,ui,shell */
   layers?: string | string[];
   testing?: boolean;
+  /** testing lib with example data + example store spec (default: scaffold only, no spec) */
+  examples?: boolean;
   appRoutesFile?: string;
   skipFormat?: boolean;
 }
@@ -34,7 +35,7 @@ export function parseLayers(layers: string | string[] | undefined, fallback: str
   return list.map((layer) => layer.trim()).filter(Boolean);
 }
 
-/** A new slice: scope in the list, one lib per layer, testing lib + example spec, lazy route in the app. */
+/** A new slice: scope in the list, one lib per layer, testing scaffold (+ examples and spec), lazy route in the app. */
 export async function domainGenerator(tree: Tree, options: DomainGeneratorSchema): Promise<GeneratorCallback> {
   const scope = options.name;
   assertKebabCase(scope, 'Domain');
@@ -53,8 +54,9 @@ export async function domainGenerator(tree: Tree, options: DomainGeneratorSchema
   const created = SLICE_LAYER_ORDER.filter((layer) => layers.includes(layer)).filter((layer) =>
     generateSliceLayer(tree, n, layer),
   );
-  if (withTesting) generateTestingLib(tree, n);
-  if (created.includes('state') && libExists(tree, `${scope}/testing`)) {
+  if (withTesting) generateTestingLib(tree, n, { examples: options.examples });
+  // the example spec needs the example handlers/scenarios: only with --examples
+  if (withTesting && options.examples && created.includes('state')) {
     const spec = stateStoreSpec(n);
     if (writeIfMissing(tree, `libs/${scope}/state/src/${spec.file}`, spec.content)) addSpecConfig(tree, `${scope}/state`);
   }

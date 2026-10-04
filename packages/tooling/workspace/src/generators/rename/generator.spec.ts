@@ -11,7 +11,7 @@ describe('rename generator', () => {
   let tree: Tree;
   beforeEach(async () => {
     tree = createBlueprintTree();
-    await domainGenerator(tree, { name: 'payment' });
+    await domainGenerator(tree, { name: 'payment', examples: true });
     await featGenerator(tree, { domain: 'payment', name: 'checkout', state: true });
   });
 

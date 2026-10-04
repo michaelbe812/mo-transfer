@@ -2,7 +2,8 @@ import { logger, type Tree } from '@nx/devkit';
 import { aliasFor, LIBS_DIR } from '@mo-transfer/tooling-conventions';
 import { findExportedRoutes, findLazyRoutes, insertRoute, lazyRouteSource, updateFile } from './routes';
 import { type LibFiles, SLICE_LAYER_REQUIRES, SLICE_LAYER_TEMPLATES, type SliceNames } from './slice-templates';
-import { testingFiles } from './testing-templates';
+import { domainClientTestingExports } from '@mo-transfer/tooling-openapi/clients';
+import { testingFiles, testingScaffoldFiles } from './testing-templates';
 import { addExport, APP_ROUTES_FILE, libExists, writeIfMissing, writeLibConfig } from './workspace';
 
 /**
@@ -34,7 +35,7 @@ export function assertLayerDependencies(tree: Tree, scope: string, layer: string
   }
 }
 
-/** One slice-root lib (`libs/<scope>/<layer>`) with example sources. */
+/** One slice-root lib (`libs/<scope>/<layer>`) with example sources (testing: the scaffold, see generateTestingLib). */
 export function generateSliceLayer(tree: Tree, n: SliceNames, layer: string): boolean {
   if (layer === 'testing') return generateTestingLib(tree, n);
   const template = SLICE_LAYER_TEMPLATES[layer];
@@ -42,8 +43,15 @@ export function generateSliceLayer(tree: Tree, n: SliceNames, layer: string): bo
   return writeLib(tree, `${n.scope}/${layer}`, template(n));
 }
 
-export function generateTestingLib(tree: Tree, n: SliceNames): boolean {
-  return writeLib(tree, `${n.scope}/testing`, testingFiles(n, typesExportEntity(tree, n)));
+/**
+ * libs/<scope>/testing: the scaffold (typed, empty handlers/scenarios on the generated baseline of the slice's own
+ * clients), or with `examples` the example fixtures/handlers/scenarios.
+ */
+export function generateTestingLib(tree: Tree, n: SliceNames, options: { examples?: boolean } = {}): boolean {
+  const files = options.examples
+    ? testingFiles(n, typesExportEntity(tree, n))
+    : testingScaffoldFiles(n, domainClientTestingExports(tree, n.scope));
+  return writeLib(tree, `${n.scope}/testing`, files);
 }
 
 /** true if libs/<scope>/types declares `export interface <Entity>` (then fixtures use it). */

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/schema",
   "$id": "BlueprintDomain",
   "title": "Neue Domain (Slice)",
-  "description": "libs/<name>/{types,data-access,state,ui,shell} + testing + Beispiel-Spec, Lazy-Route in app.routes.ts, Scope in lib-scopes.json.",
+  "description": "libs/<name>/{types,data-access,state,ui,shell} + testing-Gerüst (mit --examples Beispieldaten + Beispiel-Spec), Lazy-Route in app.routes.ts, Scope in lib-scopes.json.",
   "type": "object",
   "properties": {
     "name": {
@@ -19,8 +19,13 @@
     },
     "testing": {
       "type": "boolean",
-      "description": "libs/<name>/testing (fixtures, handlers, scenarios) + Beispiel-Spec anlegen.",
+      "description": "libs/<name>/testing anlegen (Default: Gerüst mit leeren, typisierten Handlern/Szenarien).",
       "default": true
+    },
+    "examples": {
+      "type": "boolean",
+      "description": "testing mit Beispiel-Fixtures/-Handlern/-Szenarien + Beispiel-Spec state/src/<name>.store.spec.ts.",
+      "default": false
     },
     "appRoutesFile": {
       "type": "string",
