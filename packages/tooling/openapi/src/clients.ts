@@ -3,9 +3,9 @@
  * (used by the client generator and by move/rename/remove generators of a workspace, e.g. @mo-transfer/tooling-workspace).
  */
 import type { Tree } from '@nx/devkit';
-import { CLIENTS_CONFIG_FILE, type ClientEntry, type ClientsConfig, DEFAULT_ADAPTER, settingsOf } from './config';
+import { CLIENTS_CONFIG_FILE, type ClientEntry, type ClientsConfig, DEFAULT_ADAPTER, hasTesting, mockEngineOf, settingsOf } from './config';
 import { schemaPathFor } from './project-config';
-import { camelCase, clientRoot, clientTags, parseClientPath, projectNameFor } from './settings';
+import { camelCase, clientRoot, clientTags, parseClientPath, partAlias, partRoot, projectNameFor, TESTING_PART } from './settings';
 import { forEachSourceFile, offsetFromRoot, readJsonFile, replacePaths, writeJsonFile } from './tree-helpers';
 
 export type { ClientEntry, ClientsConfig } from './config';
@@ -96,4 +96,40 @@ export function renameClientExports(tree: Tree, fromClientPath: string, toClient
     }
   });
   return changed;
+}
+
+/** Generated testing exports of a client (`<client>Http` always, `<client>Handlers` only with fake data). */
+export interface ClientTestingExports {
+  clientPath: string;
+  /** import path of the client's testing lib */
+  alias: string;
+  /** typed openapi-msw `http` */
+  http: string;
+  /** generated default handlers — absent for mocks engine `none` (no fake data) */
+  handlers?: string;
+}
+
+/**
+ * The slice-private clients of `domain` (`<domain>/<clientFolder>/<name>`) that have a testing lib, with the
+ * names their testing lib exports — what a slice testing lib layers its curated handlers on. Shared clients are
+ * left out (a slice picks the shared ones it uses by hand).
+ */
+export function domainClientTestingExports(tree: Tree, domain: string): ClientTestingExports[] {
+  if (!tree.exists(CLIENTS_CONFIG_FILE)) return [];
+  const config = readClientsJson(tree);
+  const settings = settingsOf(config);
+  return Object.entries(config.clients ?? {}).flatMap(([clientPath, entry]) => {
+    const client = parseClientPath(clientPath, settings);
+    const testingLib = `${partRoot(settings, clientPath, TESTING_PART)}/src/index.ts`;
+    if (!client || client.placement === 'shared' || client.scope !== domain || !hasTesting(entry) || !tree.exists(testingLib)) return [];
+    const prefix = camelCase(client.name);
+    return [
+      {
+        clientPath,
+        alias: partAlias(settings, clientPath, TESTING_PART),
+        http: `${prefix}Http`,
+        ...(mockEngineOf(settings, entry) === 'none' ? {} : { handlers: `${prefix}Handlers` }),
+      },
+    ];
+  });
 }
