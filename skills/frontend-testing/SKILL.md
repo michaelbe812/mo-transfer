@@ -69,8 +69,12 @@ description: Frontend testing strategy and patterns for Angular in Nx workspaces
 - One worker per test run (`setupWorker()` without handlers), `onUnhandledFrame: 'error'`, started once,
   `resetHandlers()` after every test, **no `stop()`**; all via the auto fixture `worker` in `shared/testing`.
 - Defaults: `beforeEach(() => worker.use(...<domain>Handlers))`. Deviations: `test('…', async ({ worker }) => worker.use(<domain>Scenarios.serverError()))`.
-- Handlers/scenarios typed via `<client>Http` (openapi-msw); generated defaults `<client>Handlers` (orval);
-  builders `a<X>(overrides)`; `faker.seed` per test. Tests never assert random values.
+- Layering: `<domain>Handlers = withBaseline(curated, <client>Handlers…)` (`shared/testing`): curated handlers
+  (builders in the domain model, typed via `<client>Http`) win, the generated baseline answers every other operation
+  of the slice's clients; scenarios `satisfies Scenarios`. State/feature specs use the slice handlers + scenarios,
+  data-access specs the generated `<client>Handlers` + typed `<client>Http` overrides.
+- Generated defaults only with fake data (`settings.testing.mocks: schema-faker`; library default `none` = typed
+  `<client>Http` only); builders `a<X>(overrides)`; `faker.seed` per test. Tests never assert random values.
 
 **Organisation** → `references/06-test-organisation.md`
 - `libs/shared/testing` (worker + `test`), `libs/<domain>/testing` (fixtures, handlers, scenarios),

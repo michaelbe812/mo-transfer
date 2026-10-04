@@ -78,7 +78,7 @@ Gegenüber `feat/nx-blueprint-explicit-config` (extern, sheriff-blue-print; Ends
 | `feat-check-booking/data`, `feat-checkin/data` | `feat-check-booking/state`, `feat-checkin/state` | Feat-Stores sind state |
 | `feat-check-booking/api` (`describeCheck`) | `booking/utils` | Geschwister teilen über den Slice-Root |
 | `feat-checkin/api` (`describeDesk`) | `checkin/utils` | dito |
-| `CheckinDeskStore` → `BookingApi` (booking-Port) | `CheckinApi.loadArrivals()` (`/api/arrivals`), Modell `Arrival` in `checkin/types`, MSW `arrivalHandlers`/`arrivalScenarios` in `checkin/testing` | kein Cross-Slice-Import |
+| `CheckinDeskStore` → `BookingApi` (booking-Port) | `CheckinApi.loadArrivals()` (`/api/arrivals`), Modell `Arrival` in `checkin/types`, MSW `checkinScenarios.withArrivals`/`noArrivals` in `checkin/testing` (heute über den generierten checkin-client; früher `arrivalHandlers`/`arrivalScenarios`) | kein Cross-Slice-Import |
 | `BookingCard`/`ArrivalList` emittieren Events | emittieren `string` bzw. `Arrival`, Container erzeugt `bookingConfirmed`/`guestArrived` | ui ↛ state |
 | `App` injiziert `BookingApi` | entfernt | App nur entry + shared |
 

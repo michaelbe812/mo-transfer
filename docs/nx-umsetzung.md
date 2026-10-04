@@ -280,20 +280,21 @@ Alternative, falls die Lib-Anzahl stört: eine Lib pro Feat, dazu Sheriff nur mi
 
 ## Testing & MSW
 
-Unit- und Komponententests laufen **nur im Vitest Browser Mode** (Chromium headless über Playwright), kein jsdom. HTTP mockt [MSW](https://mswjs.io/docs/recipes/vitest-browser-mode/) per Service Worker: Die echte `BookingApi` (HttpClient) bzw. `ApiHttp` (`fetch`) schickt den Request, MSW beantwortet den Request im Browser.
+Unit- und Komponententests laufen **nur im Vitest Browser Mode** (Chromium headless über Playwright), kein jsdom. HTTP mockt [MSW](https://mswjs.io/docs/recipes/vitest-browser-mode/) per Service Worker: Die echten Wrapper (`BookingApi`, `CheckinApi`, … über die generierten Clients, HttpClient) schicken den Request, MSW beantwortet ihn im Browser. Die generierten Default-Handler der Clients sind die Baseline, die Slice-Testing-Libs legen kuratierte Handler darüber (siehe [Schichten](#schichten-generierte-baseline--kuratierte-handler)).
 
 ### Struktur
 
 ```
 libs/shared/testing/          scope:shared  type:testing  feat:none   kein build-Target
   src/network.ts                `worker` (setupWorker aus msw/browser) + `test` mit Auto-Fixture `worker` (+ `faker.seed(FAKER_SEED)` pro Test)
+  src/handlers.ts               `withBaseline(kuratiert, ...<client>Handlers)`, Typ `Scenarios`
 libs/<domain>/testing/        scope:<domain> type:testing feat:none   kein build-Target
   src/fixtures/                 Builder: aBooking(), aCheckinDto(), anArrival()
-  src/handlers/                 <domain>Handlers (Normalfall), <domain>Scenarios (empty, serverError, with…)
+  src/handlers/                 <domain>Handlers (kuratiert + generierte Baseline), <domain>Scenarios (empty, serverError, with…)
 vitest-base.config.mts        runnerConfig: msw-Prebundle-Fix, Browser-Conditions (msw 3); Worker serviert Vitest selbst
 ```
 
-- Domain-Testing-Libs importieren nur `msw` (nicht `msw/browser`), `type:types` und `shared/testing`. Deshalb liegen `CheckinDto` und `Arrival` in `checkin/types`, nicht in `checkin/data-access`. Ein Spec nutzt nur das eigene und das shared testing, nie das eines fremden Slices.
+- Domain-Testing-Libs importieren nur `msw` (nicht `msw/browser`), `type:types`, `shared/testing` und die Testing-Libs ihrer Clients (eigene + shared). Deshalb liegen `CheckinDto` und `Arrival` in `checkin/types`, nicht in `checkin/data-access`. Ein Spec nutzt nur das eigene und das shared testing, nie das eines fremden Slices.
 - `test`-Target (`"test": {}` in `project.json`, Body in `targetDefaults`) hat jede Lib, deren `src/` eine `*.spec.ts` enthält (heute `booking-data-access`, `booking-state`, `checkin-data-access`, `checkin-state`, `checkin-feat-checkin-feature`, `shared-data-access`), dazu `tsconfig.spec.json`. Executor `@mo-transfer/tooling-ng-lib:test` (reicht an `@nx/angular:unit-test` durch, `--ui` für Vitest UI), `browsers: ["chromiumHeadless"]`, `runnerConfig: vitest-base.config.mts`, `tsConfig: {projectRoot}/tsconfig.spec.json`, `watch: false`. `verify` prüft: `test` genau bei Libs mit Specs.
 - Einmalig: `pnpm exec playwright install chromium`.
 
@@ -323,12 +324,40 @@ describe('BookingStore', () => {
 ```
 
 - **Fixture `worker`** (`auto: true`): startet den Worker einmal (`onUnhandledFrame: 'error'`, msw 3; vorher `onUnhandledRequest`; Promise-Guard), `use(worker)`, danach `worker.resetHandlers()`. Kein `stop`, wie im Rezept. Abweichungen vom Rezept: `start` nur beim ersten Test (Rezept: `await worker.start()` pro Test; hier teilen sich alle Specs einer Lib die Seite, `isolate: false`) und `setupWorker()` ohne Happy-Path-Handler, die Defaults setzt jede Spec selbst.
-- **Faker:** Die Fixture setzt vor jedem Test `faker.seed(FAKER_SEED)`. Die generierten Default-Handler der OpenAPI-Clients (orval + Faker) liefern damit in jedem Lauf dieselben Daten, unabhängig von der Reihenfolge der Tests.
+- **Faker:** Die Fixture setzt vor jedem Test `faker.seed(FAKER_SEED)`. Die generierten Default-Handler der OpenAPI-Clients (schema-faker: Spec-`example`s, Faker für den Rest) liefern damit in jedem Lauf dieselben Daten, unabhängig von der Reihenfolge der Tests.
 - **Default-Handler: explizit im Spec** per `beforeEach(() => worker.use(...))`, `worker` kommt dafür als Modul-Export. Kein globales Setup-File: Welche Handler gelten, steht in der Spec.
 - **Reihenfolge** (Vitest 4 löst Fixtures auch für `beforeEach` auf, Auto-Fixtures immer): Fixture-Setup (Worker läuft) → `beforeEach` (Defaults) → Test (`worker.use` wird vorangestellt, neuester Handler gewinnt) → Fixture-Teardown (`resetHandlers` entfernt Defaults und Overrides). Belegt per Probe-Spec (nicht eingecheckt): `fetch` im ersten `beforeEach` wird schon von MSW beantwortet; im Folgetest nach einem Override gilt wieder nur der Default (`listHandlers().length === 1`); ohne `resetHandlers` wird dieser Test rot (3 statt 1 Handler).
 - Ohne `beforeEach` gibt es keine Handler. Ein nicht gemockter Request wird von MSW geloggt und mit 500 beantwortet, der Test wird rot (`booking-api.spec.ts` in `booking/data-access` prüft genau das).
-- Komponententest `feat-checkin.spec.ts`: rendert `FeatCheckin` per TestBed in Chromium, klickt über `page` aus `vitest/browser` und prüft das DOM (`expect.element`). Die Buchungen kommen dabei cross-domain aus `@mo-transfer/booking/testing`.
+- Komponententest `feat-checkin.spec.ts`: rendert `FeatCheckin` per TestBed in Chromium, klickt über `page` aus `vitest/browser` und prüft das DOM (`expect.element`). Defaults `checkinHandlers`: die Ankünfte kommen aus der generierten Baseline (Media-`example` der checkin-client-Spec), Abweichungen per `checkinScenarios.withArrivals([anArrival(…)])` / `noArrivals()`.
 - Mutationsproben: `beforeEach` mit den Default-Handlern in `booking.store.spec.ts` entfernt → `booking-state:test` rot (1 failed, `[MSW] Error: intercepted a request without a matching request handler`). Override gewinnt: die Tests mit `worker.use(...)` laufen trotz aktiver Defaults grün (`serverError` → 500, `withBookings` → nur `b-1`).
+
+### Schichten: generierte Baseline + kuratierte Handler
+
+Jede Operation jedes Clients hat einen generierten Default-Handler (`<client>Handlers`, nur mit Fake-Daten: `settings.testing.mocks: schema-faker`, hier gesetzt). Darauf bauen die Slice-Testing-Libs:
+
+```ts
+// libs/booking/testing/src/handlers/booking.handlers.ts
+const curatedBookingHandlers = [bookingClientHttp.get('/bookings', ({ response }) => response(200).json(defaultBookings))];
+export const bookingHandlers = withBaseline(curatedBookingHandlers, bookingClientHandlers, notificationClientHandlers);
+export const bookingScenarios = { withBookings, empty, serverError } satisfies Scenarios;
+```
+
+| Schicht | Quelle | gewinnt gegen |
+|---|---|---|
+| Szenario im Test (`worker.use(bookingScenarios.serverError())`) | Slice-Testing-Lib, typisiert über `<client>Http` | alles (vorangestellt) |
+| kuratiert (`curated…Handlers`, Builder im Domänenmodell) | Slice-Testing-Lib | Baseline (`withBaseline` setzt sie nach vorn, MSW nimmt den ersten Treffer) |
+| Baseline (`<client>Handlers`) | generierte Client-Testing-Lib (eigene Clients + genutzte shared Clients) | – |
+
+| Layer | Defaults im `beforeEach` | Abweichungen |
+|---|---|---|
+| data-access (Wrapper um den generierten Client) | `<client>Handlers` | typisierte Overrides `<client>Http.get(…)`, generierte Factories als Daten |
+| state, feature | `<domain>Handlers` | `<domain>Scenarios` |
+
+- **booking**: kuratiert `GET /bookings` (`defaultBookings`, b-100 *pending* ≠ Spec-`example` *confirmed* → `booking.store.spec.ts` belegt „kuratiert gewinnt“), Baseline booking-client + notification-client (`BookingNotifications` antwortet ohne eigenen Handler).
+- **checkin**: kuratiert `GET /checkins` (`defaultCheckinDtos`, snake_case), Ankünfte aus der Baseline (Media-`example` mit zwei Gästen), Baseline checkin-client + notification-client; Szenarien `withCheckins`, `empty`, `serverError`, `withArrivals`, `noArrivals`.
+- Mutationsprobe: Reihenfolge in `withBaseline` getauscht (Baseline vor kuratiert) → `booking-state:test` rot (`loads the curated bookings …`).
+- booking-Features laden nichts übers Netz (`FeatCheckBooking` zeigt den Store-Startzustand) — deshalb keine Feature-Spec in booking; das Feature-Muster zeigt `feat-checkin.spec.ts`.
+- **Entscheidung checkin-client:** checkin rief `/api/checkins` und `/api/arrivals` per `ApiHttp` (fetch) ohne Spec auf, die Testing-Lib nutzte rohes `http` aus msw (kein Typ-Schutz gegen Drift, keine Baseline). Neu: handgeschriebene Spec `libs/checkin/generated/checkin-client/openapi.yaml` (wie booking-client), angelegt mit `nx g @mo-transfer/tooling-openapi:client checkin-client --domain=checkin --spec=…`; `CheckinApi` ist ein dünner Wrapper wie `BookingApi` (Vertrag unverändert: Promise, `CheckinDto`/`Arrival` aus `checkin/types`, `Error` mit Status; erst `checkin-api.spec.ts` als Charakterisierung grün auf `ApiHttp`, dann umgestellt). Passt zum Blueprint (Domain-Client slice-privat), macht die Handler typisiert und liefert die Baseline. `ApiHttp` bleibt für die `domain`-Beispiele.
 
 ### Schutzschichten gegen Production-Leaks
 
@@ -384,13 +413,16 @@ Mit `buildTarget: client:build:development` gleiche Warnung für `@nx/angular:ap
 ### Neue `<domain>/testing` anlegen
 
 ```sh
-nx g @mo-transfer/tooling-workspace:testing <d>     # für eine bestehende Domain; `domain` legt testing + Beispiel-Spec gleich mit an
+nx g @mo-transfer/tooling-workspace:testing <d>              # Gerüst für eine bestehende Domain (Default)
+nx g @mo-transfer/tooling-workspace:testing <d> --examples   # mit Beispiel-Fixtures/-Handlern/-Szenarien
+# `domain` legt das testing-Gerüst gleich mit an; `domain --examples` dazu Beispieldaten + Beispiel-Spec
 ```
 
-1. Erzeugt `libs/<d>/testing/src/fixtures/<d>.fixture.ts` (Builder `a<D>()`), `src/handlers/<d>.handlers.ts` (`<d>Handlers`, `<d>Scenarios`: `withItems`, `empty`, `serverError`), `src/index.ts`, `project.json` (`<d>-testing`, `scope:<d>`, `type:testing`, `feat:none`, Targets `lint` + `typecheck`, **kein** `build`), `tsconfig.json` und den `paths`-Eintrag `@mo-transfer/<d>/testing`.
-2. Importiert nur `msw`, `@mo-transfer/<d>/types` und `@mo-transfer/shared/testing`. Exportiert `<d>/types` kein `<D>`, deklariert die Fixture die Backend-Form selbst (Hinweis im Kommentar: nach `<d>/types` verschieben).
-3. Specs: `*.spec.ts` in `src/` einer Lib ablegen, dazu `tsconfig.spec.json` + `"test": {}` in `project.json` (sonst meldet `verify` beides). Vorlage: `libs/<d>/state/src/<d>.store.spec.ts` aus dem Domain-Generator, der auch die Spec-Config schreibt.
-4. `tooling-verify:verify` prüft Tag-Schema, dass das Testing-Projekt kein `build` hat und `test` genau bei Libs mit Specs existiert.
+1. **Default (Gerüst, keine Daten):** `src/handlers/<d>.handlers.ts` mit leerem `curated<D>Handlers: HttpHandler[]`, `<d>Handlers = withBaseline(curated<D>Handlers, <client>Handlers…)` und `<d>Scenarios = {} satisfies Scenarios`, `src/index.ts`, `project.json` (`<d>-testing`, `scope:<d>`, `type:testing`, `feat:none`, Targets `lint` + `typecheck`, **kein** `build`), `tsconfig.json`, `paths`-Eintrag `@mo-transfer/<d>/testing`. Hat die Domain eigene generierte Clients (`libs/<d>/generated/<client>`, Eintrag in `openapi-clients.json`), importiert das Gerüst deren `<client>Handlers` als Baseline — nur bei einer Mocks-Engine mit Fake-Daten; bei `mocks: none` nennt der Kommentar nur `<client>Http`. Shared Clients nimmt die Slice selbst dazu. Keine Fixtures, keine Beispiel-Spec.
+2. **`--examples`:** wie bisher `src/fixtures/<d>.fixture.ts` (Builder `a<D>()`) und `src/handlers/<d>.handlers.ts` (`<d>Handlers`, `<d>Scenarios`: `withItems`, `empty`, `serverError`, rohes `http` auf `/api/<d>` passend zur Beispiel-`<D>Api`). Exportiert `<d>/types` kein `<D>`, deklariert die Fixture die Backend-Form selbst. `domain --examples` schreibt zusätzlich `libs/<d>/state/src/<d>.store.spec.ts` + Spec-Config.
+3. Importiert nur `msw`, `@mo-transfer/<d>/types`, Client-testing-Libs und `@mo-transfer/shared/testing`. Beleg: `packages/tooling/workspace/src/generators/testing/fixture-workspace.spec.ts` erzeugt Gerüst (ohne/mit Clients `schema-faker` + `none`) und Beispiele in einen Fixture-Workspace auf der Platte, generiert die Client-Testing-Libs mit dem echten Preset und kompiliert alles strikt gegen das echte `shared/testing`.
+4. Specs: `*.spec.ts` in `src/` einer Lib ablegen, dazu `tsconfig.spec.json` + `"test": {}` in `project.json` (sonst meldet `verify` beides). Vorlage: `domain --examples`, der auch die Spec-Config schreibt.
+5. `tooling-verify:verify` prüft Tag-Schema, dass das Testing-Projekt kein `build` hat und `test` genau bei Libs mit Specs existiert.
 
 ## OpenAPI-Clients
 
@@ -507,7 +539,7 @@ libs/<domain>/generated/<client>/          scope:<domain>  Client-Projekt <domai
 - **Domain-Client ist slice-privat:** `booking/generated/**` sieht nur booking. Fremde Domains kommen nie heran (keine Ports).
 - **`api` und `core` sind `type:data-access`**, weil HTTP Aufgabe von `data-access` ist (die Runtime importiert `@angular/common/http`, in `utils`/`state`/`ui`/`feature` verboten). Die Ordnernamen `api`/`core` bleiben, `api` ist kein Layer.
 - `type:types` → `type:types` gilt (Domain-Types dürfen generierte Models nutzen). `data-access`/`state`/`feature` dürfen generierte Services laut Matrix direkt nutzen, Konvention bleibt „über den Wrapper in `data-access`“.
-- **Wrapper:** `BookingApi`, `BookingNotifications` (`booking/data-access`), `CheckinNotifications` (`checkin/data-access`), `PetApi` (`shared/data-access`).
+- **Wrapper:** `BookingApi`, `BookingNotifications` (`booking/data-access`), `CheckinApi`, `CheckinNotifications` (`checkin/data-access`), `PetApi` (`shared/data-access`).
 - Config-Wächter: im Client-Ordner liegen nur `project.json` und die Spec; `openapi.(yaml|json)` an jeder anderen Stelle in `libs/` meldet `tooling-verify:verify` als Config-Datei außerhalb einer Lib.
 
 ### `openapi-clients.json`
@@ -516,11 +548,12 @@ libs/<domain>/generated/<client>/          scope:<domain>  Client-Projekt <domai
 {
   "$schema": "./packages/tooling/openapi/openapi-clients.schema.json",
   "defaultAdapter": "openapi-tools",
-  "settings": { "scaffold": "@mo-transfer/tooling-conventions/openapi-scaffold" },
+  "settings": { "scaffold": "@mo-transfer/tooling-conventions/openapi-scaffold", "testing": { "mocks": "schema-faker" } },
   "clients": {
     "generated/pet-client": { "url": "https://petstore3.swagger.io/api/v3/openapi.json", "adapter": "hey-api" },
     "generated/notification-client": {},
-    "booking/generated/booking-client": {}
+    "booking/generated/booking-client": {},
+    "checkin/generated/checkin-client": {}
   }
 }
 ```
@@ -534,7 +567,7 @@ libs/<domain>/generated/<client>/          scope:<domain>  Client-Projekt <domai
 | `layout` | `merged-core`: core in der api-Lib (keine core-Lib). Default types/api/core |
 | `pipeline` | `overlays` (experimentell, Flag `settings.features.overlays`), `transforms` (Code-Hooks), `format` (prettier), `testing` (`msw` \| `false`) |
 | `adapters` (Datei-Ebene) | eigene Adapter: `module` (Workspace-Pfad, npm-Paket, `builtin:<id>`), `packages`, `inputs`, `runtime`, `options` |
-| `settings` (Datei-Ebene) | Workspace-Annahmen mit Defaults (`libsDir`, `clientFolder`, `outputDir`, `aliasPrefix`, `sharedScope`, `specFiles`, `scaffold`, `features`, `testing`); hier nur `scaffold` gesetzt |
+| `settings` (Datei-Ebene) | Workspace-Annahmen mit Defaults (`libsDir`, `clientFolder`, `outputDir`, `aliasPrefix`, `sharedScope`, `specFiles`, `scaffold`, `features`, `testing`); hier `scaffold` und `testing.mocks: schema-faker` (Opt-in, Library-Default `none`) gesetzt. `scaffold` ist ein Paket: `@mo-transfer/tooling-conventions` steht deshalb in der Root-`package.json` (`workspace:*`), sonst scheitert `nx g …:client` mit „package … not installed“ |
 
 Die Datei liest zur Laufzeit die Executoren (`resolveClient`), bei jeder Graph-Berechnung das Plugin, beim Anlegen der Generator und `tooling-verify:verify`. Die `project.json` des Clients und seiner Teile schreibt der Generator `client` (Vorlage `packages/tooling/openapi/src/project-config.ts`): Client-Projekt mit Name + Tags (`generate-api-client` + `update-spec` inferiert das Plugin), Teil-Libs mit `implicitDependencies` und die Testing-Lib mit eigenem `generate-api-testing` (`lint`/`typecheck` mit `dependsOn: ['generate-api-testing', '^generate-api-client', '^generate-api-testing']`). Eintrag, Ordner und Spec müssen zusammenpassen: `tooling-verify:verify` prüft Eintrag ↔ Ordner ↔ eine Spec ↔ vier Libs, bekannter Adapter, keine expliziten Client-Targets, Kanten und dass die vier `index.ts` genau `export * from './generated';` enthalten.
 
@@ -654,15 +687,23 @@ Die Testing-Lib hängt nicht am Adapter (nur an der Spec), ein Tausch lässt sie
 
 ### Testing-Lib pro Client
 
-`<client>/testing` (`type:testing`, gleicher Scope wie der Client) entsteht nur aus der Spec (Preset `testing`). Mocks-Engine: **`schema-faker`** (Default, `settings.testing.mocks`; eigener Spec-Walk, keine orval-Abhängigkeit) oder `orval` (**deprecated**, eine Iteration wählbar per `pipeline.testing: { "mocks": "orval" }`, danach entfernt). Alle drei Clients laufen auf `schema-faker`; Specs unverändert grün (`'doggie'`, Seed-Determinismus, booking/checkin/notification).
+`<client>/testing` (`type:testing`, gleicher Scope wie der Client) entsteht nur aus der Spec (Preset `testing`). Mocks-Engine (`settings.testing.mocks`, pro Client `pipeline.testing: { "mocks": … }`):
+
+| Engine | Dateien | wofür |
+|---|---|---|
+| **`none`** (Library-Default) | `schema.ts`, `http.ts`, `index.ts` — keine Fake-Daten, kein `get<Op>…Mock`, kein `<client>Handlers`, keine `mock-runtime.ts`; Cache-Inputs ohne schema-faker-Quellen | Handler nur von Hand auf `<client>Http` |
+| `schema-faker` (Opt-in, **dieses Repo**: `settings.testing.mocks: "schema-faker"`) | + `mocks.ts`, `model.ts`, `mock-runtime.ts`, `handlers.ts` (eigener Spec-Walk, keine orval-Abhängigkeit) | generierte Baseline der Slice-Testing-Libs |
+| `orval` (**deprecated**, eine Iteration wählbar, danach entfernt) | + `mocks.ts`, `model/**`, `handlers.ts` | – |
+
+Mit dem Opt-in bleibt der generierte Code der bestehenden Clients byte-gleich zum Stand vor dem Default-Wechsel (sha256 über `libs/**/src/generated`, 71 Dateien). Alle vier Clients laufen auf `schema-faker`.
 
 | Datei in `src/generated/` | Werkzeug | Inhalt |
 |---|---|---|
 | `schema.ts` | openapi-typescript 7.13 | `paths`, `components`, `operations` |
-| `mocks.ts`, `model.ts`, `mock-runtime.ts` | schema-faker (Default): erreichbare Schemas als Daten + `fake()`/`mockHandler()` (nur msw + faker) | `get<Op>MockHandler(override?)`, `get<Op>ResponseMock()` je Operation, `export type <Schema>` |
+| `mocks.ts`, `model.ts`, `mock-runtime.ts` | schema-faker (Opt-in): erreichbare Schemas als Daten + `fake()`/`mockHandler()` (nur msw + faker) | `get<Op>MockHandler(override?)`, `get<Op>ResponseMock()` je Operation, `export type <Schema>` |
 | `mocks.ts`, `model/**` | orval 8.38 (deprecated, nur msw-Mocks, `useExamples`, Faker) | dieselben Namen |
 | `http.ts` | openapi-msw 2.0 | `<client>Http = createOpenApiHttp<paths>({ baseUrl: servers[0].url })`, `<client>BaseUrl` |
-| `handlers.ts` | – | `<client>Handlers`: ein Default-Handler je Operation (Spec-`example`s, Faker füllt den Rest) |
+| `handlers.ts` | – | `<client>Handlers`: ein Default-Handler je Operation (Spec-`example`s, Faker füllt den Rest); nicht bei `none` |
 
 ```ts
 import { bookingClientHandlers, bookingClientHttp } from '@mo-transfer/booking/generated/booking-client/testing';
@@ -676,7 +717,7 @@ worker.use(bookingClientHttp.get('/bookings', ({ response }) => response('defaul
 - **Faker deterministisch:** Die `worker`-Fixture in `shared/testing` ruft vor jedem Test `faker.seed(FAKER_SEED)`. `PetApi`-Spec belegt: zweimal geladen mit neuem Seed → gleiche Daten.
 - **Specs pflegen:** `example` an jedem Property der eigenen Specs, dann liefern die generierten Handler lesbare Daten (`'Booking b-101 confirmed'` statt Zufallstext).
 - **Grenzen:** Testing-Libs haben kein `build`. `openapi-msw` und `@faker-js/*` stehen in den `bannedExternalImports` der Produktions-Layer, der Bundle-Scan von `tooling-verify:verify` sucht zusätzlich nach `faker` (0 Treffer).
-- `booking/testing` baut `bookingHandlers`/`bookingScenarios` jetzt auf `bookingClientHttp`: eine Spec-Änderung bricht die handgeschriebenen Handler beim Typecheck.
+- `booking/testing` und `checkin/testing` bauen ihre Handler/Szenarien auf `<client>Http` (eine Spec-Änderung bricht die handgeschriebenen Handler beim Typecheck) und schichten sie per `withBaseline` über `<client>Handlers` (siehe [Schichten](#schichten-generierte-baseline--kuratierte-handler)).
 - pnpm: `peerDependencyRules.allowedVersions` für `openapi-msw>msw` (3), `openapi-typescript>typescript` (6), `msw` (3, `@vitest/mocker`) und `@nx/devkit>nx` (23, von nx-plugin-openapi).
 
 ### Beispiele
@@ -685,7 +726,8 @@ worker.use(bookingClientHttp.get('/bookings', ({ response }) => response('defaul
 |---|---|---|---|
 | `libs/generated/pet-client` (shared) | Petstore 3, `update-spec` von `https://petstore3.swagger.io/api/v3/openapi.json` | `PetApi` in `shared/data-access` (`availablePets()`) | `shared/data-access/src/pet-api.spec.ts`: generierte Handler + Seed, typisiertes Szenario (`status=available`), dokumentierter 400 |
 | `libs/generated/notification-client` (shared) | selbst geschrieben: `GET /notifications?topic=`, `POST /notifications/{id}/read` | `BookingNotifications` (`booking/data-access`) und `CheckinNotifications` (`checkin/data-access`), Modelle in `booking/types`, `checkin/types` | je 4 Tests: Default-Handler, Topic-Filter per `notificationClientHttp` mit generierter Factory, `markRead`, 404 |
-| `libs/booking/generated/booking-client` (booking) | selbst geschrieben: `GET /bookings` (Model wie `booking/types`, `default`-Fehler) | `BookingApi` (`booking/data-access`) | `booking-api.spec.ts` (unbehandelter Request, generierte Handler), `booking.store.spec.ts` über die typisierten `bookingHandlers`/`bookingScenarios` (checkin nutzt booking nicht mehr) |
+| `libs/booking/generated/booking-client` (booking) | selbst geschrieben: `GET /bookings` (Model wie `booking/types`, `default`-Fehler) | `BookingApi` (`booking/data-access`) | `booking-api.spec.ts` (unbehandelter Request, generierte Handler, typisierter Fehler-Override), `booking.store.spec.ts` über `bookingHandlers` (kuratiert + Baseline)/`bookingScenarios` (checkin nutzt booking nicht mehr) |
+| `libs/checkin/generated/checkin-client` (checkin) | selbst geschrieben: `GET /checkins` (snake_case wie `CheckinDto`), `GET /arrivals` (Media-`example` mit zwei Gästen), `default`-Fehler | `CheckinApi` (`checkin/data-access`) | `checkin-api.spec.ts` (Baseline, typisierter Override mit generierter Factory, Fehler), `checkin.store.spec.ts` + `feat-checkin.spec.ts` über `checkinHandlers`/`checkinScenarios` |
 
 `HttpClient`: Angular 22 stellt ihn `providedIn: 'root'` mit `FetchBackend` bereit, MSW sieht die Requests ohne Provider im Test. In der App steht `provideHttpClient(withFetch())` explizit. Ein beim TestBed-Reset abgebrochener Request endet ohne Wert, die Wrapper behandeln das als „nichts geladen“ (`defaultValue: []`).
 
@@ -805,14 +847,16 @@ Abhängigkeiten (Paket-Imports, `depConstraints` + 20 Verify-Fälle, zyklenfrei)
 ### Anleitungen
 
 ```sh
-# neue Domain: types, data-access, state, ui, shell + testing + Beispiel-Spec, je mit Config-Dateien + paths, Lazy-Route, Scope in lib-scopes.json
+# neue Domain: types, data-access, state, ui, shell + testing-Gerüst, je mit Config-Dateien + paths, Lazy-Route, Scope in lib-scopes.json
 nx g @mo-transfer/tooling-workspace:domain payment
+# … mit Beispiel-Fixtures/-Handlern/-Szenarien + Beispiel-Spec (state/src/payment.store.spec.ts)
+nx g @mo-transfer/tooling-workspace:domain payment --examples
 # neue Lib in bestehender Domain (Layer-Liste aus den Konventionen)
 nx g @mo-transfer/tooling-workspace:layer payment utils
 # neues Feat: feature-Container + optional state, ui; Lazy-Route in den Shell-Routes
 nx g @mo-transfer/tooling-workspace:feat payment checkout --state --ui
-# testing-Gerüst für eine bestehende Domain
-nx g @mo-transfer/tooling-workspace:testing checkin
+# testing-Gerüst für eine bestehende Domain (leere, typisierte Handler/Szenarien auf der Baseline der eigenen Clients); --examples für Beispieldaten
+nx g @mo-transfer/tooling-workspace:testing payment
 # generierter OpenAPI-Client (shared oder --domain), Spec als Datei oder URL
 nx g @mo-transfer/tooling-openapi:client weather-client --spec=https://example.org/openapi.json
 nx g @mo-transfer/tooling-openapi:client billing-client --domain=booking --spec=./specs/billing.yaml --adapter=hey-api

@@ -13,7 +13,7 @@ libs/
     src/network.ts                  worker + test fixture + FAKER_SEED (imports no workspace lib)
   <domain>/testing/               scope:<domain> type:testing  feat:none   no build target
     src/fixtures/<domain>.fixture.ts   a<X>() builders
-    src/handlers/<domain>.handlers.ts  <domain>Handlers, <domain>Scenarios, default<X>s
+    src/handlers/<domain>.handlers.ts  <domain>Handlers (= withBaseline(curated, <client>Handlers…)), <domain>Scenarios, default<X>s
     src/index.ts
   [<domain>/]generated/<client>/testing/   type:testing generated   (src/generated/** gitignored)
   <domain>/<layer>/src/

@@ -10,10 +10,10 @@ Setting MSW up from scratch: `08-msw-setup.md`.
 
 | Piece | Lib | Content |
 |---|---|---|
-| `worker`, `test`, `FAKER_SEED` | `libs/shared/testing` | one `setupWorker()` + Vitest `test.extend` with auto fixture `worker` |
+| `worker`, `test`, `FAKER_SEED`, `withBaseline`, `Scenarios` | `libs/shared/testing` | one `setupWorker()` + Vitest `test.extend` with auto fixture `worker`; layering helper + scenario type |
 | `a<X>()` builders | `libs/<domain>/testing/src/fixtures/` | valid objects with sensible defaults, `overrides` |
-| `<domain>Handlers`, `<domain>Scenarios`, `default<X>s` | `libs/<domain>/testing/src/handlers/` | happy path + named deviations, typed via `<client>Http` |
-| `<client>Http`, `<client>Handlers`, `get<Op>ResponseMock()`, `get<Op>MockHandler()`, `paths` | `libs/[<domain>/]generated/<client>/testing` | generated from the OpenAPI spec (openapi-msw, orval, openapi-typescript) |
+| `<domain>Handlers`, `<domain>Scenarios`, `default<X>s` | `libs/<domain>/testing/src/handlers/` | curated defaults on the generated baseline + named deviations, typed via `<client>Http` |
+| `<client>Http`, `paths` (+ `<client>Handlers`, `get<Op>ResponseMock()`, `get<Op>MockHandler()` with fake data) | `libs/[<domain>/]generated/<client>/testing` | generated from the OpenAPI spec (openapi-typescript, openapi-msw; mocks engine `schema-faker`) |
 
 ## 2. The worker fixture (`shared/testing`)
 
@@ -88,17 +88,29 @@ export function a<X>(overrides: Partial<<X>> = {}): <X> {
 // handlers/<domain>.handlers.ts
 export const default<X>s: <X>[] = [a<X>({ id: 'x-100' }), a<X>({ id: 'x-101', status: 'confirmed' })];
 
-export const <domain>Handlers = [
+const curated<Domain>Handlers = [
   <client>Http.get('/<items>', ({ response }) => response(200).json(default<X>s)),
 ];
+
+// curated first (wins), then the generated baseline of every client the slice uses (own + shared)
+export const <domain>Handlers = withBaseline(curated<Domain>Handlers, <client>Handlers, <sharedClient>Handlers);
 
 export const <domain>Scenarios = {
   with<X>s: (items: <X>[]) => <client>Http.get('/<items>', ({ response }) => response(200).json(items)),
   empty: () => <client>Http.get('/<items>', ({ response }) => response(200).json([])),
   serverError: () =>
     <client>Http.get('/<items>', ({ response }) => response('default').json({ message: 'boom' }, { status: 500 })),
-};
+} satisfies Scenarios;
 ```
+
+- **Layering** (`withBaseline` from `shared/testing`): MSW answers with the first matching handler → curated
+  handlers win, the baseline answers every other operation (a store or feature touching a new endpoint gets valid
+  spec data without extra setup), a test's `worker.use(scenario)` wins over both. Prove "curated wins" once: spec
+  examples ≠ curated defaults, the store spec asserts the curated values.
+- Who uses what: state/feature specs → `<domain>Handlers` + `<domain>Scenarios`; data-access specs (the wrapper
+  around the generated client) → `<client>Handlers` + typed `<client>Http` overrides.
+- New slice: `nx g …:testing <d>` (or `domain`) writes only the scaffold (empty `curated…`, baseline of the slice's
+  own clients, empty scenarios); `--examples` adds example builders/handlers/scenarios + a store spec.
 
 - Builders return a **valid** object; tests override only what they care about (`aBooking({ guestName: 'Grace Hopper' })`).
 - Fixed, readable default values in builders (no faker) – tests assert on them.
@@ -115,9 +127,14 @@ Generated per client from `openapi.yaml|json` (never committed, `generate-api-te
 | File | Tool | Content |
 |---|---|---|
 | `schema.ts` | openapi-typescript | `paths`, `components`, `operations` |
-| `mocks.ts`, `model/**` | orval (msw mocks only, `useExamples`, faker) | `get<Op>MockHandler(override?)`, `get<Op>ResponseMock()` |
 | `http.ts` | openapi-msw | `<client>Http = createOpenApiHttp<paths>({ baseUrl })`, `<client>BaseUrl` |
+| `mocks.ts`, `model.ts`, `mock-runtime.ts` | schema-faker (spec examples first, faker for the rest) | `get<Op>MockHandler(override?)`, `get<Op>ResponseMock()` |
 | `handlers.ts` | – | `<client>Handlers`: one default handler per operation |
+
+Mocks engine (`openapi-clients.json → settings.testing.mocks`, per client `pipeline.testing.mocks`): **`none`** is the
+library default (only `schema.ts`, `http.ts`, `index.ts` — no fake data, handlers by hand on `<client>Http`);
+`schema-faker` adds the last two rows (this repo opts in, the slice baseline needs `<client>Handlers`); `orval` is
+deprecated.
 
 ```ts
 beforeEach(() => worker.use(...<client>Handlers));                                // generated defaults

@@ -47,7 +47,7 @@ Nx lädt Generatoren und Executoren direkt aus den Quellen (`main`/`exports` zei
 nx g @mo-transfer/tooling-workspace:domain payment
 nx g @mo-transfer/tooling-workspace:layer payment utils
 nx g @mo-transfer/tooling-workspace:feat payment checkout --state --ui
-nx g @mo-transfer/tooling-workspace:testing checkin
+nx g @mo-transfer/tooling-workspace:testing payment   # Gerüst; --examples für Beispieldaten
 nx g @mo-transfer/tooling-workspace:move booking/feat-rebook checkin/feat-rebook
 nx g @mo-transfer/tooling-workspace:rename payment billing
 nx g @mo-transfer/tooling-workspace:remove billing [--force]
