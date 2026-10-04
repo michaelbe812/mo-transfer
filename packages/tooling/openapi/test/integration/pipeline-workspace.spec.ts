@@ -275,16 +275,21 @@ describe('extension points with nx in a fixture workspace', () => {
     expect(affected('tools/openapi-transforms/stamp.ts')).not.toContain('generated-other-client');
   });
 
-  it('testing preset with both mocks engines via nx: schema-faker (default) and orval (deprecated) — orval input only in its mode', () => {
+  it('testing preset with all mocks engines via nx: none (default), schema-faker, orval (deprecated) — engine inputs only in their mode', () => {
     updateClients((config) => {
+      config.clients['generated/ts-client'].pipeline.testing = { mocks: 'schema-faker' };
       config.clients['generated/other-client'].pipeline = { testing: { mocks: 'orval' } };
     });
     const faker = project('generated-ts-client-testing').targets['generate-api-testing'];
     const orval = project('generated-other-client-testing').targets['generate-api-testing'];
+    const none = project('generated-npm-client-testing').targets['generate-api-testing'];
     expect(faker.inputs.find((input: { externalDependencies?: string[] }) => input.externalDependencies).externalDependencies).not.toContain('orval');
     expect(orval.inputs.find((input: { externalDependencies?: string[] }) => input.externalDependencies).externalDependencies).toContain('orval');
+    expect(none.inputs.find((input: { externalDependencies?: string[] }) => input.externalDependencies).externalDependencies).not.toContain('orval');
     expect(project('generated-other-client').metadata.openapi.mocks).toBe('orval');
-    nx('run-many', '-t', 'generate-api-testing', '-p', 'generated-ts-client-testing', 'generated-other-client-testing');
+    expect(project('generated-npm-client').metadata.openapi.mocks).toBe('none');
+    nx('run-many', '-t', 'generate-api-testing', '-p', 'generated-ts-client-testing', 'generated-other-client-testing', 'generated-npm-client-testing');
+    expect(filesBelow(join(root, 'libs/generated/npm-client/testing/src/generated'))).toEqual(['http.ts', 'index.ts', 'schema.ts']);
     expect(filesBelow(join(root, 'libs/generated/ts-client/testing/src/generated'))).toContain('mock-runtime.ts');
     expect(read(root, 'libs/generated/ts-client/testing/src/generated/model.ts')).toContain("export type Thing = components['schemas']");
     const orvalFiles = filesBelow(join(root, 'libs/generated/other-client/testing/src/generated'));

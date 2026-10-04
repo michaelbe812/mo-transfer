@@ -261,6 +261,7 @@ describe('client generator', () => {
   });
 
   it('formats (formatFiles) and tells how to generate and use the client', async () => {
+    clientsJson(tree, { settings: { ...SETTINGS, testing: { mocks: 'schema-faker' } }, clients: {} });
     const info = vi.spyOn(logger, 'info').mockImplementation(() => undefined);
     const callback = await clientGenerator(tree, { name: 'demo-client', domain: 'booking', spec: 'specs/demo.yaml' });
     callback();
@@ -273,6 +274,16 @@ describe('client generator', () => {
       done(),
     );
     expect(info).toHaveBeenLastCalledWith(expect.stringContaining('in the shared data-access layer'));
+    info.mockRestore();
+  });
+
+  it('mocks: none (library default) — the hint names only the typed http, no generated handlers', async () => {
+    clientsJson(tree, { clients: {} });
+    const info = vi.spyOn(logger, 'info').mockImplementation(() => undefined);
+    (await clientGenerator(tree, { name: 'demo-client', spec: 'specs/demo.yaml', skipFormat: true }))();
+    expect(info).toHaveBeenLastCalledWith(
+      'Use: @mo-transfer/generated/demo-client/api (services) + /types in the shared data-access layer, specs: @mo-transfer/generated/demo-client/testing (demoClientHttp; no fake data: settings.testing.mocks = none).',
+    );
     info.mockRestore();
   });
   it('layout merged-core: no core lib, api edges without core; testing: false: no testing lib, entry pipeline.testing', async () => {

@@ -106,6 +106,12 @@ describe('settings validation (H2)', () => {
     );
   });
 
+  it('testing.mocks: library default none (scaffold only, no fake data), schema-faker/orval opt-in', () => {
+    expect(DEFAULT_SETTINGS.testing.mocks).toBe('none');
+    expect(resolveSettings({}).testing.mocks).toBe('none');
+    expect(resolveSettings({ testing: { mocks: 'schema-faker' } }).testing.mocks).toBe('schema-faker');
+  });
+
   it('overlays and transform files must be relative, without ..', () => {
     expect(() => overlayFiles(resolveSettings({ features: { overlays: true } }), 'generated/a', ['../x.yaml'])).toThrow(
       'pipeline.overlays: "../x.yaml" must be relative to the client folder, without ..',

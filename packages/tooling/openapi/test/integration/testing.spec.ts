@@ -1,7 +1,7 @@
 /**
- * Testing preset (openapi-typescript, openapi-msw + a mocks engine: schema-faker (default) or orval (deprecated))
- * from the fixture spec, and the generated handlers really answering through msw 3 in Node (setupServer) with data
- * shaped by the spec — the same assertions for both engines.
+ * Testing preset (openapi-typescript, openapi-msw + a mocks engine: none (default: typed http only, no fake data),
+ * schema-faker or orval (deprecated)) from the fixture spec, and the generated handlers really answering through
+ * msw 3 in Node (setupServer) with data shaped by the spec — the same assertions for both faking engines.
  */
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -101,7 +101,59 @@ describe('testing lib generation, mocks: orval (deprecated)', () => {
   });
 });
 
-describe('testing lib generation, mocks: schema-faker (default, no orval)', () => {
+describe('testing lib generation, mocks: none (library default: scaffold only, no fake data)', () => {
+  let root: string;
+  const clientPath = 'generated/things-client';
+  const generatedDir = () => join(root, 'libs', clientPath, 'testing/src/generated');
+
+  beforeAll(() => {
+    root = createWorkspace('testing-none');
+    addClient(root, clientPath);
+  });
+  afterAll(() => removeWorkspace(root));
+
+  it('writes only schema, typed http and the barrel — no mocks, no handlers, no runtime copy, no faker', async () => {
+    const result = await generateTestingLib(resolveClient(root, clientPath), root);
+    const files = filesBelow(generatedDir());
+    expect(files).toEqual(['http.ts', 'index.ts', 'schema.ts']);
+    expect(result).toEqual({ baseUrl: 'http://api.test/v1', files: 3 });
+    for (const file of files) {
+      expect(read(generatedDir(), file).startsWith(HEADER_START)).toBe(true);
+      expect(read(generatedDir(), file)).not.toMatch(/faker|MockHandler|ResponseMock|Handlers/);
+    }
+    expect(read(generatedDir(), 'http.ts')).toContain('export const thingsClientHttp = createOpenApiHttp<paths>');
+    expect(read(generatedDir(), 'index.ts')).toContain("export * from './http';");
+  });
+
+  it('is deterministic and compiles', async () => {
+    const before = hashTree(generatedDir());
+    await generateTestingLib(resolveClient(root, clientPath), root);
+    expect(hashTree(generatedDir())).toEqual(before);
+    expect(typecheck(root, [`libs/${clientPath}/testing/src/index.ts`])).toEqual([]);
+  });
+
+  it('the typed http serves hand-written data through msw (Node)', async () => {
+    const { setupServer } = await import('msw/node');
+    const testing = await import(pathToFileURL(join(generatedDir(), 'index.ts')).href);
+    expect(Object.keys(testing).sort()).toEqual(['thingsClientBaseUrl', 'thingsClientHttp']);
+    type Resolver = (info: { response: (status: number) => { json: (body: object) => Response } }) => Response;
+    const http = testing.thingsClientHttp as { get: (path: string, resolver: Resolver) => never };
+    const server = setupServer(http.get('/owners', ({ response }) => response(200).json([{ id: 'o-7', name: 'Grace' }])));
+    server.listen({ onUnhandledFrame: 'error' });
+    try {
+      expect(await (await fetch('http://api.test/v1/owners')).json()).toEqual([{ id: 'o-7', name: 'Grace' }]);
+    } finally {
+      server.close();
+    }
+  });
+
+  it('a spec without operations is fine (nothing to mock)', async () => {
+    addClient(root, 'generated/empty-client', { spec: 'openapi: 3.0.3\ninfo: { title: Empty, version: 1.0.0 }\npaths: {}\n' });
+    await expect(generateTestingLib(resolveClient(root, 'generated/empty-client'), root)).resolves.toMatchObject({ files: 3 });
+  });
+});
+
+describe('testing lib generation, mocks: schema-faker (opt-in, no orval)', () => {
   let root: string;
   const clientPath = 'generated/things-client';
   const generatedDir = () => join(root, 'libs', clientPath, 'testing/src/generated');
@@ -109,7 +161,7 @@ describe('testing lib generation, mocks: schema-faker (default, no orval)', () =
 
   beforeAll(() => {
     root = createWorkspace('testing-schema-faker');
-    addClient(root, clientPath);
+    addClient(root, clientPath, { entry: { pipeline: { testing: { mocks: 'schema-faker' } } } });
   });
   afterAll(() => removeWorkspace(root));
 
@@ -164,7 +216,7 @@ describe('testing lib generation, mocks: schema-faker (default, no orval)', () =
   it('an unknown mocks engine fails with a hint', async () => {
     addClient(root, 'generated/odd-client', { entry: { pipeline: { testing: { mocks: 'nope' } } } });
     await expect(generateTestingLib(resolveClient(root, 'generated/odd-client'), root)).rejects.toMatchObject({
-      message: 'unknown mocks engine "nope" (schema-faker | orval)',
+      message: 'unknown mocks engine "nope" (none | schema-faker | orval)',
     });
   });
 });
@@ -196,9 +248,10 @@ describe('testing lib generation: errors', () => {
     );
   });
 
-  it('fails for a spec without operations (both engines)', async () => {
+  it('fails for a spec without operations (both faking engines)', async () => {
     addClient(root, 'generated/empty-client', {
       spec: 'openapi: 3.0.3\ninfo: { title: Empty, version: 1.0.0 }\npaths: {}\n',
+      entry: { pipeline: { testing: { mocks: 'schema-faker' } } },
     });
     await expect(generateTestingLib(resolveClient(root, 'generated/empty-client'), root)).rejects.toThrow(
       'libs/generated/empty-client/openapi.yaml: no operations, no msw handlers',

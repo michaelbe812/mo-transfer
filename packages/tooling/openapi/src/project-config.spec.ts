@@ -175,7 +175,7 @@ describe('client config (project.json of clients and parts, inferred targets)', 
 
   it('L6: narrow tooling inputs — testing-only code (schema-faker, testing preset) never re-generates the client code, adapters never the testing lib', () => {
     client('generated/pet-client');
-    const config: ClientsConfig = { clients: { 'generated/pet-client': {} } };
+    const config: ClientsConfig = { settings: { testing: { mocks: 'schema-faker' } }, clients: { 'generated/pet-client': {} } };
     const ctx = context(config, REPO_ROOT);
     const files = (inputs: unknown) => (inputs as unknown[]).filter((input): input is string => typeof input === 'string' && input.includes(SRC));
     const clientInputs = files(generateTarget(ctx, 'generated/pet-client', 'x.yaml')['inputs']);
@@ -194,6 +194,11 @@ describe('client config (project.json of clients and parts, inferred targets)', 
     expect(covers(testing, 'adapters/hey-api.ts')).toBe(false);
     expect(covers(clientInputs, 'pipeline/client-preset.ts')).toBe(true);
     expect(covers(testing, 'pipeline/client-preset.ts')).toBe(false);
+    // mocks: none (default) — no fake data, no faker code: the schema-faker sources are no input
+    const none = files(generateTestingTarget(context({ clients: { 'generated/pet-client': {} } }, REPO_ROOT), 'generated/pet-client', 'x.yaml')['inputs']);
+    expect(covers(none, 'pipeline/testing-preset.ts')).toBe(true);
+    expect(covers(none, 'pipeline/schema-faker/mocks.ts')).toBe(false);
+    expect(covers(none, 'pipeline/schema-faker/runtime/mock-runtime.ts')).toBe(false);
   });
 
   it('M3: testing target runs adapters/files.ts (readRawFiles) — an input; package mode includes yaml', () => {
@@ -227,7 +232,15 @@ describe('client config (project.json of clients and parts, inferred targets)', 
       ],
       outputs: ['{projectRoot}/src/generated'],
       options: { client: 'generated/pet-client' },
-      metadata: { description: 'OpenAPI testing lib (openapi-typescript, schema-faker msw mocks, openapi-msw)' },
+      metadata: { description: 'OpenAPI testing lib (openapi-typescript, openapi-msw; mocks: none — no fake data)' },
+    });
+    // schema-faker: opt-in per client or as workspace default, same packages
+    const schemaFaker: ClientsConfig = { settings: { testing: { mocks: 'schema-faker' } }, clients: { 'generated/pet-client': {} } };
+    expect(generateTestingTarget(context(schemaFaker), 'generated/pet-client', 'x.yaml')['metadata']).toEqual({
+      description: 'OpenAPI testing lib (openapi-typescript, schema-faker msw mocks, openapi-msw)',
+    });
+    expect(generateTestingTarget(context(schemaFaker), 'generated/pet-client', 'x.yaml')['inputs']).toContainEqual({
+      externalDependencies: ['openapi-typescript', 'yaml', 'typescript'],
     });
     // orval (deprecated) only in its mode: per client or as workspace default
     const orval: ClientsConfig = { clients: { 'generated/pet-client': { pipeline: { testing: { mocks: 'orval' } } } } };
@@ -239,7 +252,7 @@ describe('client config (project.json of clients and parts, inferred targets)', 
       description: 'OpenAPI testing lib (openapi-typescript, orval msw mocks, openapi-msw)',
     });
     const unknown = { clients: { 'generated/pet-client': { pipeline: { testing: { mocks: 'nope' } } } } } as unknown as ClientsConfig;
-    expect(inferClientTargets(context(unknown), 'generated/pet-client').metadata.problem).toBe('unknown mocks engine "nope" (schema-faker | orval)');
+    expect(inferClientTargets(context(unknown), 'generated/pet-client').metadata.problem).toBe('unknown mocks engine "nope" (none | schema-faker | orval)');
   });
 
   it('inferClientTargets: client + testing lib, target names, metadata; testing: false / no testing project → none', () => {
@@ -258,7 +271,7 @@ describe('client config (project.json of clients and parts, inferred targets)', 
       adapterSource: 'builtin',
       layout: 'default',
       testing: true,
-      mocks: 'schema-faker',
+      mocks: 'none',
       parts: ['types', 'api', 'core', 'testing'],
     });
     const lean = inferClientTargets(context(config), 'generated/lean-client');
