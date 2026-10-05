@@ -112,7 +112,8 @@ export const filesBelow = (dir: string): string[] => Object.keys(hashTree(dir));
  * libs/*\/src/index.ts, as tsconfig.base.json does) with the compiler options of a lib tsconfig.json.
  * Returns the formatted diagnostics (empty = compiles).
  */
-export function typecheck(root: string, files: string[]): string[] {
+/** `lib`: the workspace's tsconfig.base.json uses es2020 (the generated testing code must compile with it). */
+export function typecheck(root: string, files: string[], lib = ['lib.es2022.d.ts', 'lib.dom.d.ts']): string[] {
   const program = ts.createProgram({
     rootNames: files.map((file) => join(root, file)),
     options: {
@@ -120,7 +121,7 @@ export function typecheck(root: string, files: string[]): string[] {
       target: ts.ScriptTarget.ES2022,
       module: ts.ModuleKind.Preserve,
       moduleResolution: ts.ModuleResolutionKind.Bundler,
-      lib: ['lib.es2022.d.ts', 'lib.dom.d.ts'],
+      lib,
       experimentalDecorators: true,
       emitDecoratorMetadata: true,
       skipLibCheck: true,
@@ -175,7 +176,10 @@ export function executorContext(root: string, projectName: string, targetName: s
 export const toolingPaths = (): Record<string, string[]> =>
   Object.fromEntries(
     Object.entries(
-      JSON.parse(readFileSync(join(repoRoot, 'tsconfig.base.json'), 'utf-8')).compilerOptions.paths as Record<string, string[]>,
+      JSON.parse(readFileSync(join(repoRoot, 'tsconfig.base.json'), 'utf-8')).compilerOptions.paths as Record<
+        string,
+        string[]
+      >,
     )
       .filter(([alias]) => alias.startsWith('@mo-transfer/tooling-'))
       .map(([alias, [target]]) => [alias, [join(repoRoot, target)]]),
@@ -221,11 +225,15 @@ export function createNxFixture(name: string, options: { ownNodeModules?: boolea
     });
   /** stdout + stderr (plugin warnings) */
   const tryNx = (...args: string[]) => {
-    const result = spawnSync(options.node ?? process.execPath, [join(repoRoot, 'node_modules/nx/dist/bin/nx.js'), ...args], {
-      cwd: root,
-      encoding: 'utf-8',
-      env: env(),
-    });
+    const result = spawnSync(
+      options.node ?? process.execPath,
+      [join(repoRoot, 'node_modules/nx/dist/bin/nx.js'), ...args],
+      {
+        cwd: root,
+        encoding: 'utf-8',
+        env: env(),
+      },
+    );
     return { ok: result.status === 0, output: `${result.stdout}${result.stderr}` };
   };
   return {
@@ -234,7 +242,12 @@ export function createNxFixture(name: string, options: { ownNodeModules?: boolea
     nx,
     tryNx,
     project: (projectName) => JSON.parse(nx('show', 'project', projectName, '--json')),
-    clients: (config) => write(root, 'openapi-clients.json', `${JSON.stringify({ settings: { scaffold: SCAFFOLD }, ...config }, null, 2)}\n`),
+    clients: (config) =>
+      write(
+        root,
+        'openapi-clients.json',
+        `${JSON.stringify({ settings: { scaffold: SCAFFOLD }, ...config }, null, 2)}\n`,
+      ),
   };
 }
 

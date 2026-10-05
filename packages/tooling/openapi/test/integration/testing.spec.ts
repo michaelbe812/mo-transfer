@@ -199,7 +199,10 @@ describe('testing lib generation, mocks: schema-faker (opt-in, no orval)', () =>
     const before = hashTree(generatedDir());
     await generateSchemaFaker();
     expect(hashTree(generatedDir())).toEqual(before);
-    expect(typecheck(root, [`libs/${clientPath}/testing/src/index.ts`])).toEqual([]);
+    // lib es2020 like the workspace's tsconfig.base.json (the runtime copy is compiled by every testing lib)
+    expect(typecheck(root, [`libs/${clientPath}/testing/src/index.ts`], ['lib.es2020.d.ts', 'lib.dom.d.ts'])).toEqual(
+      [],
+    );
   });
 
   it('the handlers answer like orval: spec examples, faker for the rest — same data per request, no seed', async () => {
