@@ -124,7 +124,9 @@ describe('schema-faker runtime: fake() data rules', () => {
   });
 
   it('arrays: 1–10 items by default, minItems/maxItems, items default {}', () => {
-    const lengths = many((key) => (fake({ type: 'array', items: { type: 'integer' } }, schemas, key) as unknown[]).length);
+    const lengths = many(
+      (key) => (fake({ type: 'array', items: { type: 'integer' } }, schemas, key) as unknown[]).length,
+    );
     for (const length of lengths) {
       expect(length).toBeGreaterThanOrEqual(1);
       expect(length).toBeLessThanOrEqual(10);
@@ -138,7 +140,11 @@ describe('schema-faker runtime: fake() data rules', () => {
     const deep = (node: { children: unknown[] }, depth = 0): number =>
       node.children.length ? Math.max(...node.children.map((child) => deep(child as never, depth + 1))) : depth;
     expect(deep(fake({ $ref: '#/components/schemas/Tree' }, schemas) as never)).toBeLessThanOrEqual(6);
-    const optional: Schema = { type: 'object', properties: { o: { type: 'string', example: 'x' } }, additionalProperties: true };
+    const optional: Schema = {
+      type: 'object',
+      properties: { o: { type: 'string', example: 'x' } },
+      additionalProperties: true,
+    };
     expect(dig(fake(nest(optional, 6), schemas), 6)).toEqual({});
     expect(dig(fake(nest({ type: 'object', additionalProperties: true }, 6), schemas), 6)).toEqual({});
   });
@@ -296,7 +302,9 @@ describe('schema-faker runtime: fake() values change only with the spec', () => 
     });
     expect(viaRef).toEqual(before);
     const { nick, tags } = pet.properties ?? {};
-    expect(fakePet({ allOf: [props({ nick: undefined, tags: undefined }), { properties: { nick, tags } }] })).toEqual(before);
+    expect(fakePet({ allOf: [props({ nick: undefined, tags: undefined }), { properties: { nick, tags } }] })).toEqual(
+      before,
+    );
     const variants = (oneOf: Schema[]) => many((key) => fake({ oneOf }, schemas, key));
     const cat = { $ref: '#/components/schemas/Cat' };
     const dog = { $ref: '#/components/schemas/Dog' };
@@ -315,7 +323,24 @@ describe('schema-faker runtime: fake() values change only with the spec', () => 
   });
 
   it('pins the values of one schema (changes only with the spec — or a deliberate faker upgrade)', () => {
-    expect(fakePet()).toMatchInlineSnapshot();
+    expect(fakePet()).toMatchInlineSnapshot(`
+      {
+        "born": "2025-12-15T14:09:32.456Z",
+        "id": 902189,
+        "name": "JHaZgqUHDItI",
+        "status": "sold",
+        "tags": [
+          "59718960-2859-4e3d-859b-2bb3e5baf352",
+          "6e8284ed-b31e-4fd7-86d0-4ef2918ce2dd",
+          "756a2f55-a982-4953-a673-99ee5dfb9c32",
+          "b6a69e4a-0094-418a-9aad-e62defcef2d7",
+          "cf6fd3f6-86b6-4a26-9a36-d17b097961a2",
+          "53c4d238-d5b7-4373-897f-c3491243467e",
+          "e7b50fb6-7439-4433-8a02-a892bd3e826a",
+          "411173a1-2096-439a-ab87-9f9178153b2b",
+        ],
+      }
+    `);
   });
 });
 
