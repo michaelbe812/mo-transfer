@@ -98,7 +98,7 @@ describe('domain generator', () => {
     expect(handlers).toContain('export const paymentHandlers');
     expect(handlers).toContain('export const paymentScenarios');
     expect(read(tree, 'libs/payment/testing/src/fixtures/payment.fixture.ts')).toContain(
-      "import { Payment } from '@mo-transfer/payment/types';",
+      'export interface PaymentExample {',
     );
     const spec = read(tree, 'libs/payment/state/src/payment.store.spec.ts');
     expect(spec).toContain('beforeEach(() => worker.use(...paymentHandlers));');

@@ -129,3 +129,38 @@ describe('generated testing libs compile in a fixture workspace (real shared/tes
     expect(typecheck(root, files)).toEqual([]);
   });
 });
+
+/**
+ * `--examples` for any entity shape: the domain entity WITHOUT `{ id, name }` (booking: `Booking { id }` in the
+ * blueprint fixture, here widened to a required non-name field), WITH them (orders, domain --examples incl. spec)
+ * and a types lib without an entity export (layout).
+ */
+describe('--examples compile for every entity shape (fixture workspace, real shared/testing)', () => {
+  const root = join(REPO_ROOT, 'tmp/workspace-it', `examples-${process.pid}`);
+
+  beforeAll(async () => {
+    const tree = createBlueprintTree();
+    copyRepoSources(tree, 'libs/shared/testing/src');
+    tree.write('libs/shared/data-access/src/index.ts', readFileSync(join(REPO_ROOT, 'libs/shared/data-access/src/http-client.ts'), 'utf-8'));
+    tree.write('libs/booking/types/src/booking.model.ts', 'export interface Booking {\n  id: number;\n  guestName: string;\n}\n');
+    tree.write('libs/layout/types/src/index.ts', 'export {};\n');
+
+    await testingGenerator(tree, { domain: 'booking', examples: true, skipFormat: true });
+    await testingGenerator(tree, { domain: 'layout', examples: true, skipFormat: true });
+    await domainGenerator(tree, { name: 'orders', examples: true, skipFormat: true });
+
+    rmSync(root, { recursive: true, force: true });
+    flush(tree, root);
+  }, 60_000);
+  afterAll(() => rmSync(root, { recursive: true, force: true }));
+
+  it.each([
+    ['entity without { id, name }', ['libs/booking/testing/src']],
+    ['types lib without entity export', ['libs/layout/testing/src']],
+    ['entity with { id, name } (+ example store spec)', ['libs/orders/testing/src', 'libs/orders/state/src']],
+  ])('%s: no diagnostic', (_, dirs) => {
+    const files = dirs.flatMap((dir) => tsFilesBelow(root, dir));
+    expect(files.length).toBeGreaterThan(0);
+    expect(typecheck(root, files)).toEqual([]);
+  });
+});

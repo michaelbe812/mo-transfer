@@ -65,25 +65,27 @@ describe('testing generator', () => {
   });
 
   describe('--examples: example fixtures, handlers and scenarios', () => {
-    it('scaffolds fixtures + handlers + scenarios on top of the domain types', async () => {
+    it('scaffolds fixtures + handlers + scenarios on a self-contained example shape (any entity shape compiles)', async () => {
+      // booking/types exports `Booking { id }` — no `name`: the examples must not depend on the domain model
       await testingGenerator(tree, { domain: 'booking', examples: true });
 
-      expect(read(tree, 'libs/booking/testing/src/fixtures/booking.fixture.ts')).toContain(
-        "import { Booking } from '@mo-transfer/booking/types';",
-      );
+      const fixture = read(tree, 'libs/booking/testing/src/fixtures/booking.fixture.ts');
+      expect(fixture).toContain('export interface BookingExample {');
+      expect(fixture).not.toContain("from '@mo-transfer/booking/types'");
       const handlers = read(tree, HANDLERS);
       expect(handlers).toContain("import { http, HttpResponse } from 'msw';");
+      expect(handlers).toContain('export const defaultBookingItems: BookingExample[]');
       expect(handlers).toContain('export const bookingHandlers');
       expect(handlers).toContain('serverError: () =>');
     });
 
-    it('declares the backend shape itself when the types lib has no entity', async () => {
+    it('the same example shape when the types lib has no entity', async () => {
       tree.write('libs/layout/types/src/index.ts', 'export {};\n');
 
       await testingGenerator(tree, { domain: 'layout', examples: true });
 
       const fixture = read(tree, 'libs/layout/testing/src/fixtures/layout.fixture.ts');
-      expect(fixture).toContain('export interface Layout {');
+      expect(fixture).toContain('export interface LayoutExample {');
       expect(fixture).not.toContain("from '@mo-transfer/layout/types'");
     });
   });
