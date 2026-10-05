@@ -175,13 +175,15 @@ function operationLines(document: Json, op: Operation, refs: Set<string>): strin
   const example = mediaExample(document, op.content);
   const schema = stripSchema(op.content.schema ?? {}, refs) as Json;
   const data = json(example === undefined ? schema : { ...schema, example });
+  // the operation keys the fake data: its values never depend on other operations
+  const faked = `fake(${data}, schemas, ${json(op.name)})`;
   return [
     `type ${op.name}Response = ${type};`,
     '',
     `/** ${route} → ${op.status} ${op.media.type}: ${example === undefined ? 'faker from the schema (property examples first)' : 'the spec example'}. */`,
     isObject(schema, document)
-      ? `export const get${op.name}ResponseMock = (overrideResponse: Partial<${op.name}Response> = {}): ${op.name}Response => ({ ...(fake(${data}, schemas) as object), ...overrideResponse }) as ${op.name}Response;`
-      : `export const get${op.name}ResponseMock = (): ${op.name}Response => fake(${data}, schemas) as ${op.name}Response;`,
+      ? `export const get${op.name}ResponseMock = (overrideResponse: Partial<${op.name}Response> = {}): ${op.name}Response => ({ ...(${faked} as object), ...overrideResponse }) as ${op.name}Response;`
+      : `export const get${op.name}ResponseMock = (): ${op.name}Response => ${faked} as ${op.name}Response;`,
     '',
     `export const get${op.name}MockHandler = (overrideResponse?: MockOverride<${op.name}Response>, options?: RequestHandlerOptions): HttpHandler =>`,
     `  mockHandler(${json(op.method)}, ${json(mswPath)}, ${op.status}, ${json(op.media.kind)}, () => get${op.name}ResponseMock(), overrideResponse, options);`,
@@ -199,6 +201,9 @@ export function generateSchemaFakerMocks({ document, name, specPath }: { documen
     "import type { HttpHandler, RequestHandlerOptions } from 'msw';",
     "import { fake, mockHandler, type MockOverride, type Schemas } from './mock-runtime';",
     "import type { paths } from './schema';",
+    '',
+    '/** Reference date of the date formats (fixed, UTC); configureFakeData({ refDate }) changes it for every client. */',
+    "export { configureFakeData, MOCK_REF_DATE } from './mock-runtime';",
     '',
     '/** Component schemas reachable from the responses (doc keys dropped), resolved by fake() at test time. */',
     `const schemas: Schemas = ${JSON.stringify(reachableSchemas(document, refs), null, 2)};`,
