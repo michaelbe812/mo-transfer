@@ -49,21 +49,11 @@ export function generateSliceLayer(tree: Tree, n: SliceNames, layer: string): bo
  */
 export function generateTestingLib(tree: Tree, n: SliceNames, options: { examples?: boolean } = {}): boolean {
   const files = options.examples
-    ? testingFiles(n, typesExportEntity(tree, n))
+    ? testingFiles(n)
     : testingScaffoldFiles(n, domainClientTestingExports(tree, n.scope));
   return writeLib(tree, `${n.scope}/testing`, files);
 }
 
-/** true if libs/<scope>/types declares `export interface <Entity>` (then fixtures use it). */
-function typesExportEntity(tree: Tree, n: SliceNames): boolean {
-  const srcDir = `${LIBS_DIR}/${n.scope}/types/src`;
-  if (!tree.exists(srcDir)) return false;
-  const declaration = new RegExp(`export (interface|type) ${n.entity}\\b`);
-  return tree
-    .children(srcDir)
-    .filter((file) => file.endsWith('.ts'))
-    .some((file) => declaration.test(tree.read(`${srcDir}/${file}`, 'utf-8') ?? ''));
-}
 
 /** Registers `libs/<scope>/shell` lazily in the app routes (path = scope). No-op if already there. */
 export function registerSliceRoute(tree: Tree, scope: string, appRoutesFile = APP_ROUTES_FILE): boolean {

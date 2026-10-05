@@ -44,28 +44,25 @@ export const ${n.property}Scenarios = {} satisfies Scenarios;
 }
 
 /**
- * \`--examples\`: example fixtures, handlers and scenarios.
- * @param entityInTypes true if `libs/<slice>/types` exports the entity interface; otherwise the
- *   fixture declares the backend shape itself (a testing lib may only import types).
+ * `--examples`: example fixtures, handlers and scenarios for the example `<D>Api` (`GET /api/<d>`, `{ id, name }`).
+ * They declare their own shape `<D>Example` instead of importing the domain entity: the entity in
+ * `libs/<slice>/types` may have any shape (other fields, other id type) or not exist yet — the examples compile
+ * regardless. Curated handlers replace them with fixtures in the domain model.
  */
-export function testingFiles(n: SliceNames, entityInTypes: boolean): LibFiles {
-  const entityImport = entityInTypes
-    ? `import { ${n.entity} } from '${aliasFor(`${n.scope}/types`)}';\n`
-    : `/** Backend shape served by the handlers (no ${n.entity} in ${aliasFor(`${n.scope}/types`)} yet — move it there). */
-export interface ${n.entity} {
+export function testingFiles(n: SliceNames): LibFiles {
+  const shape = `${n.entity}Example`;
+  return {
+    files: {
+      [`fixtures/${n.scope}.fixture.ts`]: `/** Shape of the example data (what the example ${n.entity}Api loads) — independent of the domain model. */
+export interface ${shape} {
   id: string;
   name: string;
 }
-`;
-  const handlerImport = entityInTypes ? `import { ${n.entity} } from '${aliasFor(`${n.scope}/types`)}';\n` : '';
-  const fixtureImport = entityInTypes ? `a${n.entity}` : `a${n.entity}, ${n.entity}`;
-  return {
-    files: {
-      [`fixtures/${n.scope}.fixture.ts`]: `${entityImport}
+
 let nextId = 1;
 
 /** Test data builder: a valid entry, override what the test cares about. */
-export function a${n.entity}(overrides: Partial<${n.entity}> = {}): ${n.entity} {
+export function a${n.entity}(overrides: Partial<${shape}> = {}): ${shape} {
   return {
     id: \`${n.scope}-\${nextId++}\`,
     name: 'Example ${n.scope}',
@@ -73,13 +70,13 @@ export function a${n.entity}(overrides: Partial<${n.entity}> = {}): ${n.entity} 
   };
 }
 `,
-      [`handlers/${n.scope}.handlers.ts`]: `${handlerImport}import { http, HttpResponse } from 'msw';
-import { ${fixtureImport} } from '../fixtures/${n.scope}.fixture';
+      [`handlers/${n.scope}.handlers.ts`]: `import { http, HttpResponse } from 'msw';
+import { a${n.entity}, ${shape} } from '../fixtures/${n.scope}.fixture';
 
 /** Backend contract of the ${n.scope} slice (mirrors ${n.entity}Api). */
 export const ${n.property}Url = '${n.url}';
 
-export const default${n.entity}Items: ${n.entity}[] = [
+export const default${n.entity}Items: ${shape}[] = [
   a${n.entity}({ id: '${n.scope}-100', name: 'First ${n.scope}' }),
   a${n.entity}({ id: '${n.scope}-101', name: 'Second ${n.scope}' }),
 ];
@@ -89,7 +86,7 @@ export const ${n.property}Handlers = [http.get(${n.property}Url, () => HttpRespo
 
 /** Deviations for a single test: \`worker.use(${n.property}Scenarios.serverError())\`. */
 export const ${n.property}Scenarios = {
-  withItems: (items: ${n.entity}[]) => http.get(${n.property}Url, () => HttpResponse.json(items)),
+  withItems: (items: ${shape}[]) => http.get(${n.property}Url, () => HttpResponse.json(items)),
   empty: () => http.get(${n.property}Url, () => HttpResponse.json([])),
   serverError: () => http.get(${n.property}Url, () => HttpResponse.json({ message: 'boom' }, { status: 500 })),
 };
