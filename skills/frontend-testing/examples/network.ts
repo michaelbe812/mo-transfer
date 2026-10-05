@@ -10,8 +10,10 @@ import { test as testBase } from 'vitest';
 export const worker = setupWorker();
 
 /**
- * Seed of the shared faker instance, reset before every test: the generated default handlers of the
- * OpenAPI clients (`<client>Handlers`, orval + faker) answer the same data in every run.
+ * Seed of the GLOBAL faker instance, reset before every test — for code that draws from the global `faker`:
+ * hand-written builders and the deprecated `orval` mocks engine. The default engine `schema-faker` does not
+ * need it: its runtime uses a private faker instance seeded per value (stable without this seed, see
+ * packages/tooling/openapi/README.md → Stabile Fake-Daten).
  */
 export const FAKER_SEED = 42;
 
@@ -36,8 +38,8 @@ function startWorker(): Promise<unknown> {
  * `worker` is an auto fixture: Vitest resolves fixtures for `beforeEach`
  * too, so the worker runs before a spec's `beforeEach` adds its default
  * handlers. `worker.use(...)` inside a test is prepended and wins;
- * `resetHandlers()` after each test removes both. faker is re-seeded per test (deterministic
- * generated handlers, independent of test order).
+ * `resetHandlers()` after each test removes both. The global faker is re-seeded per test (hand-written
+ * faker data independent of test order; schema-faker handlers are stable anyway).
  */
 export const test = testBase.extend<{ worker: typeof worker }>({
   worker: [

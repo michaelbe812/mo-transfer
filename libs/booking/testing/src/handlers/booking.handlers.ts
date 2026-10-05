@@ -21,7 +21,7 @@ const curatedBookingHandlers = [
 
 /**
  * Slice defaults, set per spec: `beforeEach(() => worker.use(...bookingHandlers))`. Curated handlers win; every
- * other operation of the slice's clients answers from the generated baseline (spec examples, seeded faker).
+ * other operation of the slice's clients answers from the generated baseline (spec examples, stable faker values).
  */
 export const bookingHandlers = withBaseline(curatedBookingHandlers, bookingClientHandlers, notificationClientHandlers);
 

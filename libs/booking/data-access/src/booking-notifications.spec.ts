@@ -10,7 +10,7 @@ import { beforeEach, describe, expect } from 'vitest';
 import { BookingNotifications } from './booking-notifications';
 
 describe('BookingNotifications (shared notification-client behind the booking data-access layer)', () => {
-  // generated default handlers of the shared client: spec examples, faker (seeded per test) for the rest
+  // generated default handlers of the shared client: spec examples, stable faker values for the rest
   beforeEach(() => worker.use(...notificationClientHandlers));
 
   test('loads through the generated default handler', async () => {
