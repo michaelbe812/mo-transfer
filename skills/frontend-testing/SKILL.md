@@ -74,7 +74,9 @@ description: Frontend testing strategy and patterns for Angular in Nx workspaces
   of the slice's clients; scenarios `satisfies Scenarios`. State/feature specs use the slice handlers + scenarios,
   data-access specs the generated `<client>Handlers` + typed `<client>Http` overrides.
 - Generated defaults only with fake data (`settings.testing.mocks: schema-faker`; library default `none` = typed
-  `<client>Http` only); builders `a<X>(overrides)`; `faker.seed` per test. Tests never assert random values.
+  `<client>Http` only); builders `a<X>(overrides)`; `faker.seed` per test (global faker only). schema-faker data
+  is stable per value (seed = operation + instance path + schema fingerprint, fixed ref date): assert on spec examples,
+  on values derived from `get<Op>ResponseMock()`, sparingly on generated literals; never on unseeded randomness.
 
 **Organisation** → `references/06-test-organisation.md`
 - `libs/shared/testing` (worker + `test`), `libs/<domain>/testing` (fixtures, handlers, scenarios),

@@ -286,7 +286,7 @@ Unit- und Komponententests laufen **nur im Vitest Browser Mode** (Chromium headl
 
 ```
 libs/shared/testing/          scope:shared  type:testing  feat:none   kein build-Target
-  src/network.ts                `worker` (setupWorker aus msw/browser) + `test` mit Auto-Fixture `worker` (+ `faker.seed(FAKER_SEED)` pro Test)
+  src/network.ts                `worker` (setupWorker aus msw/browser) + `test` mit Auto-Fixture `worker` (+ `faker.seed(FAKER_SEED)` pro Test, nur für den globalen faker)
   src/handlers.ts               `withBaseline(kuratiert, ...<client>Handlers)`, Typ `Scenarios`
 libs/<domain>/testing/        scope:<domain> type:testing feat:none   kein build-Target
   src/fixtures/                 Builder: aBooking(), aCheckinDto(), anArrival()
@@ -324,7 +324,8 @@ describe('BookingStore', () => {
 ```
 
 - **Fixture `worker`** (`auto: true`): startet den Worker einmal (`onUnhandledFrame: 'error'`, msw 3; vorher `onUnhandledRequest`; Promise-Guard), `use(worker)`, danach `worker.resetHandlers()`. Kein `stop`, wie im Rezept. Abweichungen vom Rezept: `start` nur beim ersten Test (Rezept: `await worker.start()` pro Test; hier teilen sich alle Specs einer Lib die Seite, `isolate: false`) und `setupWorker()` ohne Happy-Path-Handler, die Defaults setzt jede Spec selbst.
-- **Faker:** Die Fixture setzt vor jedem Test `faker.seed(FAKER_SEED)`. Die generierten Default-Handler der OpenAPI-Clients (schema-faker: Spec-`example`s, Faker für den Rest) liefern damit in jedem Lauf dieselben Daten, unabhängig von der Reihenfolge der Tests.
+- **Faker:** Die generierten Default-Handler der OpenAPI-Clients (schema-faker: Spec-`example`s, Faker für den Rest) sind ohne Seed stabil: jeder Wert hat einen eigenen Seed aus Operation + Instanzpfad + Fingerprint seines Schemas, Datumswerte hängen an `MOCK_REF_DATE` (2026-01-01, UTC). Sie ändern sich nur mit der Spec (oder einem bewussten Faker-Upgrade), nie mit Datum, Test-/Aufrufreihenfolge oder anderen Operationen — siehe packages/tooling/openapi/README.md → Stabile Fake-Daten. Die Fixture setzt weiter `faker.seed(FAKER_SEED)` für Code, der den globalen `faker` nutzt (handgeschriebene Builder, deprecated orval-Engine).
+- **Asserten auf Fake-Daten:** Spec-`example`s als Literale; sonst Erwartung aus `get<Op>ResponseMock()` ableiten (gleiche Daten wie der Handler, z. B. `pet-api.spec.ts`); generierte Literale sind erlaubt, aber sparsam; testrelevante Werte per Override/Szenario setzen. Faker ist exakt gepinnt; ein Upgrade ändert Werte → eigener PR, Erwartungen neu generieren (`vitest -u`), Diff reviewen.
 - **Default-Handler: explizit im Spec** per `beforeEach(() => worker.use(...))`, `worker` kommt dafür als Modul-Export. Kein globales Setup-File: Welche Handler gelten, steht in der Spec.
 - **Reihenfolge** (Vitest 4 löst Fixtures auch für `beforeEach` auf, Auto-Fixtures immer): Fixture-Setup (Worker läuft) → `beforeEach` (Defaults) → Test (`worker.use` wird vorangestellt, neuester Handler gewinnt) → Fixture-Teardown (`resetHandlers` entfernt Defaults und Overrides). Belegt per Probe-Spec (nicht eingecheckt): `fetch` im ersten `beforeEach` wird schon von MSW beantwortet; im Folgetest nach einem Override gilt wieder nur der Default (`listHandlers().length === 1`); ohne `resetHandlers` wird dieser Test rot (3 statt 1 Handler).
 - Ohne `beforeEach` gibt es keine Handler. Ein nicht gemockter Request wird von MSW geloggt und mit 500 beantwortet, der Test wird rot (`booking-api.spec.ts` in `booking/data-access` prüft genau das).
@@ -714,7 +715,7 @@ worker.use(bookingClientHttp.get('/bookings', ({ response }) => response('defaul
 // Compile-Fehler: unbekannter Pfad, nicht dokumentierter Status, falscher Body
 ```
 
-- **Faker deterministisch:** Die `worker`-Fixture in `shared/testing` ruft vor jedem Test `faker.seed(FAKER_SEED)`. `PetApi`-Spec belegt: zweimal geladen mit neuem Seed → gleiche Daten.
+- **Faker stabil:** schema-faker seedet jeden Wert selbst (Operation + Instanzpfad + Schema-Fingerprint, festes Referenzdatum), unabhängig vom globalen Seed. `PetApi`-Spec belegt: zweimal geladen ohne Seed → gleiche Daten, gleich `getFindPetsByStatusResponseMock()`.
 - **Specs pflegen:** `example` an jedem Property der eigenen Specs, dann liefern die generierten Handler lesbare Daten (`'Booking b-101 confirmed'` statt Zufallstext).
 - **Grenzen:** Testing-Libs haben kein `build`. `openapi-msw` und `@faker-js/*` stehen in den `bannedExternalImports` der Produktions-Layer, der Bundle-Scan von `tooling-verify:verify` sucht zusätzlich nach `faker` (0 Treffer).
 - `booking/testing` und `checkin/testing` bauen ihre Handler/Szenarien auf `<client>Http` (eine Spec-Änderung bricht die handgeschriebenen Handler beim Typecheck) und schichten sie per `withBaseline` über `<client>Handlers` (siehe [Schichten](#schichten-generierte-baseline--kuratierte-handler)).
@@ -724,7 +725,7 @@ worker.use(bookingClientHttp.get('/bookings', ({ response }) => response('defaul
 
 | Client | Spec | Konsum | Tests |
 |---|---|---|---|
-| `libs/generated/pet-client` (shared) | Petstore 3, `update-spec` von `https://petstore3.swagger.io/api/v3/openapi.json` | `PetApi` in `shared/data-access` (`availablePets()`) | `shared/data-access/src/pet-api.spec.ts`: generierte Handler + Seed, typisiertes Szenario (`status=available`), dokumentierter 400 |
+| `libs/generated/pet-client` (shared) | Petstore 3, `update-spec` von `https://petstore3.swagger.io/api/v3/openapi.json` | `PetApi` in `shared/data-access` (`availablePets()`) | `shared/data-access/src/pet-api.spec.ts`: generierte Handler (stabil ohne Seed), typisiertes Szenario (`status=available`), dokumentierter 400 |
 | `libs/generated/notification-client` (shared) | selbst geschrieben: `GET /notifications?topic=`, `POST /notifications/{id}/read` | `BookingNotifications` (`booking/data-access`) und `CheckinNotifications` (`checkin/data-access`), Modelle in `booking/types`, `checkin/types` | je 4 Tests: Default-Handler, Topic-Filter per `notificationClientHttp` mit generierter Factory, `markRead`, 404 |
 | `libs/booking/generated/booking-client` (booking) | selbst geschrieben: `GET /bookings` (Model wie `booking/types`, `default`-Fehler) | `BookingApi` (`booking/data-access`) | `booking-api.spec.ts` (unbehandelter Request, generierte Handler, typisierter Fehler-Override), `booking.store.spec.ts` über `bookingHandlers` (kuratiert + Baseline)/`bookingScenarios` (checkin nutzt booking nicht mehr) |
 | `libs/checkin/generated/checkin-client` (checkin) | selbst geschrieben: `GET /checkins` (snake_case wie `CheckinDto`), `GET /arrivals` (Media-`example` mit zwei Gästen), `default`-Fehler | `CheckinApi` (`checkin/data-access`) | `checkin-api.spec.ts` (Baseline, typisierter Override mit generierter Factory, Fehler), `checkin.store.spec.ts` + `feat-checkin.spec.ts` über `checkinHandlers`/`checkinScenarios` |

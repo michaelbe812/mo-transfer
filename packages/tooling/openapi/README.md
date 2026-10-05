@@ -57,15 +57,39 @@ Jeder Eintrag ist `json`-Input (Felder `defaultAdapter`, `settings`, ggf. `adapt
 | | `none` (Default) | `schema-faker` (Opt-in) | `orval` (deprecated) |
 |---|---|---|---|
 | Dateien | `schema.ts`, `http.ts`, `index.ts` (3) | `schema.ts`, `http.ts`, `mocks.ts`, `model.ts`, `mock-runtime.ts`, `handlers.ts`, `index.ts` (7) | `schema.ts`, `http.ts`, `mocks.ts`, `model/**`, `handlers.ts`, `index.ts` |
-| Exporte | `paths`/`components`/`operations` (Typen), `<client>Http`, `<client>BaseUrl` | + `get<Op>ResponseMock(override?)`, `get<Op>MockHandler(override?, options?)`, `<Schema>`-Typen, `<client>Handlers` | dieselben (+ orvals Inline-Typen wie `GetInventory200`) |
-| Daten | keine (Gerüst: Handler von Hand auf `<client>Http`) | Media-`example(s)` → Schema-/Property-`example` → `const`/`enum` → faker nach Typ/Format/Grenzen | orval `useExamples` + faker |
+| Exporte | `paths`/`components`/`operations` (Typen), `<client>Http`, `<client>BaseUrl` | + `get<Op>ResponseMock(override?)`, `get<Op>MockHandler(override?, options?)`, `<Schema>`-Typen, `<client>Handlers`, `configureFakeData`, `MOCK_REF_DATE` | dieselben (+ orvals Inline-Typen wie `GetInventory200`) |
+| Daten | keine (Gerüst: Handler von Hand auf `<client>Http`) | Media-`example(s)` → Schema-/Property-`example` → `const`/`enum` → faker nach Typ/Format/Grenzen, stabil pro Wert (s. u.) | orval `useExamples` + faker (globaler Seed, reihenfolgeabhängig) |
 | Cache-Inputs | `openapi-typescript`, `yaml`, Testing-Preset (ohne schema-faker-Quellen) | + `pipeline/schema-faker/**` | + `orval` |
 | Abhängigkeiten im Test | msw, openapi-msw | + faker | + faker |
 | Grenzen | Spec ohne Operationen erlaubt | nur lokale `$ref`s (extern → Fehler, Spec vorher bündeln), nie `null`, kein `not`/`if`/`patternProperties`/`prefixItems`; Spec ohne Operationen → Fehler | Spec ohne Operationen → Fehler |
 
 Warum `none` Default: das Paket soll in fremden Workspaces kein Fake-Daten-Modell aufzwingen (Faker als Test-Abhängigkeit, generierte Defaults, die Specs unbemerkt grün halten). Wer die generierte Baseline will (wie mo-transfer: `settings.testing.mocks: "schema-faker"`), schaltet sie explizit ein; der Generator `client` nennt im Hinweis dann `<client>Handlers`, sonst nur `<client>Http`.
 
-`mock-runtime.ts` (~10 KiB, gitignored) wird pro Testing-Lib kopiert, statt importiert: ein Import aus dem Tooling-Paket verletzte die Boundaries (Libs importieren kein Tooling) und zöge den Paket-Einstieg in Browser-Bundles; eine gemeinsame Lib wäre workspace-spezifisch. Die Kopie importiert nur msw + faker.
+`mock-runtime.ts` (~15 KiB, gitignored) wird pro Testing-Lib kopiert, statt importiert: ein Import aus dem Tooling-Paket verletzte die Boundaries (Libs importieren kein Tooling) und zöge den Paket-Einstieg in Browser-Bundles; eine gemeinsame Lib wäre workspace-spezifisch. Die Kopie importiert nur msw + faker.
+
+### Stabile Fake-Daten (schema-faker)
+
+Ziel: Fake-Daten dürfen in Assertions stehen — sie ändern sich nur, wenn sich der relevante Teil der Spec ändert. Dazu zieht `mock-runtime.ts` jede Zufallsentscheidung (Blattwert, Optional-Property ja/nein, Array-Länge, oneOf/anyOf-Variante, additionalProperties-Key) mit eigenem Seed:
+
+- **Seed** = 64-Bit-Hash (cyrb53, `faker.seed([hi, lo])`) aus Operation (`get<Op>ResponseMock` → Key `<Op>`) + Instanzpfad (`/[2]/tags/[0]`, nicht der `$ref`-Name: gleiche Schemas an verschiedenen Stellen → verschiedene Werte) + Zweck (`value`/`present`/`length`/`variant`/`key`) + Fingerprint.
+- **Fingerprint** = eigene wertrelevante Keywords des Knotens, Keys sortiert: normalisierter Typ (`[x, 'null']` = `x`), `format`, `enum` (sortiert), `minimum`/`maximum`/`exclusive*`/`multipleOf`, `minLength`/`maxLength`/`pattern`; Array-Länge nur `minItems`/`maxItems`. Keine Doku-Keys, keine Kinder.
+- **Faker-Instanz**: privat, `new Faker({ locale: [en, base], randomizer: generateMersenne53Randomizer() })`, vor jeder Entscheidung neu geseedet. Der globale `faker` und sein Seed spielen keine Rolle.
+- **Datum**: alle Datumsformate relativ zu `MOCK_REF_DATE` = `2026-01-01T00:00:00.000Z` (`date.past` → Jahr davor), als UTC-ISO-String → unabhängig von heute und von `TZ` (kein `TZ=UTC` nötig). Anderes Datum: `configureFakeData({ refDate })` (Export jeder Testing-Lib, gilt für alle Clients; ohne Argument zurück auf den Default).
+
+| Wert ändert sich bei | Wert bleibt bei |
+|---|---|
+| Änderung am eigenen Schema (Typ, `format`, `enum`-Werte, Grenzen, Länge, `pattern`) | anderem Datum/Uhrzeit/Zeitzone, Testreihenfolge, Aufrufreihenfolge, Mehrfachaufruf (jeder Request gleich) |
+| anderem Pfad (Property umbenannt/verschoben) oder anderer Operation (`operationId`) | globalem `faker.seed`/`faker`-Aufrufen dazwischen |
+| `minItems`/`maxItems` → Länge (bestehende Items bleiben, Items sind per Index geseedet) | neuen/entfernten Geschwister-Properties, neuen Schemas/Operationen, Änderungen an anderen Operationen |
+| Anzahl der oneOf/anyOf-Varianten → Wahl; required ↔ optional | Reihenfolge von Properties, `enum`-Werten, oneOf-Varianten |
+| `example`/`const` (gewinnen immer) | `description`/`title`/Doku-Keys, Auslagern in `$ref`/`allOf`, `type: [x, 'null']` statt `x` |
+| Faker-Upgrade (Datenlisten/Algorithmen), `configureFakeData` | neuen Feldern in Array-Items (Länge bleibt) |
+
+**Asserten** (Reihenfolge der Präferenz): 1. Spec-`example`s als Literale (Teil des Vertrags). 2. Werte aus `get<Op>ResponseMock()` ableiten — liefert exakt die Handler-Daten (`expect(pets).toEqual(getFindPetsByStatusResponseMock().map(toSummary))`), übersteht auch Faker-Upgrades. 3. Generierte Literale/Inline-Snapshots sind erlaubt (ändern sich nur mit Spec oder bewusstem Faker-Upgrade), aber sparsam. Testrelevante Werte (Grenzfälle, Status) nie dem Zufall überlassen: Override (`get<Op>ResponseMock({ … })`, `get<Op>MockHandler(body)`) oder Szenario.
+
+**Grenzen**: Query-/Pfadparameter sind nicht Teil des Keys (statische Antwort pro Operation; Filter/Paging per Override/Szenario). Keine Liste↔Detail-Konsistenz derselben Entität (Key = Instanzpfad). Keine Eindeutigkeit (kleine Wertebereiche wie `boolean`/`enum` wiederholen sich; kein `unique`). Kosten: ~35 µs pro Seed (Mersenne-Init), `shared-data-access:test` +~11 ms.
+
+**Faker-Upgrades**: `@faker-js/faker` ist exakt gepinnt (`10.6.0`, root `package.json`). Ein Upgrade (auch Minor) kann Werte ändern. Daher bewusst: eigener PR, kein Automerge, alle Specs laufen lassen, generierte Literale/Inline-Snapshots mit `vitest -u` neu schreiben und den Diff reviewen (`mock-runtime.spec.ts` pinnt Werte und zeigt die Drift zuerst). Eine Renovate-/Dependabot-Konfiguration gibt es im Repo nicht; kommt eine, `@faker-js/faker` als eigene Gruppe ohne Automerge mit Hinweis „Erwartungen neu generieren“.
 
 ## Eigener Adapter
 

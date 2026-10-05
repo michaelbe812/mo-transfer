@@ -21,7 +21,7 @@ const curatedBookingHandlers = [
 
 /**
  * Slice defaults: curated handlers win; every other operation of the slice's clients answers from the generated
- * baseline (spec examples, seeded faker — needs settings.testing.mocks: schema-faker).
+ * baseline (spec examples, stable faker values — needs settings.testing.mocks: schema-faker).
  */
 export const bookingHandlers = withBaseline(curatedBookingHandlers, bookingClientHandlers, notificationClientHandlers);
 

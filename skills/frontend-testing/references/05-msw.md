@@ -52,7 +52,7 @@ Rules:
 - **`resetHandlers()` after every test**, **no `stop()`** (redundant in the browser, per recipe).
 - `setupWorker()` **without** handlers: each spec states its defaults (no hidden global setup file).
 - Every spec imports `test` from `<scope>/shared/testing`, not from `vitest` (otherwise no fixture → no worker,
-  no seed). `describe`/`expect`/`beforeEach`/`vi` still come from `vitest`.
+  no global seed). `describe`/`expect`/`beforeEach`/`vi` still come from `vitest`.
 
 ## 3. Defaults per spec, deviations per test
 
@@ -145,14 +145,22 @@ worker.use(<client>Http.get('/<items>', ({ response }) => response('default').js
 
 - **Typed handlers stop mock drift** (deck slide 10): a spec change breaks hand-written handlers at typecheck.
 - Use `<client>Http` for all hand-written handlers in `<domain>/testing` and for per-test overrides.
-- Generated defaults are good for "something valid comes back" (ports, smoke). Assert only on spec `example`
-  values or on structure – put `example` on every property of your own specs.
+- Generated defaults are good for "something valid comes back" (ports, smoke). Assert on spec `example` values,
+  on values derived from `get<Op>ResponseMock()` (exactly the handler data), or on structure – put `example` on every
+  property of your own specs. Generated literals are allowed (stable, see §6) but use them sparingly.
 - Generated factories as data: `const [example] = get<Op>ResponseMock(); { ...example, id: 'n-1' }`.
 
 ## 6. Determinism and unhandled requests
 
-- `faker.seed(FAKER_SEED)` before every test → generated data identical in every run and order.
-- **Tests never assert random values.** Assert builder defaults, explicit overrides, spec examples, or counts you served.
+- schema-faker data is stable without any seed: every value has its own seed (operation + instance path + fingerprint
+  of its schema), dates relative to `MOCK_REF_DATE` (2026-01-01, UTC; `configureFakeData({ refDate })`). It changes
+  only with the spec or a deliberate faker upgrade (faker pinned exactly → own PR, `vitest -u`, review the diff) –
+  never with date, test/call order or other operations. Limits: query params are not part of the key, no list↔detail
+  consistency.
+- `faker.seed(FAKER_SEED)` before every test → code using the GLOBAL faker (hand-written builders, deprecated orval
+  engine) is identical in every run and order.
+- **Tests never assert unseeded random values.** Assert builder defaults, explicit overrides, spec examples, values
+  derived from `get<Op>ResponseMock()`, or counts you served.
 - No handler → red. Prove it once per port: a test without `worker.use` expecting the rejection and the MSW error log
   (`examples/api-port.spec.ts`, last test). Mutation probe: remove the `beforeEach` → spec must fail with
   `[MSW] Error: intercepted a request without a matching request handler`.

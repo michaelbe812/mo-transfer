@@ -22,4 +22,4 @@ read `booking`/`checkin` as `<domain>`, `booking-client` as `<client>`, `@myorg`
 
 None of the component specs calls `detectChanges`, `whenStable`, `fakeAsync`, `tick` or waits manually.
 
-Minimum versions: Vitest ≥ 4 (browser mode, `@vitest/browser-playwright`) · Playwright (Chromium) · msw ≥ 3 · openapi-msw ≥ 2 · openapi-typescript ≥ 7 · orval ≥ 8 · `@faker-js/faker` (seeded).
+Minimum versions: Vitest ≥ 4 (browser mode, `@vitest/browser-playwright`) · Playwright (Chromium) · msw ≥ 3 · openapi-msw ≥ 2 · openapi-typescript ≥ 7 · orval ≥ 8 · `@faker-js/faker` (pinned exactly; schema-faker seeds per value).
