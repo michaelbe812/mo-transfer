@@ -122,12 +122,16 @@ describe('schema-faker: generateSchemaFakerMocks', () => {
       `type ListPetsResponse = paths["/pets"]["get"]['responses']["200"]['content']["application/json"];`,
     );
     expect(mocks).toContain('mockHandler("post", "*/pets", 201, "json", () => getAddPetResponseMock()');
-    expect(mocks).toContain('fake({"$ref":"#/components/schemas/Pet","example":{"id":1}}, schemas)');
-    expect(mocks).toContain('fake({"$ref":"#/components/schemas/Pet","example":{"id":7}}, schemas)');
+    // the operation name keys the fake data: stable per operation, independent of the others
+    expect(mocks).toContain('fake({"$ref":"#/components/schemas/Pet","example":{"id":1}}, schemas, "AddPet")');
+    expect(mocks).toContain('fake({"$ref":"#/components/schemas/Pet","example":{"id":7}}, schemas, "GetPet")');
+    expect(mocks).toContain('fake({"type":"array","items":{"$ref":"#/components/schemas/Pet"}}, schemas, "ListPets")');
     expect(mocks).toContain('getGetPetResponseMock = (overrideResponse: Partial<GetPetResponse> = {})');
     expect(mocks).toContain('getListPetsResponseMock = (): ListPetsResponse =>');
     expect(mocks).toContain('getUnionResponseMock = (overrideResponse: Partial<UnionResponse>');
     expect(mocks).toContain('getEmptyExamplesResponseMock = (): EmptyExamplesResponse => fake({"type":"integer"}');
+    // reference date of the date formats, configurable for all clients at once
+    expect(mocks).toContain("export { configureFakeData, MOCK_REF_DATE } from './mock-runtime';");
     expect(mocks).toContain('mockHandler("get", "*/ping", 200, "text"');
     expect(mocks).toContain(
       'getDeletePetMockHandler = (overrideResponse?: MockOverride<void>, options?: RequestHandlerOptions): HttpHandler =>',
@@ -169,7 +173,7 @@ describe('schema-faker: generateSchemaFakerMocks', () => {
 
   it('a media type without schema fakes {}', () => {
     expect(generate({ paths: { '/x': { get: ok({ 'application/json': {} }) } } })['mocks.ts']).toContain(
-      'fake({}, schemas)',
+      'fake({}, schemas, "GetX")',
     );
   });
 });

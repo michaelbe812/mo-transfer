@@ -5,6 +5,7 @@
  */
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { ClientDefinition } from '../../src/adapter';
 import { generateTesting, resolveClient } from '../../src/facade';
@@ -19,6 +20,7 @@ import {
   hashTree,
   read,
   removeWorkspace,
+  THINGS_SPEC,
   typecheck,
 } from '../helpers';
 
@@ -138,7 +140,9 @@ describe('testing lib generation, mocks: none (library default: scaffold only, n
     expect(Object.keys(testing).sort()).toEqual(['thingsClientBaseUrl', 'thingsClientHttp']);
     type Resolver = (info: { response: (status: number) => { json: (body: object) => Response } }) => Response;
     const http = testing.thingsClientHttp as { get: (path: string, resolver: Resolver) => never };
-    const server = setupServer(http.get('/owners', ({ response }) => response(200).json([{ id: 'o-7', name: 'Grace' }])));
+    const server = setupServer(
+      http.get('/owners', ({ response }) => response(200).json([{ id: 'o-7', name: 'Grace' }])),
+    );
     server.listen({ onUnhandledFrame: 'error' });
     try {
       expect(await (await fetch('http://api.test/v1/owners')).json()).toEqual([{ id: 'o-7', name: 'Grace' }]);
@@ -148,8 +152,12 @@ describe('testing lib generation, mocks: none (library default: scaffold only, n
   });
 
   it('a spec without operations is fine (nothing to mock)', async () => {
-    addClient(root, 'generated/empty-client', { spec: 'openapi: 3.0.3\ninfo: { title: Empty, version: 1.0.0 }\npaths: {}\n' });
-    await expect(generateTestingLib(resolveClient(root, 'generated/empty-client'), root)).resolves.toMatchObject({ files: 3 });
+    addClient(root, 'generated/empty-client', {
+      spec: 'openapi: 3.0.3\ninfo: { title: Empty, version: 1.0.0 }\npaths: {}\n',
+    });
+    await expect(generateTestingLib(resolveClient(root, 'generated/empty-client'), root)).resolves.toMatchObject({
+      files: 3,
+    });
   });
 });
 
@@ -168,13 +176,21 @@ describe('testing lib generation, mocks: schema-faker (opt-in, no orval)', () =>
   it('writes schema, runtime, mocks, model, http, handlers, index — no orval model/**', async () => {
     const result = await generateSchemaFaker();
     const files = filesBelow(generatedDir());
-    expect(files.sort()).toEqual(['handlers.ts', 'http.ts', 'index.ts', 'mock-runtime.ts', 'mocks.ts', 'model.ts', 'schema.ts']);
+    expect(files.sort()).toEqual([
+      'handlers.ts',
+      'http.ts',
+      'index.ts',
+      'mock-runtime.ts',
+      'mocks.ts',
+      'model.ts',
+      'schema.ts',
+    ]);
     expect(result).toEqual({ baseUrl: 'http://api.test/v1', files: 7 });
     for (const file of files) expect(read(generatedDir(), file).startsWith(HEADER_START)).toBe(true);
     expect(read(generatedDir(), 'handlers.ts')).toContain('export const thingsClientHandlers: HttpHandler[] = [');
-    // browser-safe runtime: only msw + faker
+    // browser-safe runtime: only msw + a private faker instance (never the global `faker`)
     expect(read(generatedDir(), 'mock-runtime.ts').match(/^import .* from '([^']+)';$/gm)).toEqual([
-      "import { faker } from '@faker-js/faker';",
+      "import { base, en, Faker, generateMersenne53Randomizer } from '@faker-js/faker';",
       "import { http, type HttpHandler, HttpResponse, type HttpResponseResolver, type RequestHandlerOptions } from 'msw';",
     ]);
   });
@@ -186,7 +202,7 @@ describe('testing lib generation, mocks: schema-faker (opt-in, no orval)', () =>
     expect(typecheck(root, [`libs/${clientPath}/testing/src/index.ts`])).toEqual([]);
   });
 
-  it('the handlers answer like orval: spec examples, faker for the rest, deterministic per seed', async () => {
+  it('the handlers answer like orval: spec examples, faker for the rest — same data per request, no seed', async () => {
     const { setupServer } = await import('msw/node');
     const { faker } = await import('@faker-js/faker');
     const testing = await import(pathToFileURL(join(generatedDir(), 'index.ts')).href);
@@ -195,12 +211,14 @@ describe('testing lib generation, mocks: schema-faker (opt-in, no orval)', () =>
     try {
       const things = await (await fetch('http://api.test/v1/things')).json();
       expect(things).toEqual([{ id: 't-1', name: 'Lamp', kind: 'tool', owner: { id: 'o-1', name: 'Ada' } }]);
-      faker.seed(42);
       const thing = (await (await fetch('http://api.test/v1/things/t-9')).json()) as { kind: string };
       expect(thing).toMatchObject({ id: 't-1', name: 'Lamp' });
       expect(['tool', 'toy']).toContain(thing.kind);
-      faker.seed(42);
+      faker.seed(7); // the global faker state does not matter
+      faker.number.int();
       expect(await (await fetch('http://api.test/v1/things/t-9')).json()).toEqual(thing);
+      // factory = handler data: assert on get<Op>ResponseMock()
+      expect(testing.getGetThingResponseMock()).toEqual(thing);
       const owners = (await (await fetch('http://api.test/v1/owners')).json()) as unknown[];
       expect(owners.length).toBeGreaterThan(0);
       for (const owner of owners) expect(owner).toEqual({ id: 'o-1', name: 'Ada' });
@@ -211,6 +229,61 @@ describe('testing lib generation, mocks: schema-faker (opt-in, no orval)', () =>
     } finally {
       server.close();
     }
+  });
+
+  it('values change only with the relevant part of the spec (fixture regenerated with unrelated changes)', async () => {
+    type Spec = { paths: Record<string, unknown>; components: { schemas: Record<string, Record<string, unknown>> } };
+    const variant = async (path: string, change: (spec: Spec) => void) => {
+      const spec = parseYaml(THINGS_SPEC) as Spec;
+      const thing = spec.components.schemas.Thing as { required: string[]; properties: Record<string, unknown> };
+      // faker-driven fields (no examples), the subject of the comparison
+      thing.properties.serial = { type: 'string', format: 'uuid' };
+      thing.properties.madeAt = { type: 'string', format: 'date-time' };
+      thing.properties.parts = { type: 'array', items: { type: 'integer', minimum: 1 } };
+      thing.required.push('serial', 'madeAt', 'parts');
+      change(spec);
+      addClient(root, path, { spec: stringifyYaml(spec), entry: { pipeline: { testing: { mocks: 'schema-faker' } } } });
+      await generateTestingLib(resolveClient(root, path), root);
+      return import(pathToFileURL(join(root, 'libs', path, 'testing/src/generated/index.ts')).href);
+    };
+    const before = await variant('generated/before-client', () => undefined);
+    const after = await variant('generated/after-client', (spec) => {
+      const thing = spec.components.schemas.Thing as { properties: Record<string, unknown> };
+      thing.properties = Object.fromEntries(Object.entries(thing.properties).reverse()); // reordered
+      thing.properties.weight = { type: 'number', description: 'new, unrelated' }; // optional property added
+      spec.components.schemas.Extra = { type: 'object', properties: { x: { type: 'string' } } }; // schema added
+      spec.paths['/extras'] = {
+        get: {
+          operationId: 'listExtras',
+          responses: {
+            '200': {
+              description: 'OK',
+              content: { 'application/json': { schema: { $ref: '#/components/schemas/Extra' } } },
+            },
+          },
+        },
+      }; // operation added
+      spec.components.schemas.Owner.description = 'docs only'; // doc change
+    });
+    const withoutWeight = ({ weight: _weight, ...rest }: Record<string, unknown>) => rest;
+    const thing = before.getGetThingResponseMock();
+    expect(thing.serial).toMatch(/^[0-9a-f-]{36}$/);
+    expect(Date.parse(thing.madeAt)).toBeLessThan(Date.parse('2026-01-01T00:00:00.000Z'));
+    expect(withoutWeight(after.getGetThingResponseMock())).toEqual(thing);
+    expect(after.getListOwnersResponseMock()).toEqual(before.getListOwnersResponseMock());
+    // call order and repetition do not matter
+    after.getListExtrasResponseMock();
+    expect(withoutWeight(after.getGetThingResponseMock())).toEqual(withoutWeight(after.getGetThingResponseMock()));
+    // its own schema changes → only that field changes
+    const changed = await variant('generated/changed-client', (spec) => {
+      const thing = spec.components.schemas.Thing as { properties: Record<string, Record<string, unknown>> };
+      thing.properties.parts.items = { type: 'integer', minimum: 1, maximum: 9 };
+    });
+    const { parts, ...others } = changed.getGetThingResponseMock();
+    const { parts: partsBefore, ...othersBefore } = thing;
+    expect(parts).toHaveLength(partsBefore.length); // the array's own schema is unchanged
+    expect(parts).not.toEqual(partsBefore);
+    expect(others).toEqual(othersBefore);
   });
 
   it('an unknown mocks engine fails with a hint', async () => {
