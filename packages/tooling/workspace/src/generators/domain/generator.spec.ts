@@ -1,8 +1,9 @@
-import type { Tree } from '@nx/devkit';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { logger, type Tree } from '@nx/devkit';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { deriveTags } from '@mo-transfer/tooling-conventions';
 import { APP_ROUTES, createBlueprintTree, pathsOf, read, scopesOf } from '@mo-transfer/tooling-conventions/testing';
 import { findLazyRoutes } from '../shared/routes';
+import { registerSliceRoute } from '../shared/slice';
 import { listLibPaths } from '../shared/workspace';
 import { readJsonFile } from '@mo-transfer/tooling-conventions/tree';
 import { domainGenerator } from './generator';
@@ -167,5 +168,30 @@ describe('domain generator', () => {
   it('rejects invalid names', async () => {
     await expect(domainGenerator(tree, { name: 'Payment' })).rejects.toThrow('kebab-case');
     await expect(domainGenerator(tree, { name: 'shared' })).rejects.toThrow('reserved');
+  });
+
+  it('tells what it created (with and without testing lib)', async () => {
+    const info = vi.spyOn(logger, 'info').mockImplementation(() => undefined);
+    (await domainGenerator(tree, { name: 'payment', skipFormat: true }))();
+    (await domainGenerator(tree, { name: 'notes', layers: 'types', testing: false, skipFormat: true }))();
+    expect(info.mock.calls.map(([message]) => message)).toEqual([
+      'Domain "payment": libs/payment/{types,data-access,state,ui,shell,testing} (+ config files, paths), scope in lib-scopes.json.',
+      'Next: nx g @mo-transfer/tooling-workspace:feat payment <name> --state --ui',
+      'Domain "notes": libs/notes/{types} (+ config files, paths), scope in lib-scopes.json.',
+      'Next: nx g @mo-transfer/tooling-workspace:feat notes <name> --state --ui',
+    ]);
+    info.mockRestore();
+  });
+
+  it('a shell without Routes is not registered in the app routes (warning)', () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+    tree.write('libs/layout/shell/src/index.ts', 'export const nothing = 1;\n');
+    const routes = read(tree, APP_ROUTES);
+
+    expect(registerSliceRoute(tree, 'layout')).toBe(false);
+
+    expect(read(tree, APP_ROUTES)).toBe(routes);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('libs/layout/shell exports no Routes'));
+    warn.mockRestore();
   });
 });
