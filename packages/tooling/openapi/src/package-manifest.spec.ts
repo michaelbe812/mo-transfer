@@ -33,6 +33,10 @@ describe('package manifest', () => {
     expect(manifest.peerDependenciesMeta?.[name]?.optional).toBe(true);
   });
 
+  it('@faker-js/faker: one major only — fake values depend on the faker version (schema-faker runtime)', () => {
+    expect(manifest.peerDependencies?.['@faker-js/faker']).toBe('^10.6.0');
+  });
+
   it('nx, @nx/devkit, typescript: required peers; engines.node from the loader (require(esm), node:util)', () => {
     for (const name of ['nx', '@nx/devkit', 'typescript']) {
       expect(manifest.peerDependencies?.[name]).toBeDefined();
