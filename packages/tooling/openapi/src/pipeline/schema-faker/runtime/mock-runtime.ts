@@ -111,7 +111,7 @@ interface Context {
 /** Child place: property names JSON-pointer escaped, array indices `[i]`, additionalProperties `*`. */
 const child = (context: Context, segment: string): Context => ({
   ...context,
-  path: `${context.path}/${segment.replaceAll('~', '~0').replaceAll('/', '~1')}`,
+  path: `${context.path}/${segment.replace(/~/g, '~0').replace(/\//g, '~1')}`,
   depth: context.depth + 1,
 });
 
