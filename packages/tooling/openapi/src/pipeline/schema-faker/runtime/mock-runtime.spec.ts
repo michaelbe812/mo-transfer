@@ -273,7 +273,8 @@ describe('schema-faker runtime: fake() values change only with the spec', () => 
   it('unrelated component schemas and doc keys do not matter', () => {
     const before = fakePet();
     expect(fakePet(pet, { ...schemas, Unrelated: { type: 'string' }, Owner: { type: 'integer' } })).toEqual(before);
-    const documented = props({ name: { type: 'string', maxLength: 12, description: 'the name', title: 'Name' } });
+    const name = { type: 'string', maxLength: 12, description: 'the name', title: 'Name' } as Schema; // doc keys
+    const documented = props({ name });
     expect(fakePet(documented)).toEqual(before);
   });
 
