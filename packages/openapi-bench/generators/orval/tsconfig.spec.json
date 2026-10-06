@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "noEmit": false, "outDir": "../../../../dist/out-tsc/openapi-bench/orval", "types": ["vitest/globals"], "noCheck": true },
+  "compilerOptions": { "noEmit": false, "outDir": "../../../../dist/out-tsc/openapi-bench/orval", "types": [], "noCheck": true },
   "include": ["tests/**/*.spec.ts", "client/**/*.ts", "../../testing/**/*.ts"]
 }

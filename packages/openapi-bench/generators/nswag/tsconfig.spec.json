@@ -4,9 +4,7 @@
   "compilerOptions": {
     "noEmit": false,
     "outDir": "../../../../dist/out-tsc/openapi-bench/nswag",
-    "types": [
-      "vitest/globals"
-    ]
+    "types": []
   },
   "include": [
     "tests/**/*.spec.ts",

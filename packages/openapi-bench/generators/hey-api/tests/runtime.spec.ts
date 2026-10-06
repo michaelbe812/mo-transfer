@@ -1,5 +1,6 @@
 // Dimension runtime (R-*) – Hey API SDK-Funktionen (Promise, Angular HttpClient), HttpTestingController.
 import { HttpTestingController } from '@angular/common/http/testing';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { client } from '../client/client.gen';
 import {
   authApiKeyHeader,

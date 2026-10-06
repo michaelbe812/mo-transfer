@@ -4,6 +4,7 @@ import { HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { HttpTestingController } from '@angular/common/http/testing';
 import { ApplicationRef, Injector, runInInjectionContext } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { afterEach, describe, expect, it } from 'vitest';
 import { getPetResource } from '../client/@angular/common.gen';
 import { client } from '../client/client.gen';
 import { createClient, provideHeyApiClient } from '../client/client/client.gen';

@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "noEmit": false, "outDir": "../../../../dist/out-tsc/openapi-bench/hey-api", "types": ["vitest/globals"] },
+  "compilerOptions": { "noEmit": false, "outDir": "../../../../dist/out-tsc/openapi-bench/hey-api", "types": [] },
   "include": ["tests/**/*.spec.ts", "testing/**/*.ts", "client/**/*.ts", "../../testing/**/*.ts"]
 }

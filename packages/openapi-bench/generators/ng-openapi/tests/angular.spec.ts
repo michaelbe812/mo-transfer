@@ -5,7 +5,7 @@ import { ApplicationRef, inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { HttpContext, HttpContextToken, HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { HttpTestingController } from '@angular/common/http/testing';
-import { expectTypeOf } from 'vitest';
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 import { firstValueFrom } from 'rxjs';
 import { BASE_PATH_BENCH, BodiesService, PetsResource, PetsService, provideBenchClient, type Pet } from '../client';
 import { PET_RESPONSE, TEST_BASE_URL, expectSingleRequest, setupHttp } from '../../../testing/http-harness';

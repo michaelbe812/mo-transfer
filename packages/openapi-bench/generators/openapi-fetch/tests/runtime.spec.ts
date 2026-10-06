@@ -6,6 +6,7 @@
  */
 import { TestBed } from '@angular/core/testing';
 import createClient from 'openapi-fetch';
+import { describe, expect, it } from 'vitest';
 import type { paths } from '../client/schema';
 import { PET_RESPONSE, PROBLEM_RESPONSE, TEST_BASE_URL, setupHttp } from '../../../testing/http-harness';
 

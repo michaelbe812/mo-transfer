@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "noEmit": false, "rootDir": "../..", "outDir": "../../../../dist/out-tsc/openapi-bench/ng-openapi-gen", "types": ["vitest/globals"] },
+  "compilerOptions": { "noEmit": false, "rootDir": "../..", "outDir": "../../../../dist/out-tsc/openapi-bench/ng-openapi-gen", "types": [] },
   "include": ["tests/**/*.spec.ts", "client/**/*.ts", "bundle/**/*.ts", "../../testing/**/*.ts"]
 }

@@ -7,6 +7,7 @@ import { TestBed } from '@angular/core/testing';
 import { HttpContext, HttpContextToken, HttpErrorResponse, HttpEventType, HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { HttpTestingController } from '@angular/common/http/testing';
 import { firstValueFrom } from 'rxjs';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PetsService } from '../client/api/pets.service';
 import { ParamsService } from '../client/api/params.service';
 import { BodiesService } from '../client/api/bodies.service';

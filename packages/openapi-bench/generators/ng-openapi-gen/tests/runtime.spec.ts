@@ -8,6 +8,7 @@ import { TestBed } from '@angular/core/testing';
 import { HttpContext, HttpContextToken, HttpErrorResponse, HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { HttpTestingController } from '@angular/common/http/testing';
 import { firstValueFrom } from 'rxjs';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Api } from '../client/api';
 import { ApiConfiguration, provideApiConfiguration } from '../client/api-configuration';
 import type { Pet, WeirdNames } from '../client/models';
