@@ -45,4 +45,10 @@ function browserConditionsPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [mswNotPrebundledPlugin(), browserConditionsPlugin()],
+  test: {
+    // The Angular builder defaults to `globals: true` (project default, merged under this config).
+    // Specs import `describe`/`expect`/`vi` from 'vitest' explicitly; the builder's own setup files
+    // (`init-testbed`, `vitest-mock-patch`) do too. Without zone.js nothing patches globals.
+    globals: false,
+  },
 });
