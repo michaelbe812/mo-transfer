@@ -1,6 +1,6 @@
 # packages/tooling
 
-Werkzeug des Blueprints (übernommen aus sheriff-blue-print, Branch `feat/nx-reduced-blueprint`: explizite Config pro Lib; einziges Crystal-Plugin: `generate-api-client`/`update-spec` der OpenAPI-Clients), aufgeteilt in sieben Nx-Libs. `packages/tooling` selbst ist nur ein Gruppierungsordner, kein Projekt und kein Paket.
+Werkzeug des Blueprints (übernommen aus sheriff-blue-print, Branch `feat/nx-reduced-blueprint`: explizite Config pro Lib; einziges Crystal-Plugin: `generate-api-client`/`update-spec` der OpenAPI-Clients), aufgeteilt in sechs Nx-Libs. `packages/tooling` selbst ist nur ein Gruppierungsordner, kein Projekt und kein Paket.
 
 | Lib | Paket / Projekt | Tag | Inhalt | Details |
 |---|---|---|---|---|
@@ -10,7 +10,8 @@ Werkzeug des Blueprints (übernommen aus sheriff-blue-print, Branch `feat/nx-red
 | `ng-lib` | `@mo-transfer/tooling-ng-lib` / `tooling-ng-lib` | `tooling:ng-lib` | Executor `test`: `@nx/angular:unit-test` durchgereicht, Vitest UI per `--ui` (Hasher) | [README](ng-lib/README.md) |
 | `verify` | `@mo-transfer/tooling-verify` / `tooling-verify` | `tooling:verify` | `verify` (Boundaries, Namensregeln, Config pro Lib, Tag-Schema + Ordnerregel, Clients, Tooling-Libs, affected, Bundle-Scan), `verify:nx-internals`, dist-Snapshot | [README](verify/README.md) |
 | `eslint-rules` | `@mo-transfer/tooling-eslint-rules` / `tooling-eslint-rules` | `tooling:eslint-rules` | ESLint-Regeln des Namensschemas (`blueprint/lib-file-naming`, `layer-symbol-naming`, `no-internal-export`), geladen von `eslint.config.mjs` | [README](eslint-rules/README.md) |
-| `coupling` | `@mo-transfer/tooling-coupling` / `tooling-coupling` | `tooling:coupling` | Schnitt-Analyse für beliebige Repos (Cross-Slice-Importe, Change Coupling, shared-Nutzung → Indizien + Überführungsplan), optional Detective als Gegenprobe. CLI `pnpm coupling` | [README](coupling/README.md) |
+
+Daneben, außerhalb dieser Gruppe: [`packages/coupling-analysis`](../coupling-analysis/README.md) (`@berger-engineering/coupling-analysis`, übernommen aus sheriff-blue-print), eigenständiges, veröffentlichbares CLI für die Schnitt-Analyse beliebiger Repos (Tag `type:tooling`, `tooling:coupling`, importiert keine Tooling-Lib).
 
 Alle tragen zusätzlich `type:tooling` (darf nur `type:tooling` importieren, Libs in `libs/` dürfen kein Tooling importieren).
 
@@ -31,7 +32,6 @@ conventions  ◀── workspace ──▶ openapi (publishable, importiert kein
 | `ng-lib` | nichts | kapselt das eine verbliebene Nx-Interna (unit-test-Executor), weiß nichts von Konventionen oder OpenAPI |
 | `verify` | nichts | prüft von außen (Projekt-Graph, Dateien, ESLint, git), leitet Tags und Ordnerregel unabhängig ab |
 | `eslint-rules` | `conventions` | Layer/Scope/Feat und Datei-Kinds aus denselben Konventionen wie die Generatoren, keine doppelte Logik |
-| `coupling` | nichts | läuft auch auf Repos ohne Blueprint-Konventionen (Slices aus Nx-Tags oder Mustern) |
 
 Durchgesetzt über `depConstraints` (`eslint.config.mjs`, `toolingConstraints`) und 20 Verify-Fälle (`tooling: …`), zyklenfrei (Zyklen meldet die Regel zusätzlich). Imports über Lib-Grenzen nur per Paketname, relative Pfade blockiert die Regel.
 
@@ -66,7 +66,7 @@ Alle schreiben bzw. pflegen die Config-Dateien der Libs und die `paths`. `compon
 | `nx run-many -t lint test typecheck -p 'tooling-*'` | Specs pro Lib (Vitest, Node): conventions, workspace, openapi, eslint-rules (RuleTester). `tooling-openapi:test` = Unit + Integration (echte Adapter, msw, tsc, `nx` im Fixture-Workspace, Java) mit Coverage ≥ 95 %, siehe [openapi](openapi/README.md#tests) |
 | `pnpm verify` (`nx run tooling-verify:verify`) | siehe [verify](verify/README.md) |
 | `pnpm verify:nx-internals` | nach `nx migrate` / Angular-Update |
-| `pnpm coupling --repo <path>` | Schnitt-Analyse, siehe [coupling](coupling/README.md) |
+| `pnpm coupling --repo <path>` | Schnitt-Analyse aus den Quellen, siehe [`packages/coupling-analysis`](../coupling-analysis/README.md) |
 
 ## `nx affected`
 

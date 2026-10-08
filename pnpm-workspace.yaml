@@ -1,6 +1,7 @@
 packages:
   - 'packages/tooling/*'
   - 'packages/openapi-bench'
+  - 'packages/coupling-analysis'
 
 autoInstallPeers: true
 onlyBuiltDependencies:

@@ -190,6 +190,15 @@ importers:
         specifier: 2.9.1
         version: 2.9.1
 
+  packages/coupling-analysis:
+    dependencies:
+      '@softarc/detective':
+        specifier: 2.1.2
+        version: 2.1.2(typescript@6.0.3)
+      typescript:
+        specifier: '>=5.7 <7'
+        version: 6.0.3
+
   packages/openapi-bench:
     devDependencies:
       '@hey-api/openapi-ts':
@@ -221,12 +230,6 @@ importers:
         version: 8.39.0(@faker-js/faker@10.6.0)(@modelcontextprotocol/sdk@1.29.0(zod@4.6.5))(msw@3.0.2(@types/node@22.20.4)(graphql@16.14.2)(typescript@5.9.3)(vite@7.3.6(@types/node@22.20.4)(jiti@2.7.0)(less@4.5.1)(sass-embedded@1.105.0)(sass@1.105.0)(terser@5.51.2)(yaml@2.9.1)))(prettier@3.6.2)(typescript@5.9.3)(zod@4.6.5)
 
   packages/tooling/conventions: {}
-
-  packages/tooling/coupling:
-    dependencies:
-      '@softarc/detective':
-        specifier: 2.1.2
-        version: 2.1.2(typescript@6.0.3)
 
   packages/tooling/eslint-rules:
     dependencies:
