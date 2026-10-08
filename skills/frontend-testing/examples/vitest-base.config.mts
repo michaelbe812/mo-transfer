@@ -1,12 +1,13 @@
+import { msw } from 'msw/vite';
 import { defineConfig, type Plugin } from 'vitest/config';
 
 /**
  * Base config for the Angular unit-test builder (`runnerConfig`). Only test
  * runs load it — the app build never sees MSW or its service worker.
  *
- * `/mockServiceWorker.js` needs no publicDir and no committed copy: it is served from the installed
- * msw package (always matches the msw version). Vitest 4 does that itself (plugin
- * `vitest:browser:resolve-virtual`), Vitest 5 no longer does → `mswServiceWorkerPlugin` below.
+ * `/mockServiceWorker.js` needs no publicDir and no committed copy: the official msw Vite plugin
+ * (`msw/vite`, msw ≥ 3.0.2) serves it from the installed msw package (always matches the msw version),
+ * independent of the Vitest version. `worker-only`: no `virtual:msw` — the worker is set up in `network.ts`.
  */
 
 /**
@@ -42,20 +43,6 @@ function browserConditionsPlugin(): Plugin {
   };
 }
 
-/**
- * Serves `/mockServiceWorker.js` from the installed msw package. Required with Vitest 5
- * (otherwise "Service Worker script does not exist at the given path"), a no-op duplicate with Vitest 4.
- */
-function mswServiceWorkerPlugin(): Plugin {
-  return {
-    name: 'testing:msw-service-worker',
-    resolveId(id) {
-      if (id === '/mockServiceWorker.js') return this.resolve('msw/mockServiceWorker.js', undefined, { skipSelf: true });
-      return undefined;
-    },
-  };
-}
-
 export default defineConfig({
-  plugins: [mswNotPrebundledPlugin(), browserConditionsPlugin(), mswServiceWorkerPlugin()],
+  plugins: [msw({ mode: 'worker-only' }), mswNotPrebundledPlugin(), browserConditionsPlugin()],
 });

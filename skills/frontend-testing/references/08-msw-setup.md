@@ -94,7 +94,7 @@ describe('…', () => {
 
 | Symptom | Cause / fix |
 |---|---|
-| `[MSW] Failed to register a Service Worker … Service Worker script does not exist at the given path. Did you forget to run "npx msw init"?` | Vitest 5: `mswServiceWorkerPlugin` missing or no `runnerConfig` – **don't** run `msw init` |
+| `[MSW] Failed to register a Service Worker … Service Worker script does not exist at the given path. Did you forget to run "npx msw init"?` | `msw({ mode: 'worker-only' })` (`msw/vite`) missing or no `runnerConfig` – **don't** run `msw init` |
 | `[MSW] Cannot bypass a request when using the "error" strategy` + `intercepted a request without a matching request handler` | intended: handler missing (`beforeEach(() => worker.use(...))`) |
 | `The entry point "msw" cannot be marked as external` | `mswNotPrebundledPlugin` missing in `runnerConfig` |
 | `No known conditions for "./browser" specifier in "msw" package` | `browserConditionsPlugin` missing in `runnerConfig` |

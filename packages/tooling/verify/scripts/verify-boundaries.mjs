@@ -408,7 +408,7 @@ function checkScopeList(libs, scopes) {
  * no build target for testing libs, specs out of the lib build tsconfig and
  * the build's `production` inputs, a `test` target exactly where specs exist (the only test target:
  * cached, headless, one-shot — the Vitest UI is `test --ui`),
- * no committed MSW worker (Vitest serves it from the msw package).
+ * no committed MSW worker (msw/vite serves it from the msw package).
  */
 function checkTestIsolation(projectGraph) {
   const problems = [];
@@ -434,9 +434,9 @@ function checkTestIsolation(projectGraph) {
       problems.push(`${root}: test must be cached, headless, watch: false, without ui`);
     }
   }
-  // Vitest serves the worker of the msw package itself — no copy anywhere, least of all in an app
+  // msw/vite serves the worker of the msw package in test runs — no copy anywhere, least of all in an app
   const committedWorkers = execFileSync('git', ['ls-files', '*mockServiceWorker.js'], { encoding: 'utf-8' }).split('\n').filter(Boolean);
-  committedWorkers.forEach((f) => problems.push(`${f}: no committed MSW worker (Vitest serves msw/mockServiceWorker.js)`));
+  committedWorkers.forEach((f) => problems.push(`${f}: no committed MSW worker (msw/vite serves msw/mockServiceWorker.js)`));
   const appProjects = readdirSync('apps', { recursive: true }).filter((f) => f.endsWith('project.json'));
   for (const file of appProjects) {
     const text = readFileSync(join('apps', file), 'utf-8');

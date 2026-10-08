@@ -1,13 +1,15 @@
+import { msw } from 'msw/vite';
 import { defineConfig, type Plugin } from 'vitest/config';
 
 /**
  * Base config for the Angular unit-test builder (`runnerConfig`). Only test
  * runs load it — the app build never sees MSW or its service worker.
  *
- * `/mockServiceWorker.js` needs no publicDir and no committed copy: Vitest browser mode serves
- * the worker of the installed msw package itself (plugin `vitest:browser:resolve-virtual` →
- * `msw/mockServiceWorker.js`), so it always matches the msw version. Checked by
- * `pnpm verify:nx-internals` (step "MSW worker").
+ * `/mockServiceWorker.js` needs no publicDir and no committed copy: the official msw Vite plugin
+ * (`msw/vite`, mode `worker-only`) serves the worker of the installed msw package, so it always
+ * matches the msw version. `worker-only`: no `virtual:msw` (experimental network API) — the worker
+ * is set up in `libs/shared/testing/src/network.ts`. Checked by `pnpm verify:nx-internals`
+ * (step "MSW worker").
  */
 
 /**
@@ -44,7 +46,7 @@ function browserConditionsPlugin(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [mswNotPrebundledPlugin(), browserConditionsPlugin()],
+  plugins: [msw({ mode: 'worker-only' }), mswNotPrebundledPlugin(), browserConditionsPlugin()],
   test: {
     // The Angular builder defaults to `globals: true` (project default, merged under this config).
     // Specs import `describe`/`expect`/`vi` from 'vitest' explicitly; the builder's own setup files

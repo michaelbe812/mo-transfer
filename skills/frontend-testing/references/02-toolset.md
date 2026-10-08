@@ -62,12 +62,12 @@ See `examples/vitest-base.config.mts`. Plugins for msw 3 with the Angular builde
 |---|---|
 | Angular pre-bundles `msw` (`optimizeDeps.include`), Vitest browser excludes it → esbuild "cannot be marked as external" | plugin drops the overlap from `include` |
 | Builder mixes `node` into the browser resolve conditions; msw 3 maps `msw/browser` to `null` under `node` | plugin removes `node` from client conditions when `browser` is set |
-| Vitest 5 no longer serves `/mockServiceWorker.js` ("Service Worker script does not exist at the given path") | plugin resolves `/mockServiceWorker.js` → `msw/mockServiceWorker.js` |
+| Worker script `/mockServiceWorker.js` must come from the installed msw (Vitest 5 no longer serves it: "Service Worker script does not exist at the given path") | official `msw({ mode: 'worker-only' })` from `msw/vite` (msw ≥ 3.0.2) |
 
-Keep all three: each is a no-op where the problem doesn't occur (depends on Angular/Vitest/msw versions).
+Keep all three: the two custom plugins are no-ops where their problem doesn't occur (depends on Angular/Vitest/msw versions).
 
-`/mockServiceWorker.js` comes from the installed `msw` package (Vitest 4 itself, Vitest 5 via the plugin).
-No `msw init`, no committed copy, no `publicDir`, no app asset. (Vitest internals → re-check on updates.)
+`/mockServiceWorker.js` comes from the installed `msw` package via `msw/vite`, independent of the Vitest version.
+No `msw init`, no committed copy, no `publicDir`, no app asset. Not `mode: 'auto'`/`virtual:msw` (experimental network API).
 
 ## 5. Running
 

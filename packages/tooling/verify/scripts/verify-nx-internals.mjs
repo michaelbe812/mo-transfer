@@ -4,7 +4,7 @@
  * lib the standard executors do the work (@nx/angular:ng-packagr-lite, :application, :unit-test); left are
  * one Nx internal (the ng-lib test wrapper imports @nx/angular's unit-test impl, Nx loads its `hasher`) and
  * behaviour the blueprint relies on (the app build maps lib aliases to dist via the lib package.json names,
- * Vitest serves the MSW worker). After every update run:
+ * the msw Vite plugin serves the MSW worker). After every update run:
  *
  *   pnpm verify:nx-internals                     full proof (≈ 2–3 min)
  *   pnpm verify:nx-internals --reference <dir>   dist compared with a copy made before the update
@@ -19,8 +19,9 @@
  *      (@nx/angular:application with buildLibsFromSource: false, alias from the lib's package.json)
  *   4. MSW: without the default handlers (`beforeEach(() => worker.use(...))`) booking-state:test must fail
  *   5. MSW worker: the browser gets `/mockServiceWorker.js` of the installed msw package, served by
- *      Vitest itself (`vitest:browser:resolve-virtual`, no publicDir, no committed copy) — a Vitest
- *      internal, so checked here: version + integrity checksum of the served script
+ *      the msw Vite plugin (`msw/vite`, no publicDir, no committed copy) — checked here: version +
+ *      integrity checksum of the served script, `service-worker-allowed` header = the plugin answered
+ *      (Vitest's own fallback `vitest:browser:resolve-virtual` sends none)
  *   6. Vitest UI (`test --ui`): Nx still loads the custom hasher of ng-lib:test (executors.json `hasher`),
  *      a UI task gets a one-off hash (never a cache hit), a normal task the unchanged Nx hash
  *   7. tooling-verify:verify (boundaries, tag schema, config guard, bundle scan)
@@ -153,8 +154,8 @@ function missingHandlerFailsTest() {
   }
 }
 
-/** Temporary spec: the served worker must be the one of node_modules/msw (version + checksum). */
-function mswWorkerServedByVitest() {
+/** Temporary spec: the served worker must be the one of node_modules/msw (version + checksum), served by msw/vite. */
+function mswWorkerServedByPlugin() {
   const installed = readFileSync('node_modules/msw/lib/mockServiceWorker.js', 'utf-8');
   const version = JSON.parse(readFileSync('node_modules/msw/package.json', 'utf-8')).version;
   const checksum = /INTEGRITY_CHECKSUM = '([^']+)'/.exec(installed)?.[1];
@@ -168,7 +169,9 @@ import { expect } from 'vitest';
 
 test('serves the worker of the installed msw package', async () => {
   const registration = await navigator.serviceWorker.getRegistration();
-  const text = await (await fetch(bypass('/mockServiceWorker.js'))).text();
+  const response = await fetch(bypass('/mockServiceWorker.js'));
+  const text = await response.text();
+  expect(response.headers.get('service-worker-allowed')).toBe('/');
   expect(registration?.active?.scriptURL).toMatch(/\\/mockServiceWorker\\.js$/);
   expect(/PACKAGE_VERSION = '([^']+)'/.exec(text)?.[1]).toBe('${version}');
   expect(/INTEGRITY_CHECKSUM = '([^']+)'/.exec(text)?.[1]).toBe('${checksum}');
@@ -177,7 +180,7 @@ test('serves the worker of the installed msw package', async () => {
   );
   try {
     nx('run', 'booking-state:test', '--skip-nx-cache');
-    return `msw ${version} (checksum ${checksum}) served by Vitest`;
+    return `msw ${version} (checksum ${checksum}) served by msw/vite`;
   } finally {
     rmSync(WORKER_PROBE_SPEC, { force: true });
     if (!hadScreenshots) rmSync(screenshots, { recursive: true, force: true });
@@ -210,7 +213,7 @@ if (!args.includes('--skip-run-many')) {
 step('dist equivalence', compareDist);
 step('marker: app builds against dist', markerAppBuildsAgainstDist);
 step('MSW: missing handler turns the test red', missingHandlerFailsTest);
-step('MSW worker: served by Vitest from the msw package', mswWorkerServedByVitest);
+step('MSW worker: served by msw/vite from the msw package', mswWorkerServedByPlugin);
 await stepAsync('Vitest UI: test --ui never from the cache', uiRunsNeverCached);
 step('tooling-verify:verify', () => {
   nx('run', 'tooling-verify:verify', '--skip-nx-cache');
