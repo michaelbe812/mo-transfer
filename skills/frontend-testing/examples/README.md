@@ -22,8 +22,8 @@ path in the table, they compile, lint and pass (checked once by copying them in)
 | `vitest-base.config.mts` | `vitest-base.config.mts` (workspace root) | runnerConfig: msw 3 fixes for the Angular builder, worker via `msw/vite`, `globals: false` |
 | `eslint.testing.config.mjs` (excerpt) | `eslint.config.mjs` | `type:testing` constraints, test package bans, spec override (scope rules stay) |
 
-A lib's first spec also needs `tsconfig.spec.json` + `"test": {}` in its `project.json` (`checkin/ui`, `checkin/shell`
-and `checkin/utils` have none today). None of the component specs calls `detectChanges`, `whenStable`, `fakeAsync`,
+A lib's first spec also needs `tsconfig.spec.json` + `"test": {}` in its `project.json` (`checkin/ui` has none:
+`ArrivalList` is used once and covered by the `feat-checkin` integration test). None of the component specs calls `detectChanges`, `whenStable`, `fakeAsync`,
 `tick` or waits manually.
 
 Minimum versions: Vitest ≥ 4 (browser mode, `@vitest/browser-playwright`) · Playwright (Chromium) · msw ≥ 3.0.2 (`msw/vite`) · openapi-msw ≥ 2 · openapi-typescript ≥ 7 · `@faker-js/faker` (pinned exactly; schema-faker seeds per value).
