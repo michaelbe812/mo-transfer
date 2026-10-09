@@ -16,7 +16,7 @@ Look up MSW APIs in the official docs instead of guessing (msw 2 snippets are of
 
 ```sh
 pnpm add -D msw @faker-js/faker
-pnpm add -D openapi-msw openapi-typescript orval   # only with OpenAPI clients (step 6)
+pnpm add -D openapi-msw openapi-typescript         # only with OpenAPI clients (step 6)
 pnpm exec playwright install chromium              # browser for Vitest browser mode, once
 ```
 
@@ -42,44 +42,43 @@ no app asset.
 
 ## 3. `libs/shared/testing`
 
-```sh
-nx g @nx/js:lib libs/shared/testing --tags=type:testing,scope:shared   # or the workspace's lib generator; no build target
-```
+Exists in this repo. In a new workspace: a lib `libs/shared/testing` with tags `scope:shared type:testing feat:none`,
+no build target (here written by the workspace generators — never `@nx/angular:library`).
 
 - `src/network.ts` = `examples/network.ts` (one `setupWorker()` without handlers, `onUnhandledFrame: 'error'`,
   auto fixture `worker`, `faker.seed`, `resetHandlers()` after each test, no `stop()`).
-- `src/index.ts`: `export { test, worker, FAKER_SEED } from './network';`
+- `src/index.ts`: `export { test, worker, FAKER_SEED } from './network';` + `withBaseline`, `Scenarios` (`src/handlers.ts`).
 - Only this lib imports `msw/browser`.
 
-## 4. `libs/<domain>/testing`
+## 4. `libs/<slice>/testing`
 
 ```sh
-nx g @nx/js:lib libs/<domain>/testing --tags=type:testing,scope:<domain>
+nx g @mo-transfer/tooling-workspace:testing <slice>   # scaffold on the baseline of the slice's clients; --examples for sample data
 ```
 
-- `src/fixtures/<domain>.fixture.ts`: builders `a<X>(overrides)` (`examples/domain-testing/fixtures.ts`).
-- `src/handlers/<domain>.handlers.ts`: `<domain>Handlers` (defaults) + `<domain>Scenarios`
-  (`examples/domain-testing/handlers.ts`). Imports `msw` / `<client>Http`, never `msw/browser`.
+- `src/fixtures/<x>.fixture.ts`: builders `a<X>(overrides)` returning the generated DTOs (`examples/slice-testing/fixtures.ts`).
+- `src/handlers/<slice>.handlers.ts`: `<slice>Handlers` (defaults) + `<slice>Scenarios`
+  (`examples/slice-testing/handlers.ts`). Imports `msw` / `<client>Http`, never `msw/browser`.
 
 ## 5. Boundaries and leak guards
 
-Add the `type:testing` constraints and the bans on test packages to the ESLint config
-(`examples/eslint.testing.config.mjs`, → `06-test-organisation.md`). Build tsconfigs exclude `*.spec.ts`.
+The `type:testing` constraints and the bans on test packages are in `eslint.config.mjs`
+(excerpt `examples/eslint.testing.config.mjs`, → `06-test-organisation.md`). Build tsconfigs exclude `*.spec.ts`.
 
 ## 6. Optional: generated mocks from OpenAPI
 
-Per client a generated `<client>/testing` lib (openapi-typescript + orval + openapi-msw) with a `generate-api-testing` target;
+Per client a generated `<client>/testing` lib (openapi-typescript + openapi-msw + schema-faker) with a `generate-api-testing` target;
 the `test` target `dependsOn: ["^generate-api-client", "^generate-api-testing"]` (→ `05-msw.md` §5).
 
 ## 7. First spec and verification
 
 ```ts
-import { <domain>Handlers } from '<scope>/<domain>/testing';
-import { test, worker } from '<scope>/shared/testing';   // not from 'vitest'
+import { <slice>Handlers } from '@mo-transfer/<slice>/testing';
+import { test, worker } from '@mo-transfer/shared/testing';   // not from 'vitest'
 import { beforeEach, describe, expect } from 'vitest';
 
 describe('…', () => {
-  beforeEach(() => worker.use(...<domain>Handlers));
+  beforeEach(() => worker.use(...<slice>Handlers));
   test('…', async () => { /* render, act, assert */ });
 });
 ```
@@ -88,7 +87,7 @@ describe('…', () => {
 2. Remove the `beforeEach` → must go red with `[MSW] Error: intercepted a request without a matching request handler`
    (proves no real backend is hit). Restore.
 3. Spec imports `test` from `vitest` instead of `shared/testing` → must go red (no worker → request fails). Restore.
-4. `nx build <app>` and scan the bundle for `msw`, `mockServiceWorker`, `setupWorker`, `faker` → nothing found.
+4. `pnpm verify` (builds the client and scans the bundle for `msw`, `vitest`, `faker`) → nothing found.
 
 ## 8. Troubleshooting
 

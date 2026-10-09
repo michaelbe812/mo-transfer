@@ -7,15 +7,22 @@ Further: `component-inputs-outputs.spec.ts`, `form-input.spec.ts`,
 ## 1. The pattern
 
 ```ts
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { a<X>, <domain>Scenarios } from '<scope>/<domain>/testing';
-import { test, worker } from '<scope>/shared/testing';
+import { anArrival, checkinHandlers, checkinScenarios } from '@mo-transfer/checkin/testing';
+import { AuthStore } from '@mo-transfer/shared/state';
+import { test, worker } from '@mo-transfer/shared/testing';
 import { beforeEach, describe, expect } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 
-/** Real container, real stores; only ports we don't control are faked, HTTP goes through MSW. */
+const signedInAgent: Pick<AuthStore, 'user' | 'isAuthenticated'> = {
+  user: signal({ id: 'u-1', name: 'Test Agent' }),
+  isAuthenticated: signal(true),
+};
+
+/** Real container, real stores; only auth (not ours) is faked, HTTP goes through MSW. */
 function renderDesk(): void {
-  TestBed.configureTestingModule({ providers: [{ provide: AUTH_API, useValue: signedInAgent }] });
+  TestBed.configureTestingModule({ providers: [{ provide: AuthStore, useValue: signedInAgent }] });
   TestBed.createComponent(FeatCheckin);
 }
 
@@ -23,9 +30,11 @@ function renderDesk(): void {
 const loadArrivalsButton = () => page.getByRole('button', { name: 'Load arrivals' });
 
 describe('FeatCheckin', () => {
-  beforeEach(() => worker.use(bookingScenarios.withBookings([aBooking({ guestName: 'Grace Hopper' })])));
+  // slice defaults: curated check-ins on top of the generated baseline of the slice's clients
+  beforeEach(() => worker.use(...checkinHandlers));
 
-  test('loads arrivals and offers one check-in per guest', async () => {
+  test('loads arrivals and offers one check-in per guest', async ({ worker }) => {
+    worker.use(checkinScenarios.withArrivals([anArrival({ guestName: 'Grace Hopper' })]));
     renderDesk();
 
     await userEvent.click(loadArrivalsButton());
@@ -35,7 +44,7 @@ describe('FeatCheckin', () => {
   });
 
   test('shows no arrivals when the backend has none', async ({ worker }) => {
-    worker.use(bookingScenarios.empty());
+    worker.use(checkinScenarios.noArrivals());
     renderDesk();
 
     await userEvent.click(loadArrivalsButton());
@@ -59,8 +68,8 @@ Render with **`TestBed.createComponent(...)`** – no `@testing-library/angular`
 
 **Every spec has a local `render…()`** (`render<Feature>()`, `render()` for a test host, `navigateTo()` for routes):
 it does the whole setup (providers + create), the tests only interact via the page API (`page`, `userEvent`,
-`expect.element`). This is the deck's "one setup call". Put it into `<domain>/testing` only when several specs need
-the same one.
+`expect.element`). This is the deck's "one setup call". Put provider helpers into `<slice>/testing` only when several
+specs need the same ones (testing libs must not import `feature`/`shell`).
 
 ## 3. Why no `detectChanges()`, no `whenStable()`, no `fakeAsync`
 
@@ -108,20 +117,24 @@ shorthand – prefer `userEvent.*` for consistency.
 ## 5. Inputs and outputs (isolated component test)
 
 ```ts
-const records = signal<CheckinRecord[]>([]);
-const arrived: GuestArrived[] = [];
+// Checkin, Arrival: generated DTOs of the checkin-client (`@mo-transfer/checkin/generated/checkin-client/types`)
+const checkins = signal<Checkin[]>([]);
+const arrived: Arrival[] = [];
 TestBed.createComponent(ArrivalList, {
-  bindings: [inputBinding('records', records), outputBinding<GuestArrived>('arrived', (e) => arrived.push(e))],
+  bindings: [inputBinding('checkins', checkins), outputBinding<Arrival>('arrived', (value) => arrived.push(value))],
 });
 
-records.set([grace]);                                          // input change → re-render, no detectChanges
+checkins.set([aCheckin({ booking_id: 'b-7', guest_name: 'Grace Hopper' })]); // input change → re-render, no detectChanges
 await expect.element(page.getByText('Grace Hopper (b-7)')).toBeVisible();
 
 await userEvent.click(page.getByRole('button', { name: 'Walk-in guest' }));
-expect(arrived).toEqual([{ type: 'checkin.guestArrived', bookingId: 'walk-in', guestName: 'Walk-in guest' }]);
+expect(arrived).toEqual([{ bookingId: 'walk-in', guestName: 'Walk-in guest' }]);
 ```
 
-No wrapper host component, no `fixture.componentRef.setInput` + `detectChanges`. (`twoWayBinding` exists for `model()`.)
+`ui` components never see domain events (`ui` ↛ `state`): they emit plain values, the feature container turns them
+into the event (`guestArrived(...)`). Assert the value. Builders from the slice's testing lib (`aCheckin`) are fine
+in a `ui` spec. No wrapper host component, no `fixture.componentRef.setInput` + `detectChanges`. (`twoWayBinding`
+exists for `model()`.)
 
 ## 6. Forms
 
@@ -136,7 +149,7 @@ The deck: start the feature like a user – via the route. Use the slice's real 
 ```ts
 async function navigateTo(url: string): Promise<void> {
   TestBed.configureTestingModule({
-    providers: [provideRouter(<domain>Routes), { provide: AUTH_API, useValue: signedInAgent }],
+    providers: [provideRouter(<slice>Routes), { provide: AuthStore, useValue: signedInAgent }],
   });
   const harness = await RouterTestingHarness.create();
   await harness.navigateByUrl(url);
@@ -150,11 +163,12 @@ triggered by the UI: assert the next page's content (or `TestBed.inject(Router).
 
 | Integration test (default) | Isolated component test |
 |---|---|
-| Fake only ports we don't control: auth (`AUTH_API`), feature flags, analytics (`{ provide: PORT, useValue: fake }`) | Additionally fake services/stores the component injects, or render dumb (`ui`) components with inputs only |
+| Fake only what we don't control: auth (`AuthStore`), feature flags, analytics — TestBed provider of the class (`{ provide: AuthStore, useValue: fake }`) | Additionally fake services/stores the component injects, or render dumb (`ui`) components with inputs only |
 | HTTP: MSW | HTTP: none should happen (unhandled request → red) |
 | Child components real | Children may be real; replace only heavy ones |
 
-Fakes are typed against the port (`const signedInAgent: AuthApi = { … }`), never `as any`.
+Fakes are typed against the class they replace (`const signedInAgent: Pick<AuthStore, 'user' | 'isAuthenticated'> = { … }`),
+never `as any`. There are no DI tokens/contracts in this architecture — the class itself is the provider key.
 
 ## 9. Directives and pipes (test host)
 

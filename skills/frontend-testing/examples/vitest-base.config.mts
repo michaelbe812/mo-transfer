@@ -6,8 +6,10 @@ import { defineConfig, type Plugin } from 'vitest/config';
  * runs load it — the app build never sees MSW or its service worker.
  *
  * `/mockServiceWorker.js` needs no publicDir and no committed copy: the official msw Vite plugin
- * (`msw/vite`, msw ≥ 3.0.2) serves it from the installed msw package (always matches the msw version),
- * independent of the Vitest version. `worker-only`: no `virtual:msw` — the worker is set up in `network.ts`.
+ * (`msw/vite`, mode `worker-only`) serves the worker of the installed msw package, so it always
+ * matches the msw version. `worker-only`: no `virtual:msw` (experimental network API) — the worker
+ * is set up in `libs/shared/testing/src/network.ts`. Checked by `pnpm verify:nx-internals`
+ * (step "MSW worker").
  */
 
 /**
@@ -18,7 +20,7 @@ import { defineConfig, type Plugin } from 'vitest/config';
  */
 function mswNotPrebundledPlugin(): Plugin {
   return {
-    name: 'testing:msw-not-prebundled',
+    name: 'blueprint:msw-not-prebundled',
     configResolved(config) {
       const { optimizeDeps } = config;
       optimizeDeps.include = optimizeDeps.include?.filter((id) => !optimizeDeps.exclude?.includes(id));
@@ -34,7 +36,7 @@ function mswNotPrebundledPlugin(): Plugin {
  */
 function browserConditionsPlugin(): Plugin {
   return {
-    name: 'testing:browser-conditions',
+    name: 'blueprint:browser-conditions',
     configResolved(config) {
       const client = config.environments?.['client']?.resolve;
       if (!client?.conditions.includes('browser')) return;
@@ -45,4 +47,10 @@ function browserConditionsPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [msw({ mode: 'worker-only' }), mswNotPrebundledPlugin(), browserConditionsPlugin()],
+  test: {
+    // The Angular builder defaults to `globals: true` (project default, merged under this config).
+    // Specs import `describe`/`expect`/`vi` from 'vitest' explicitly; the builder's own setup files
+    // (`init-testbed`, `vitest-mock-patch`) do too. Without zone.js nothing patches globals.
+    globals: false,
+  },
 });

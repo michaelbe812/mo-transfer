@@ -1,7 +1,7 @@
 # 05 – MSW (msw 3, Vitest browser mode)
 
-Examples: `examples/network.ts` (shared/testing), `examples/domain-testing/{fixtures,handlers}.ts`,
-`examples/store.spec.ts`, `examples/api-port.spec.ts`. Based on the official recipe
+Examples: `examples/network.ts` (shared/testing), `examples/slice-testing/{fixtures,handlers}.ts`,
+`examples/store.spec.ts`, `examples/data-access.spec.ts`. Based on the official recipe
 <https://mswjs.io/docs/recipes/vitest-browser-mode>.
 API details (handlers, `HttpResponse`, `worker.use`, lifecycle events, …): MSW docs <https://mswjs.io/docs/>.
 Setting MSW up from scratch: `08-msw-setup.md`.
@@ -11,9 +11,9 @@ Setting MSW up from scratch: `08-msw-setup.md`.
 | Piece | Lib | Content |
 |---|---|---|
 | `worker`, `test`, `FAKER_SEED`, `withBaseline`, `Scenarios` | `libs/shared/testing` | one `setupWorker()` + Vitest `test.extend` with auto fixture `worker`; layering helper + scenario type |
-| `a<X>()` builders | `libs/<domain>/testing/src/fixtures/` | valid objects with sensible defaults, `overrides` |
-| `<domain>Handlers`, `<domain>Scenarios`, `default<X>s` | `libs/<domain>/testing/src/handlers/` | curated defaults on the generated baseline + named deviations, typed via `<client>Http` |
-| `<client>Http`, `paths` (+ `<client>Handlers`, `get<Op>ResponseMock()`, `get<Op>MockHandler()` with fake data) | `libs/[<domain>/]generated/<client>/testing` | generated from the OpenAPI spec (openapi-typescript, openapi-msw; mocks engine `schema-faker`) |
+| `a<X>()` builders | `libs/<slice>/testing/src/fixtures/` | valid generated DTOs with sensible defaults, `overrides` |
+| `<slice>Handlers`, `<slice>Scenarios`, `default<X>s` | `libs/<slice>/testing/src/handlers/` | curated defaults on the generated baseline + named deviations, typed via `<client>Http` |
+| `<client>Http`, `paths` (+ `<client>Handlers`, `get<Op>ResponseMock()`, `get<Op>MockHandler()` with fake data) | `libs/[<slice>/]generated/<client>/testing` | generated from the OpenAPI spec (openapi-typescript, openapi-msw; mocks engine `schema-faker`) |
 
 ## 2. The worker fixture (`shared/testing`)
 
@@ -51,22 +51,22 @@ Rules:
   goes red instead of silently hitting a real backend.
 - **`resetHandlers()` after every test**, **no `stop()`** (redundant in the browser, per recipe).
 - `setupWorker()` **without** handlers: each spec states its defaults (no hidden global setup file).
-- Every spec imports `test` from `<scope>/shared/testing`, not from `vitest` (otherwise no fixture → no worker,
+- Every spec imports `test` from `@mo-transfer/shared/testing`, not from `vitest` (otherwise no fixture → no worker,
   no global seed). `describe`/`expect`/`beforeEach`/`vi` still come from `vitest`.
 
 ## 3. Defaults per spec, deviations per test
 
 ```ts
-import { <domain>Handlers, <domain>Scenarios } from '<scope>/<domain>/testing';
-import { test, worker } from '<scope>/shared/testing';
+import { <slice>Handlers, <slice>Scenarios } from '@mo-transfer/<slice>/testing';
+import { test, worker } from '@mo-transfer/shared/testing';
 
 describe('…', () => {
-  beforeEach(() => worker.use(...<domain>Handlers));                     // defaults (module export `worker`)
+  beforeEach(() => worker.use(...<slice>Handlers));                      // defaults (module export `worker`)
 
   test('happy path', async () => { /* … */ });
 
   test('server error', async ({ worker }) => {
-    worker.use(<domain>Scenarios.serverError());                        // prepended → wins over the default
+    worker.use(<slice>Scenarios.serverError());                         // prepended → wins over the default
     /* … */
   });
 });
@@ -76,26 +76,26 @@ Order (Vitest 4 resolves auto fixtures for `beforeEach` too): fixture setup (wor
 `beforeEach` (defaults) → test (`worker.use` prepends, newest handler wins) → fixture teardown (`resetHandlers`).
 Without `resetHandlers` a follow-up test sees stale overrides.
 
-## 4. Fixtures and scenarios (`<domain>/testing`)
+## 4. Fixtures and scenarios (`<slice>/testing`)
 
 ```ts
-// fixtures/<domain>.fixture.ts
+// fixtures/<x>.fixture.ts — <X> is the generated DTO (`@mo-transfer/<slice>/generated/<client>/types`)
 let nextId = 1;
 export function a<X>(overrides: Partial<<X>> = {}): <X> {
   return { id: `<x>-${nextId++}`, name: 'Ada Lovelace', status: 'pending', ...overrides };
 }
 
-// handlers/<domain>.handlers.ts
+// handlers/<slice>.handlers.ts
 export const default<X>s: <X>[] = [a<X>({ id: 'x-100' }), a<X>({ id: 'x-101', status: 'confirmed' })];
 
-const curated<Domain>Handlers = [
+const curated<Slice>Handlers = [
   <client>Http.get('/<items>', ({ response }) => response(200).json(default<X>s)),
 ];
 
 // curated first (wins), then the generated baseline of every client the slice uses (own + shared)
-export const <domain>Handlers = withBaseline(curated<Domain>Handlers, <client>Handlers, <sharedClient>Handlers);
+export const <slice>Handlers = withBaseline(curated<Slice>Handlers, <client>Handlers, <sharedClient>Handlers);
 
-export const <domain>Scenarios = {
+export const <slice>Scenarios = {
   with<X>s: (items: <X>[]) => <client>Http.get('/<items>', ({ response }) => response(200).json(items)),
   empty: () => <client>Http.get('/<items>', ({ response }) => response(200).json([])),
   serverError: () =>
@@ -107,18 +107,21 @@ export const <domain>Scenarios = {
   handlers win, the baseline answers every other operation (a store or feature touching a new endpoint gets valid
   spec data without extra setup), a test's `worker.use(scenario)` wins over both. Prove "curated wins" once: spec
   examples ≠ curated defaults, the store spec asserts the curated values.
-- Who uses what: state/feature specs → `<domain>Handlers` + `<domain>Scenarios`; data-access specs (the wrapper
+- Who uses what: state/feature specs → `<slice>Handlers` + `<slice>Scenarios`; data-access specs (the wrapper
   around the generated client) → `<client>Handlers` + typed `<client>Http` overrides.
-- New slice: `nx g …:testing <d>` (or `domain`) writes only the scaffold (empty `curated…`, baseline of the slice's
-  own clients, empty scenarios); `--examples` adds example builders/handlers/scenarios + a store spec.
+- New slice: `nx g @mo-transfer/tooling-workspace:testing <slice>` (or `…:domain <slice>`) writes only the
+  scaffold (empty `curated…`, baseline of the slice's own clients, empty scenarios); `--examples` adds example
+  builders/handlers/scenarios + a store spec.
 
 - Builders return a **valid** object; tests override only what they care about (`aBooking({ guestName: 'Grace Hopper' })`).
 - Fixed, readable default values in builders (no faker) – tests assert on them.
 - Scenarios are named after the situation (`empty`, `serverError`, `withX`, `unauthorized`, `slow`), return one handler,
   are composable (`worker.use(a(), b())`).
-- Handlers in the backend shape (DTO, e.g. snake_case) when the port maps; the mapping is then tested for free.
-- No HTTP client spec yet? Use plain `http.get(url, () => HttpResponse.json(...))` from `msw` with the DTO type
-  from `<domain>/types` and migrate to `<client>Http` when the spec exists.
+- Builders return the **generated DTO** (`Partial<Checkin>` → `Checkin`, snake_case if the backend sends it) —
+  the same type the app uses in every layer. No second, hand-written shape; there is no mapping in between.
+- No generated client yet (fresh slice from the `domain` generator)? Use plain `http.get(url, () => HttpResponse.json(...))`
+  from `msw` with the placeholder type from `<slice>/types` and migrate to `<client>Http` + the generated DTOs
+  as soon as the client exists (`nx g @mo-transfer/tooling-openapi:client <name> --domain=<slice>`).
 
 ## 5. Generated from the contract (`<client>/testing`)
 
@@ -134,7 +137,7 @@ Generated per client from `openapi.yaml|json` (never committed, `generate-api-te
 Mocks engine (`openapi-clients.json → settings.testing.mocks`, per client `pipeline.testing.mocks`): **`none`** is the
 library default (only `schema.ts`, `http.ts`, `index.ts` — no fake data, handlers by hand on `<client>Http`);
 `schema-faker` adds the last two rows (this repo opts in, the slice baseline needs `<client>Handlers`); `orval` is
-deprecated.
+deprecated. Details: `packages/tooling/openapi/README.md`.
 
 ```ts
 beforeEach(() => worker.use(...<client>Handlers));                                // generated defaults
@@ -144,8 +147,8 @@ worker.use(<client>Http.get('/<items>', ({ response }) => response('default').js
 ```
 
 - **Typed handlers stop mock drift** (deck slide 10): a spec change breaks hand-written handlers at typecheck.
-- Use `<client>Http` for all hand-written handlers in `<domain>/testing` and for per-test overrides.
-- Generated defaults are good for "something valid comes back" (ports, smoke). Assert on spec `example` values,
+- Use `<client>Http` for all hand-written handlers in `<slice>/testing` and for per-test overrides.
+- Generated defaults are good for "something valid comes back" (data-access, smoke). Assert on spec `example` values,
   on values derived from `get<Op>ResponseMock()` (exactly the handler data), or on structure – put `example` on every
   property of your own specs. Generated literals are allowed (stable, see §6) but use them sparingly.
 - Generated factories as data: `const [example] = get<Op>ResponseMock(); { ...example, id: 'n-1' }`.
@@ -161,8 +164,8 @@ worker.use(<client>Http.get('/<items>', ({ response }) => response('default').js
   engine) is identical in every run and order.
 - **Tests never assert unseeded random values.** Assert builder defaults, explicit overrides, spec examples, values
   derived from `get<Op>ResponseMock()`, or counts you served.
-- No handler → red. Prove it once per port: a test without `worker.use` expecting the rejection and the MSW error log
-  (`examples/api-port.spec.ts`, last test). Mutation probe: remove the `beforeEach` → spec must fail with
+- No handler → red. Prove it once per data-access class: a test without `worker.use` expecting the rejection and the MSW error log
+  (`examples/data-access.spec.ts`, first test). Mutation probe: remove the `beforeEach` → spec must fail with
   `[MSW] Error: intercepted a request without a matching request handler`.
 - A handler that throws is turned into a 500 by MSW ("Uncaught exception in the request handler") – fix the handler.
 
@@ -187,4 +190,4 @@ Query/body: `query.get('topic')`, `await request.json()` (typed by openapi-msw).
 - `worker.start({ onUnhandledFrame: 'error' })` – msw 3 name of msw 2's `onUnhandledRequest`. Don't copy msw 2 snippets.
 - `@vitest/mocker` declares `msw ^2` as optional peer → `pnpm.peerDependencyRules.allowedVersions.msw = "3"`.
 - `msw/browser` must resolve with browser conditions (see `02-toolset.md` §4).
-- Domain testing libs import only `msw` (and `<client>Http`), never `msw/browser`; only `shared/testing` owns the worker.
+- Slice testing libs import only `msw` (and `<client>Http`), never `msw/browser`; only `shared/testing` owns the worker.

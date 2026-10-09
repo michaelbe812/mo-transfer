@@ -9,8 +9,7 @@
 | MSW (`msw`) | 3 | network mocking via Service Worker |
 | openapi-msw | 2 | `createOpenApiHttp<paths>()` – typed handlers |
 | openapi-typescript | 7 | `paths`/`components` types from the spec |
-| orval | 8 | generated MSW mock handlers + response factories |
-| `@faker-js/faker` | any | data in generated mocks (schema-faker: private instance, seeded per value) |
+| `@faker-js/faker` | pinned exactly | data in generated mocks (schema-faker: private instance, seeded per value) |
 
 Vitest ≥ 4; with Vitest 5 add the worker plugin (§4). msw 3 needs `pnpm.peerDependencyRules.allowedVersions` for
 `msw` (`@vitest/mocker` peer) and `openapi-msw>msw`.
@@ -26,24 +25,29 @@ Vitest ≥ 4; with Vitest 5 add the worker plugin (§4). msw 3 needs `pnpm.peerD
 ## 3. Runner and Nx target
 
 Angular's unit-test builder drives Vitest (TestBed init, polyfills, AOT compile, `runnerConfig`).
-In Nx libs use `@nx/angular:unit-test` – a thin wrapper that calls the same `@angular/build` builder but accepts
+Nx libs need `@nx/angular:unit-test` – a thin wrapper that calls the same `@angular/build` builder but accepts
 Nx lib build targets (`@nx/angular:ng-packagr-lite`). `@angular/build:unit-test` directly fails for such libs
 ("The 'buildTarget' is configured to use '@nx/angular:ng-packagr-lite', which is not supported").
+This repo wraps it once more: `@mo-transfer/tooling-ng-lib:test` (`packages/tooling/ng-lib`) only adds `--ui`
+(watch + headed Chromium, never from the cache) and otherwise passes everything through.
 
 ```jsonc
-// test target (ideally inferred by a local Nx plugin for every lib with a *.spec.ts in src/)
+// nx.json → targetDefaults.test (the lib's project.json only carries "test": {} — explicit config, no inference)
 "test": {
-  "executor": "@nx/angular:unit-test",
+  "executor": "@mo-transfer/tooling-ng-lib:test",
   "cache": true,
   "dependsOn": ["^generate-api-client", "^generate-api-testing"], // generated OpenAPI clients/testing libs first
   "options": {
-    "tsConfig": "libs/tsconfig.spec.json",    // include: **/src/**/*.spec.ts
+    "tsConfig": "{projectRoot}/tsconfig.spec.json",                // include: src/**/*.spec.ts
     "runnerConfig": "vitest-base.config.mts",
     "browsers": ["chromiumHeadless"],
     "watch": false
   }
 }
 ```
+
+Only libs with specs have `test` + `tsconfig.spec.json`; `pnpm verify` (test isolation) reports a missing or a
+superfluous one.
 
 Apps: `@angular/build:unit-test` with the same options (`runner: "vitest"` is the default).
 
@@ -75,15 +79,15 @@ No `msw init`, no committed copy, no `publicDir`, no app asset. Not `mode: 'auto
 pnpm exec playwright install chromium              # once
 nx test <project>                                  # headless, CI
 nx affected -t lint typecheck test                 # PR gate
-nx run <project>:test --ui                         # Vitest UI: watch + headed Chromium with live preview, MSW active
+pnpm test:ui <project>                             # = nx run <project>:test --ui: watch + headed Chromium, live preview, MSW active
 nx run <project>:test --ui --headless              # UI, browser headless
 nx run <project>:test --browsers=chromium --watch  # headed, no UI
 nx run <project>:test --coverage                   # v8 coverage (indicator, not a gate)
 nx run <project>:test --filter='server error'      # only matching tests
 ```
 
-A combined `--ui` switch (watch + headed) needs a small executor wrapper; plain `@angular/build:unit-test` supports
-`ui`, `watch` and `headless` as separate options. Parallel `test` tasks each take a Vitest port (auto fallback: "Port … is in use").
+The combined `--ui` switch (watch + headed) comes from the `tooling-ng-lib:test` wrapper; plain
+`@angular/build:unit-test` supports `ui`, `watch` and `headless` as separate options. Parallel `test` tasks each take a Vitest port (auto fallback: "Port … is in use").
 
 ## 6. E2E
 

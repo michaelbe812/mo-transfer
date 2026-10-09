@@ -1,44 +1,53 @@
 import { TestBed } from '@angular/core/testing';
-import { bookingClientHandlers, bookingClientHttp } from '@myorg/booking/generated/booking-client/testing';
-import { aBooking } from '@myorg/booking/testing';
-import { test, worker } from '@myorg/shared/testing';
-import { describe, expect, vi } from 'vitest';
+import { bookingClientHandlers, bookingClientHttp } from '@mo-transfer/booking/generated/booking-client/testing';
+import { test, worker } from '@mo-transfer/shared/testing';
+import { beforeEach, describe, expect, vi } from 'vitest';
 import { BookingApi } from './booking-api';
 
-/** Port test: real port + real generated client + real HttpClient; MSW answers in the browser. */
-describe('BookingApi', () => {
-  test('maps the spec examples (generated default handlers) to domain bookings', async () => {
-    worker.use(...bookingClientHandlers);
+describe('BookingApi without a matching MSW handler', () => {
+  // no default handlers (no `beforeEach(() => worker.use(...))`): nothing is mocked for this spec
+  test('fails the request instead of hitting a real backend (onUnhandledFrame: error)', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const api = TestBed.inject(BookingApi);
 
+    // MSW logs the unhandled request and answers it with a 500 instead of passing it through
+    await expect(api.loadBookings()).rejects.toThrow('500');
+
+    expect(consoleError).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /\[MSW\] Error: intercepted a request without a matching request handler:\s+• GET \/api\/bookings/,
+      ),
+    );
+    consoleError.mockRestore();
+  });
+});
+
+describe('BookingApi with the generated default handlers of the booking-client', () => {
+  // generated baseline: every operation of the booking-client answers with the spec examples
+  beforeEach(() => worker.use(...bookingClientHandlers));
+
+  test('returns the spec examples as generated DTOs', async () => {
     const bookings = await TestBed.inject(BookingApi).loadBookings();
 
-    // `example` values of the Booking schema in openapi.yaml — never faker output
-    expect(bookings[0]).toEqual({ id: 'b-100', guestName: 'Katherine Johnson', checkinDate: '2026-10-01', status: 'confirmed' });
+    expect(bookings.length).toBeGreaterThan(0);
+    // `example` values of the Booking schema in openapi.yaml
+    expect(bookings[0]).toEqual({
+      id: 'b-100',
+      guestName: 'Katherine Johnson',
+      checkinDate: '2026-10-01',
+      status: 'confirmed',
+    });
   });
 
-  test('passes through what a typed handler serves', async ({ worker }) => {
-    worker.use(bookingClientHttp.get('/bookings', ({ response }) => response(200).json([aBooking({ id: 'b-1' })])));
-
-    const bookings = await TestBed.inject(BookingApi).loadBookings();
-
-    expect(bookings.map((booking) => booking.id)).toEqual(['b-1']);
-  });
-
-  test('turns the documented error response into an Error', async ({ worker }) => {
+  test('a typed override wins over the baseline: the documented error response becomes an Error', async ({
+    worker,
+  }) => {
     worker.use(
-      bookingClientHttp.get('/bookings', ({ response }) => response('default').json({ message: 'boom' }, { status: 503 })),
+      bookingClientHttp.get('/bookings', ({ response }) =>
+        response('default').json({ message: 'boom' }, { status: 503 }),
+      ),
     );
 
     await expect(TestBed.inject(BookingApi).loadBookings()).rejects.toThrow('GET /api/bookings failed: 503');
-  });
-
-  test('fails on a request no handler matches (onUnhandledFrame: error)', async () => {
-    // no worker.use(...) at all: nothing is mocked, MSW must not let the request through
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-
-    await expect(TestBed.inject(BookingApi).loadBookings()).rejects.toThrow('500');
-
-    expect(consoleError).toHaveBeenCalledWith(expect.stringMatching(/without a matching request handler:\s+• GET \/api\/bookings/));
-    consoleError.mockRestore();
   });
 });

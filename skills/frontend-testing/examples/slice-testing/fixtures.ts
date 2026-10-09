@@ -1,4 +1,4 @@
-import { Booking } from '@myorg/booking/types';
+import type { Booking } from '@mo-transfer/booking/generated/booking-client/types';
 
 let nextId = 1;
 

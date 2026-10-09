@@ -44,7 +44,7 @@ Environment, test data and execution time are defined per project. A critical fl
 integration tests: variants and error cases are cheaper there.
 
 ### Integration test per feature (Vitest browser mode + MSW)
-A whole vertical slice, as real as possible. The test starts the feature like a user: via the **route** or the
+A whole feature of a vertical slice, as real as possible. The test starts the feature like a user: via the **route** or the
 feature root component. Every test describes one user scenario. Error cases are provoked via MSW handlers.
 
 | Real | Mocked |
@@ -53,7 +53,7 @@ feature root component. Every test describes one user scenario. Error cases are 
 | Services, stores, guards, resolvers | Auth (OIDC), feature flags, analytics |
 | Router and routing configuration | Time (fake timers) |
 | `HttpClient` incl. interceptors | Browser APIs outside our control |
-| Shared libraries of other slices | |
+| Shared libraries (`shared/*`) | |
 
 > Rule of thumb: mock only what we don't control.
 
@@ -66,11 +66,11 @@ is the natural unit of "a feature".
 How to find them:
 
 1. Start at the app routes (`apps/<app>/src/app/app.routes.ts`). `loadChildren` entries point to the slice shells
-   (`libs/<domain>/shell`, tag `entry`). They are not components themselves, so follow them.
-2. In every `<domain>.routes.ts` (shell lib), collect each `component` / `loadComponent` entry. Follow nested
+   (`libs/<slice>/shell`, tag `entry`). They are not components themselves, so follow them.
+2. In every `<slice>.routes.ts` (shell lib), collect each `component` / `loadComponent` entry. Follow nested
    `children` and `loadChildren` the same way. Redirects (`redirectTo`) are not targets.
 3. In this organisation the routed components are the feat containers: `Feat<Name>` in
-   `libs/<domain>/feat-<name>/feature/src/feat-<name>.ts`. A lint naming rule (if the workspace has one)
+   `libs/<slice>/feat-<name>/feature/src/feat-<name>.ts`. The lint rule `blueprint/layer-symbol-naming`
    enforces this shape, so the containers can also be listed by name.
 
 ```bash
@@ -88,10 +88,10 @@ Where the test lives and how it starts the feature:
 
 | Situation | Spec location | Start |
 |---|---|---|
-| Default: one routed container | next to it: `libs/<domain>/feat-<name>/feature/src/feat-<name>.spec.ts` | `TestBed.createComponent(Feat<Name>)` with real stores; fake only ports we don't control |
-| Route-level behaviour matters: guards, resolvers, route params, redirects, navigation between routes, lazy loading | slice shell: `libs/<domain>/shell/src/<domain>.routes.spec.ts` | `provideRouter(<domain>Routes)` + `RouterTestingHarness.navigateByUrl(url)` (→ `03-component-testing.md` §7) |
+| Default: one routed container | next to it: `libs/<slice>/feat-<name>/feature/src/feat-<name>.spec.ts` | `TestBed.createComponent(Feat<Name>)` with real stores; fake only what we don't control (auth, flags) |
+| Route-level behaviour matters: guards, resolvers, route params, redirects, navigation between routes, lazy loading | slice shell: `libs/<slice>/shell/src/<slice>.routes.spec.ts` | `provideRouter(<slice>Routes)` + `RouterTestingHarness.navigateByUrl(url)` (→ `03-component-testing.md` §7) |
 
-Both are integration tests: real components, children, stores, ports and `HttpClient`, backend served by MSW.
+Both are integration tests: real components, children, stores, data-access and `HttpClient`, backend served by MSW.
 Each test describes one user scenario. The shell spec does not replace the container spec; it covers what only
 exists at route level.
 
@@ -103,13 +103,13 @@ trigger applies:
 
 | Trigger | Typical example |
 |---|---|
-| Reused in several features or slices (`shared/ui`, design system, a slice `ui` component used by more than one feature) | button, card, list, form field |
+| Reused in several features (`shared/ui`, design system, a slice `ui` component used by more than one feat) | button, card, list, form field |
 | Own logic with many input combinations that would need many integration scenarios | formatting/state matrix, conditional rendering by role |
 | Edge cases that are costly to reach through the route | empty/error/overflow states deep in a flow |
-| Its inputs/outputs are a contract other features rely on | event payload of a shared list (`(arrived)`) |
+| Its inputs/outputs are a contract other features rely on | value emitted by a shared list (`(arrived)` → `Arrival`) |
 
 Not a trigger: "to raise coverage", "the component looks complex", or behaviour the parent's integration test
-already shows. Pure logic without DOM (utils, mappers, validators) gets a **unit test** instead.
+already shows. Pure logic without DOM (utils, validators) gets a **unit test** instead.
 Directives and pipes get their own spec via a **test host component** + `render()` (pipes: plus a unit test for
 the `transform` matrix) → `03-component-testing.md` §9.
 
@@ -127,7 +127,7 @@ covered by the routed parent's integration test → no own spec
 | | |
 |---|---|
 | **Component test** | One component, services and children mocked, driven through the DOM. Runs in Vitest browser mode. |
-| **Unit test** | Pure logic: utils, validators, mappers, pipe `transform`. Runs in Vitest. |
+| **Unit test** | Pure logic: utils, validators, pipe `transform`. Runs in Vitest. |
 | **Directive / pipe test** | Test host component + `render()`, driven through the page API. Runs in Vitest browser mode. |
 
 Only when the integration test is not enough:
@@ -156,7 +156,7 @@ everything else, MSW for API mocks.
 - **One spec file per scenario** for large integration tests; test names describe behavior from the user's view.
 - MSW handlers, timers and global state are reset after every test.
 
-How this maps to an Nx workspace with one lib per slice × layer: `06-test-organisation.md`.
+How this maps to this workspace (one lib per slice × layer): `06-test-organisation.md`.
 
 ## 6. API mocks generated from the contract
 
@@ -164,7 +164,7 @@ How this maps to an Nx workspace with one lib per slice × layer: `06-test-organ
 
 | | |
 |---|---|
-| **OpenAPI as source** | Types, MSW handlers and example data are generated from the spec. |
+| **OpenAPI as source** | Types (= the DTOs the app uses in every layer), MSW handlers and example data are generated from the spec. |
 | **Typed mocks** | An API change breaks the build instead of drifting silently. |
 | **E2E as safety net** | Tests against the real backend check the contract end-to-end. |
 
