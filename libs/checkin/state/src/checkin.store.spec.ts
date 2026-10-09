@@ -49,4 +49,18 @@ describe('CheckinStore', () => {
 
     expect(notifications[0]).toMatchObject({ id: 'n-1', read: false });
   });
+
+  test('ensureLoaded never rejects: the failure lands in loadError, the next call retries', async ({ worker }) => {
+    worker.use(checkinScenarios.serverError());
+    const store = TestBed.inject(CheckinStore);
+
+    await store.ensureLoaded();
+    expect(store.loadError()).toBe('GET /api/checkins failed: 500');
+
+    worker.resetHandlers(...checkinHandlers);
+    await store.ensureLoaded();
+
+    expect(store.loadError()).toBeNull();
+    expect(store.all()).toEqual(defaultCheckins);
+  });
 });

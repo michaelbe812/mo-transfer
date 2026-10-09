@@ -2,7 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { BookingNotifications } from '@mo-transfer/booking/data-access';
 import { aBooking, bookingHandlers, bookingScenarios, defaultBookings } from '@mo-transfer/booking/testing';
 import { test, worker } from '@mo-transfer/shared/testing';
-import { beforeEach, describe, expect } from 'vitest';
+import { afterEach, beforeEach, describe, expect, vi } from 'vitest';
+import { bookingConfirmed } from './booking.events';
 import { BookingStore } from './booking.store';
 
 describe('BookingStore', () => {
@@ -48,5 +49,48 @@ describe('BookingStore', () => {
     await expect(store.load()).rejects.toThrow('500');
 
     expect(store.all()).toBe(before);
+  });
+
+  test('ensureLoaded loads once — later calls keep local changes', async () => {
+    const store = TestBed.inject(BookingStore);
+    await store.ensureLoaded();
+    store.handle(bookingConfirmed('b-100'));
+
+    await store.ensureLoaded();
+
+    expect(store.confirmed().map((booking) => booking.id)).toEqual(['b-100', 'b-101']);
+  });
+
+  test('ensureLoaded never rejects: the failure lands in loadError, the next call retries', async ({ worker }) => {
+    worker.use(bookingScenarios.serverError());
+    const store = TestBed.inject(BookingStore);
+
+    await store.ensureLoaded();
+    expect(store.loadError()).toBe('GET /api/bookings failed: 500');
+
+    worker.resetHandlers(...bookingHandlers);
+    await store.ensureLoaded();
+
+    expect(store.loadError()).toBeNull();
+    expect(store.all()).toEqual(defaultBookings);
+  });
+
+  describe('handle(BookingConfirmed)', () => {
+    // time is not ours: fake only Date, keep real timers for MSW/fetch
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-01T08:30:00.000Z'));
+    });
+    afterEach(() => vi.useRealTimers());
+
+    test('confirms the booking and records it as the last check', async () => {
+      const store = TestBed.inject(BookingStore);
+      await store.load();
+
+      store.handle(bookingConfirmed('b-100'));
+
+      expect(store.confirmed().map((booking) => booking.id)).toContain('b-100');
+      expect(store.lastCheck()).toEqual({ bookingId: 'b-100', checkedAt: '2026-10-01T08:30:00.000Z' });
+    });
   });
 });

@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { test } from '@mo-transfer/shared/testing';
-import { describe, expect } from 'vitest';
+import { bookingHandlers } from '@mo-transfer/booking/testing';
+import { test, worker } from '@mo-transfer/shared/testing';
+import { beforeEach, describe, expect } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { bookingRoutes } from './booking.routes';
 
@@ -14,7 +15,9 @@ async function navigateTo(url: string): Promise<RouterTestingHarness> {
   return harness;
 }
 
-describe('booking slice (routed)', () => {
+describe('booking slice (routed, backend via MSW)', () => {
+  beforeEach(() => worker.use(...bookingHandlers));
+
   test('the default route is the booking check', async () => {
     await navigateTo('/');
 
@@ -27,14 +30,15 @@ describe('booking slice (routed)', () => {
     await expect.element(page.getByRole('heading', { name: 'Manage bookings' })).toBeVisible();
   });
 
-  test('a booking confirmed in the check shows up in the management (state of the slice root)', async () => {
+  test('a booking confirmed in the check shows up in the management, with the last check (slice root state)', async () => {
     const harness = await navigateTo('/');
-    await userEvent.click(page.getByRole('heading', { name: /^Ada Lovelace – / }));
+    await userEvent.click(page.getByRole('heading', { name: /^Katherine Johnson – / }));
     await userEvent.click(page.getByRole('button', { name: 'Confirm' }));
 
     await harness.navigateByUrl('/manage');
 
     await expect.element(page.getByRole('heading', { name: 'Manage bookings' })).toBeVisible();
-    await expect.element(page.getByRole('heading', { name: 'Ada Lovelace – 1.8.2026' })).toBeVisible();
+    await expect.element(page.getByRole('heading', { name: 'Katherine Johnson – 1.10.2026' })).toBeVisible();
+    await expect.element(page.getByText(/^Booking b-100 checked at /)).toBeVisible();
   });
 });

@@ -37,7 +37,8 @@ describe('FeatCheckin (rendered in Chromium, backend via MSW)', () => {
     await page.getByRole('button', { name: 'Check in Grace Hopper' }).click();
 
     await expect.element(page.getByText('1 arrival', { exact: true })).toBeVisible();
-    await expect.element(page.getByText('Checked in today (1)')).toBeVisible();
+    // the loaded check-in of the slice defaults + the new one
+    await expect.element(page.getByText('Checked in today (2)')).toBeVisible();
     await expect.element(page.getByRole('button', { name: 'Check in Grace Hopper' })).not.toBeInTheDocument();
   });
 

@@ -10,6 +10,9 @@ import { CheckResult } from '@mo-transfer/booking/feat-check-booking/ui';
   imports: [BookingCard, CheckResult],
   template: `
     <h2>Check bookings</h2>
+    @if (bookingStore.loadError(); as error) {
+      <p role="alert">Bookings could not be loaded: {{ error }}</p>
+    }
     @for (booking of bookingStore.all(); track booking.id) {
       <app-booking-card [booking]="booking" (confirmed)="onConfirmed($event)" />
     }
@@ -19,6 +22,10 @@ import { CheckResult } from '@mo-transfer/booking/feat-check-booking/ui';
 export class FeatCheckBooking {
   protected readonly bookingStore = inject(BookingStore);
   protected readonly checkStore = inject(CheckBookingStore);
+
+  constructor() {
+    void this.bookingStore.ensureLoaded();
+  }
 
   protected onConfirmed(bookingId: string): void {
     this.checkStore.confirm(bookingId);

@@ -14,7 +14,8 @@ describe(describeDesk.name, () => {
     expect(describeDesk({ openArrivals: 0 })).toBe('Desk clear — no open arrivals');
   });
 
-  test('counts the open arrivals', () => {
+  test('counts the open arrivals, singular for one', () => {
+    expect(describeDesk({ openArrivals: 1 })).toBe('1 open arrival at the desk');
     expect(describeDesk({ openArrivals: 3 })).toBe('3 open arrivals at the desk');
   });
 });

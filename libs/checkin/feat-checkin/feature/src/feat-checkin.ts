@@ -25,6 +25,9 @@ import { CheckinDeskStore } from '@mo-transfer/checkin/feat-checkin/state';
       <app-button (clicked)="desk.checkIn(arrival)">Check in {{ arrival.guestName }}</app-button>
     }
     <h3>Checked in today ({{ checkinStore.count() }})</h3>
+    @if (checkinStore.loadError(); as error) {
+      <p role="alert">Check-ins could not be loaded: {{ error }}</p>
+    }
     <app-arrival-list [checkins]="checkinStore.all()" (arrived)="onWalkIn($event)" />
   `,
 })
@@ -32,6 +35,10 @@ export class FeatCheckin {
   protected readonly auth = inject(AuthStore);
   protected readonly desk = inject(CheckinDeskStore);
   protected readonly checkinStore = inject(CheckinStore);
+
+  constructor() {
+    void this.checkinStore.ensureLoaded();
+  }
 
   protected get arrivalsLabel(): string {
     return pluralize(this.desk.openArrivals(), 'arrival', 'arrivals');

@@ -10,6 +10,9 @@ import { checkinLabel, describeDesk } from '@mo-transfer/checkin/utils';
   selector: 'app-feat-history',
   template: `
     <h2>Check-in history</h2>
+    @if (checkinStore.loadError(); as error) {
+      <p role="alert">Check-ins could not be loaded: {{ error }}</p>
+    }
     <p>{{ deskStatus }}</p>
     <ul>
       @for (checkin of checkinStore.all(); track checkin.id) {
@@ -22,6 +25,10 @@ export class FeatHistory {
   protected readonly checkinStore = inject(CheckinStore);
 
   protected readonly deskStatus = describeDesk({ openArrivals: 0 });
+
+  constructor() {
+    void this.checkinStore.ensureLoaded();
+  }
 
   protected label(checkin: Checkin): string {
     return checkinLabel(checkin);

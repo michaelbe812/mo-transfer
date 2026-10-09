@@ -103,7 +103,7 @@ const cases = [
   blocked('scope: foreign domain utils', 'libs/checkin/utils', '@mo-transfer/booking/utils', 'scope:checkin'),
   blocked('scope: foreign entry', 'libs/booking/shell', '@mo-transfer/checkin/shell', 'scope:booking'),
   blocked('scope: layout -> domain', 'libs/layout/shell', '@mo-transfer/booking/state', 'scope:layout'),
-  blocked('scope: shared -> domain', 'libs/shared/utils', '@mo-transfer/checkin/utils', 'scope:shared'),
+  blocked('scope: shared -> slice', 'libs/shared/utils', '@mo-transfer/checkin/types', 'scope:shared'),
   allowed('scope: domain -> shared', 'libs/booking/utils', '@mo-transfer/shared/utils'),
   allowed('scope: feature -> shared state (auth)', 'libs/checkin/feat-checkin/feature', '@mo-transfer/shared/state'),
 

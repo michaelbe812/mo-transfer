@@ -59,7 +59,8 @@ describe('FeatCheckin', () => {
     await userEvent.click(checkInButton('Grace Hopper'));
 
     await expect.element(page.getByText('0 arrivals')).toBeVisible();
-    await expect.element(page.getByText('Checked in today (1)')).toBeVisible();
+    // the loaded check-in of the slice defaults + the new one
+    await expect.element(page.getByText('Checked in today (2)')).toBeVisible();
     await expect.element(checkInButton('Grace Hopper')).not.toBeInTheDocument();
   });
 

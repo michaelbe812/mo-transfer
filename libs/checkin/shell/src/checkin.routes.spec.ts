@@ -26,7 +26,8 @@ describe('checkin slice (routed, backend via MSW)', () => {
     await userEvent.click(page.getByRole('button', { name: 'Load arrivals' }));
     await userEvent.click(page.getByRole('button', { name: 'Check in Grace Hopper' }));
 
-    await expect.element(page.getByRole('heading', { name: 'Checked in today (1)' })).toBeVisible();
+    // the loaded check-in of the slice defaults + the new one
+    await expect.element(page.getByRole('heading', { name: 'Checked in today (2)' })).toBeVisible();
   });
 
   test('/history renders the check-in history', async () => {
@@ -42,6 +43,7 @@ describe('checkin slice (routed, backend via MSW)', () => {
     await harness.navigateByUrl('/history');
 
     await expect.element(page.getByRole('heading', { name: 'Check-in history' })).toBeVisible();
-    await expect.element(page.getByRole('listitem')).toHaveTextContent(/^Walk-in guest \(walk-in\) — /);
+    await expect.element(page.getByText(/^Walk-in guest \(walk-in\) — /)).toBeVisible();
+    await expect.element(page.getByText(/^Katherine Johnson \(b-100\) — /)).toBeVisible();
   });
 });

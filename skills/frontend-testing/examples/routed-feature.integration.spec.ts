@@ -34,7 +34,8 @@ describe('checkin slice (routed)', () => {
     await userEvent.click(page.getByRole('button', { name: 'Load arrivals' }));
     await userEvent.click(page.getByRole('button', { name: 'Check in Grace Hopper' }));
 
-    await expect.element(page.getByRole('heading', { name: 'Checked in today (1)' })).toBeVisible();
+    // the loaded check-in of the slice defaults + the new one
+    await expect.element(page.getByRole('heading', { name: 'Checked in today (2)' })).toBeVisible();
   });
 
   test('/history renders the history feat', async () => {
