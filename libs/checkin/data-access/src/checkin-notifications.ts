@@ -2,23 +2,21 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { NotificationsService } from '@mo-transfer/generated/notification-client/api';
 import type { Notification } from '@mo-transfer/generated/notification-client/types';
-import { CheckinNotification } from '@mo-transfer/checkin/types';
 import { firstValueFrom } from 'rxjs';
 
 /**
  * Notifications of topic "checkin", backed by the shared generated notification-client. The rest of the
- * slice never sees the generated service — this class is the wrapper.
+ * slice never sees the generated service — this class is the wrapper. It returns the generated DTOs as they are.
  */
 @Injectable({ providedIn: 'root' })
 export class CheckinNotifications {
   private readonly notifications = inject(NotificationsService);
 
-  async load(): Promise<CheckinNotification[]> {
+  async load(): Promise<Notification[]> {
     try {
-      const list = await firstValueFrom(this.notifications.listNotifications({ topic: 'checkin' }), {
+      return await firstValueFrom(this.notifications.listNotifications({ topic: 'checkin' }), {
         defaultValue: [],
       });
-      return list.map(toCheckinNotification);
     } catch (error) {
       throw failure(error, 'GET /api/notifications');
     }
@@ -33,10 +31,6 @@ export class CheckinNotifications {
   }
 }
 
-/** Anti-corruption: generated DTO → domain model. */
-function toCheckinNotification({ id, message, read, createdAt }: Notification): CheckinNotification {
-  return { id, message, read, createdAt };
-}
 
 function failure(error: unknown, request: string): unknown {
   return error instanceof HttpErrorResponse ? new Error(`${request} failed: ${error.status}`) : error;

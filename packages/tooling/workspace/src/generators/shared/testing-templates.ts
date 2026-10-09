@@ -26,7 +26,7 @@ export function testingScaffoldFiles(n: SliceNames, clients: readonly ClientTest
 import type { HttpHandler } from 'msw';
 
 /**
- * Curated handlers of the ${n.scope} slice: hand-written fixtures in the domain model, they win over the generated
+ * Curated handlers of the ${n.scope} slice: hand-written fixtures typed with the generated DTOs, they win over the generated
  * baseline.
 ${typedHttp}
  */
@@ -45,15 +45,15 @@ export const ${n.property}Scenarios = {} satisfies Scenarios;
 
 /**
  * `--examples`: example fixtures, handlers and scenarios for the example `<D>Api` (`GET /api/<d>`, `{ id, name }`).
- * They declare their own shape `<D>Example` instead of importing the domain entity: the entity in
+ * They declare their own shape `<D>Example` instead of importing the placeholder entity: the entity in
  * `libs/<slice>/types` may have any shape (other fields, other id type) or not exist yet — the examples compile
- * regardless. Curated handlers replace them with fixtures in the domain model.
+ * regardless. Curated handlers replace them with fixtures typed with the generated DTOs.
  */
 export function testingFiles(n: SliceNames): LibFiles {
   const shape = `${n.entity}Example`;
   return {
     files: {
-      [`fixtures/${n.scope}.fixture.ts`]: `/** Shape of the example data (what the example ${n.entity}Api loads) — independent of the domain model. */
+      [`fixtures/${n.scope}.fixture.ts`]: `/** Shape of the example data (what the example ${n.entity}Api loads) — independent of the placeholder entity. */
 export interface ${shape} {
   id: string;
   name: string;

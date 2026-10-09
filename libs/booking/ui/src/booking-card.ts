@@ -1,5 +1,5 @@
 import { Component, inject, input, output } from '@angular/core';
-import { Booking } from '@mo-transfer/booking/types';
+import type { Booking } from '@mo-transfer/booking/generated/booking-client/types';
 import { bookingLabel } from '@mo-transfer/booking/utils';
 import { BookingCardStore } from './booking-card.store';
 

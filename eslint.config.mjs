@@ -269,19 +269,6 @@ export default [
         }
     },
     {
-        // DTOs mirror the backend payload (`booking_id`)
-        files: ["libs/**/*.dto.ts"],
-        rules: {
-            "@typescript-eslint/naming-convention": [
-                "error",
-                { selector: "default", format: ["camelCase"], leadingUnderscore: "allow" },
-                { selector: "import", format: null },
-                { selector: "typeLike", format: ["PascalCase"] },
-                { selector: "typeProperty", format: null }
-            ]
-        }
-    },
-    {
         // selector prefix + style: @angular-eslint (libs + app); selector ↔ file name: blueprint/layer-symbol-naming
         files: ["libs/**/*.ts", "apps/**/*.ts"],
         ignores: generatedCode,

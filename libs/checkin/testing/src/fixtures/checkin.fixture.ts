@@ -1,9 +1,9 @@
-import { CheckinDto } from '@mo-transfer/checkin/types';
+import type { Checkin } from '@mo-transfer/checkin/generated/checkin-client/types';
 
 let nextId = 1;
 
-/** Test data builder in the raw backend shape (snake_case), as MSW serves it. */
-export function aCheckinDto(overrides: Partial<CheckinDto> = {}): CheckinDto {
+/** Test data builder: the generated DTO (snake_case, as the backend sends it and the app uses it). */
+export function aCheckin(overrides: Partial<Checkin> = {}): Checkin {
   return {
     id: `checkin-${nextId++}`,
     booking_id: 'b-100',

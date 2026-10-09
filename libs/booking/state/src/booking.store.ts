@@ -1,5 +1,5 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { Booking } from '@mo-transfer/booking/types';
+import type { Booking } from '@mo-transfer/booking/generated/booking-client/types';
 import { isConfirmed } from '@mo-transfer/booking/utils';
 import { BookingApi } from '@mo-transfer/booking/data-access';
 import { BookingConfirmed } from './booking.events';

@@ -48,7 +48,11 @@ const alias = (n: SliceNames, layer: string): string => aliasFor(`${n.scope}/${l
 
 const types = (n: SliceNames): LibFiles => ({
   files: {
-    [`${n.scope}.model.ts`]: `/** Domain model of the ${n.scope} slice — private to the slice (no port, no foreign importer). */
+    [`${n.scope}.model.ts`]: `/**
+ * Placeholder until the ${n.scope} slice has a generated client (nx g @mo-transfer/tooling-openapi:client <name>
+ * --domain=${n.scope}): then use its DTOs directly in every layer — no own model, no mapping — and delete this file.
+ * types keeps only frontend-own types without a backend contract.
+ */
 export interface ${n.entity} {
   id: string;
   name: string;

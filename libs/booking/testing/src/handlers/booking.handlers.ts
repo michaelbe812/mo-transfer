@@ -1,6 +1,6 @@
 import { bookingClientHandlers, bookingClientHttp } from '@mo-transfer/booking/generated/booking-client/testing';
+import type { Booking } from '@mo-transfer/booking/generated/booking-client/types';
 import { notificationClientHandlers } from '@mo-transfer/generated/notification-client/testing';
-import { Booking } from '@mo-transfer/booking/types';
 import { type Scenarios, withBaseline } from '@mo-transfer/shared/testing';
 import { aBooking } from '../fixtures/booking.fixture';
 
@@ -14,7 +14,7 @@ export const defaultBookings: Booking[] = [
   aBooking({ id: 'b-101', guestName: 'Margaret Hamilton', status: 'confirmed' }),
 ];
 
-/** Curated: the backend returns the default bookings (hand-written fixtures in the domain model). */
+/** Curated: the backend returns the default bookings (hand-written fixtures, typed with the generated DTO). */
 const curatedBookingHandlers = [
   bookingClientHttp.get('/bookings', ({ response }) => response(200).json(defaultBookings)),
 ];

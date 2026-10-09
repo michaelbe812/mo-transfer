@@ -19,6 +19,7 @@ describe('CheckinNotifications (shared notification-client behind the checkin da
     expect(notifications.length).toBeGreaterThan(0);
     expect(notifications[0]).toEqual({
       id: 'n-1',
+      topic: 'booking',
       message: 'Booking b-101 confirmed',
       read: false,
       createdAt: '2026-10-01T09:00:00Z',

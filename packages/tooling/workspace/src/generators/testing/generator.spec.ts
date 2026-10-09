@@ -66,7 +66,7 @@ describe('testing generator', () => {
 
   describe('--examples: example fixtures, handlers and scenarios', () => {
     it('scaffolds fixtures + handlers + scenarios on a self-contained example shape (any entity shape compiles)', async () => {
-      // booking/types exports `Booking { id }` — no `name`: the examples must not depend on the domain model
+      // booking/types exports `Booking { id }` — no `name`: the examples must not depend on the placeholder entity
       await testingGenerator(tree, { domain: 'booking', examples: true });
 
       const fixture = read(tree, 'libs/booking/testing/src/fixtures/booking.fixture.ts');

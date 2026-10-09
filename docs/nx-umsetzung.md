@@ -57,7 +57,7 @@ Dazu pro Client-Ordner `libs/[<d>/]generated/<client>/project.json`. Summe: 267 
 ```
 apps/client/src/            type:app            dünne Shell: main.ts, app.ts, app.config.ts, app.routes.ts
 libs/
-  <slice>/                  booking, checkin (Domains) · layout (nur von der App komponiert)
+  <slice>/                  Vertical: in sich geschlossenes Feature — booking, checkin (fachlich) · layout (nur von der App komponiert)
     types/ utils/ data-access/ state/ ui/   scope:<slice> type:<layer> feat:none   (data-access = HTTP, state = Stores + Events)
     shell/                                  type:feature + entry   routes/providers/shell = Slice-Root
     feat-<feat>/
@@ -74,7 +74,7 @@ libs/
 - Alias: `@mo-transfer/<pfad-unter-libs>`, z.B. `@mo-transfer/booking/data-access` oder `@mo-transfer/checkin/feat-checkin/state`. Ein exakter Eintrag pro Lib in `tsconfig.base.json` (`@mo-transfer/booking/state` → `./libs/booking/state/src/index.ts`), kein Wildcard.
 - Projektname = Pfad mit `-` (`booking-feat-check-booking-state`, `booking-data-access`), steht in `project.json`.
 - `booking.routes.ts`/`checkin.routes.ts` exportieren jetzt benannt (`bookingRoutes`), weil `export *` keinen Default re-exportiert.
-- Ein lib-privater Ordner `internal/` (z.B. `checkin/state/src/internal/checkin.mapper.ts`) ist bloße Konvention. Privat ist die Datei, weil `index.ts` sie nicht exportiert.
+- Ein lib-privater Ordner `internal/` (z.B. `checkin/state/src/internal/next-checkin-id.ts`) ist bloße Konvention. Privat ist die Datei, weil `index.ts` sie nicht exportiert.
 
 **Kosten:** 26 Libs (booking 10, checkin 9, layout 2, shared 5; vor der Reduktion 32, mit `data` statt `data-access` + `state` 23) statt 2, dazu 3 Testing-Libs und 12 Libs der 3 Beispiel-Clients (je types/api/core/testing, nur `index.ts` committet). Pro Lib 2–7 Config-Dateien, Zählung siehe [Dateizählung](#dateizählung).
 
@@ -201,7 +201,7 @@ Nx wendet **alle** Constraints an, die auf die Tags der Quelle passen, und verkn
 type:types       -> types                             + bannedExternalImports ['*']   (Scope-Regeln gelten: shared → shared, Domain → eigene + shared)
 type:utils       -> types, utils
 type:data-access -> types, utils, data-access         (HTTP-Wrapper; generierte api/core sind type:data-access)
-type:state       -> types, utils, data-access, state  (Signal Stores, *.events.ts, internal/*.mapper.ts)
+type:state       -> types, utils, data-access, state  (Signal Stores, *.events.ts)
 type:ui          -> types, utils, ui
 type:feature     -> alle Produktions-Layer            (kein `type:*`-Glob mehr, er träfe type:testing)
 type:app     -> entry, scope:shared        UND nur Produktions-Layer
@@ -346,7 +346,7 @@ export const bookingScenarios = { withBookings, empty, serverError } satisfies S
 | Schicht | Quelle | gewinnt gegen |
 |---|---|---|
 | Szenario im Test (`worker.use(bookingScenarios.serverError())`) | Slice-Testing-Lib, typisiert über `<client>Http` | alles (vorangestellt) |
-| kuratiert (`curated…Handlers`, Builder im Domänenmodell) | Slice-Testing-Lib | Baseline (`withBaseline` setzt sie nach vorn, MSW nimmt den ersten Treffer) |
+| kuratiert (`curated…Handlers`, Builder, typisiert mit den generierten DTOs) | Slice-Testing-Lib | Baseline (`withBaseline` setzt sie nach vorn, MSW nimmt den ersten Treffer) |
 | Baseline (`<client>Handlers`) | generierte Client-Testing-Lib (eigene Clients + genutzte shared Clients) | – |
 
 | Layer | Defaults im `beforeEach` | Abweichungen |
@@ -420,7 +420,7 @@ nx g @mo-transfer/tooling-workspace:testing <d> --examples   # mit Beispiel-Fixt
 ```
 
 1. **Default (Gerüst, keine Daten):** `src/handlers/<d>.handlers.ts` mit leerem `curated<D>Handlers: HttpHandler[]`, `<d>Handlers = withBaseline(curated<D>Handlers, <client>Handlers…)` und `<d>Scenarios = {} satisfies Scenarios`, `src/index.ts`, `project.json` (`<d>-testing`, `scope:<d>`, `type:testing`, `feat:none`, Targets `lint` + `typecheck`, **kein** `build`), `tsconfig.json`, `paths`-Eintrag `@mo-transfer/<d>/testing`. Hat die Domain eigene generierte Clients (`libs/<d>/generated/<client>`, Eintrag in `openapi-clients.json`), importiert das Gerüst deren `<client>Handlers` als Baseline — nur bei einer Mocks-Engine mit Fake-Daten; bei `mocks: none` nennt der Kommentar nur `<client>Http`. Shared Clients nimmt die Slice selbst dazu. Keine Fixtures, keine Beispiel-Spec.
-2. **`--examples`:** wie bisher `src/fixtures/<d>.fixture.ts` (Builder `a<D>()`) und `src/handlers/<d>.handlers.ts` (`<d>Handlers`, `<d>Scenarios`: `withItems`, `empty`, `serverError`, rohes `http` auf `/api/<d>` passend zur Beispiel-`<D>Api`). Die Beispiele deklarieren ihre eigene Form `<D>Example { id, name }` (= was die Beispiel-`<D>Api` lädt) statt das Domänenmodell zu importieren: sie kompilieren für jede Entity in `<d>/types` (andere Felder, anderer id-Typ, keine Entity) — belegt in `fixture-workspace.spec.ts` (drei Formen); kuratierte Handler ersetzen sie durch Fixtures im Domänenmodell. `domain --examples` schreibt zusätzlich `libs/<d>/state/src/<d>.store.spec.ts` + Spec-Config.
+2. **`--examples`:** wie bisher `src/fixtures/<d>.fixture.ts` (Builder `a<D>()`) und `src/handlers/<d>.handlers.ts` (`<d>Handlers`, `<d>Scenarios`: `withItems`, `empty`, `serverError`, rohes `http` auf `/api/<d>` passend zur Beispiel-`<D>Api`). Die Beispiele deklarieren ihre eigene Form `<D>Example { id, name }` (= was die Beispiel-`<D>Api` lädt) statt die Platzhalter-Entity zu importieren: sie kompilieren für jede Entity in `<d>/types` (andere Felder, anderer id-Typ, keine Entity) — belegt in `fixture-workspace.spec.ts` (drei Formen); kuratierte Handler ersetzen sie durch Fixtures, typisiert mit den generierten DTOs. `domain --examples` schreibt zusätzlich `libs/<d>/state/src/<d>.store.spec.ts` + Spec-Config.
 3. Importiert nur `msw`, `@mo-transfer/<d>/types`, Client-testing-Libs und `@mo-transfer/shared/testing`. Beleg: `packages/tooling/workspace/src/generators/testing/fixture-workspace.spec.ts` erzeugt Gerüst (ohne/mit Clients `schema-faker` + `none`) und Beispiele in einen Fixture-Workspace auf der Platte, generiert die Client-Testing-Libs mit dem echten Preset und kompiliert alles strikt gegen das echte `shared/testing`.
 4. Specs: `*.spec.ts` in `src/` einer Lib ablegen, dazu `tsconfig.spec.json` + `"test": {}` in `project.json` (sonst meldet `verify` beides). Vorlage: `domain --examples`, der auch die Spec-Config schreibt.
 5. `tooling-verify:verify` prüft Tag-Schema, dass das Testing-Projekt kein `build` hat und `test` genau bei Libs mit Specs existiert.
@@ -479,7 +479,7 @@ flowchart TB
   WR --> A["api/src/generated<br/>type:data-access · Services (+ core bei merged-core)"]
   WR --> C["core/src/generated<br/>type:data-access · HTTP-Runtime"]
   WR --> TS["testing/src/generated<br/>type:testing · Http, Handlers (Preset testing)"]
-  T & A & C --> DA["Wrapper in &lt;slice&gt;/data-access<br/>DTO → Modell"]
+  T & A & C --> DA["Wrapper in &lt;slice&gt;/data-access<br/>Promise, Fehler · DTOs unverändert"]
   DA --> FE["Stores · Feats"]
 
   UPD["update-spec<br/>url → normalisierte Spec"] --> SPEC
@@ -505,7 +505,7 @@ libs/[<domain>/]generated/<client>/
   core/src/generated/**    type:data-access  Runtime (Configuration, BASE_PATH, provideApi …, importiert HTTP)
   testing/src/generated/** type:testing      openapi-typescript + orval (msw, faker) + openapi-msw (außer pipeline.testing: false)
         ▼
- Wrapper in <slice>/data-access bzw. shared/data-access ── mappt DTO → Modell, Promise statt Observable ──▶ Stores, Feats
+ Wrapper in <slice>/data-access bzw. shared/data-access ── Promise statt Observable, Fehler mit Status, DTOs unverändert ──▶ Stores, Feats, ui
 ```
 
 `*` experimentell: nur mit `settings.features.overlays: true`.
@@ -656,7 +656,7 @@ nx g @mo-transfer/tooling-openapi:client <name> [--domain=<d>] --spec=<datei|url
 | Service-API | `BookingsService.listBookings(): Observable<Booking[]>`, `providedIn: 'root'`, `provideApi()` | `listBookings({ httpClient }): Promise<{ data, error, response }>` | wie das Backend |
 | Models | `interface` + `namespace` (Enums als `const … as const`) | `type` mit Literal-Unions | wie das Backend |
 
-**Tausch-Beweis** am booking-client (Eintrag in `openapi-clients.json` + Wrapper `booking/data-access/src/booking-api.ts`, gemessen auf `feat/nx-blueprint` (extern), `run-many -t build lint test typecheck`, 50 Projekte):
+**Tausch-Beweis** (historisch, damals noch mit Mapping im Wrapper; heute nutzen alle Layer die generierten DTOs direkt, ein Tausch trifft also jede Stelle, an der sich Name oder Form der Typen ändern, z.B. `Booking.StatusEnum` (openapi-tools) vs. Literal-Union (hey-api)) am booking-client (Eintrag in `openapi-clients.json` + Wrapper `booking/data-access/src/booking-api.ts`, gemessen auf `feat/nx-blueprint` (extern), `run-many -t build lint test typecheck`, 50 Projekte):
 
 | Eintrag | Dateien types/api/core | Wrapper | Ergebnis |
 |---|---|---|---|
@@ -670,14 +670,14 @@ nx g @mo-transfer/tooling-openapi:client <name> [--domain=<d>] --spec=<datei|url
 ```ts
 // A (openapi-tools): Observable + HttpErrorResponse
 private readonly bookings = inject(BookingsService);
-return (await firstValueFrom(this.bookings.listBookings(), { defaultValue: [] })).map(toBooking);
+return firstValueFrom(this.bookings.listBookings(), { defaultValue: [] });
 
 // B (hey-api): Promise + Fehler als Wert
 private readonly http = inject(HttpClient);
 const { data, response } = await listBookings({ httpClient: this.http });
 if (!response) return []; // abgebrochen
 if (!response.ok) throw new Error(`GET /api/bookings failed: ${response.status}`);
-return (data ?? []).map(toBooking);
+return data ?? [];
 ```
 
 Die Testing-Lib hängt nicht am Adapter (nur an der Spec), ein Tausch lässt sie im Cache.
@@ -782,9 +782,9 @@ Die Namen der Libs, Dateien und Symbole sind keine Kosmetik: Tags, Aliase, Proje
 | Lib-Ordner | `libs/<scope>/<layer>`, `libs/<scope>/feat-<feat>/<layer>`, `libs/[<d>/]generated/<client>/{types,api,core,testing}`; Layer aus `KNOWN_LAYERS`, Scope aus `lib-scopes.json`, alles kebab-case | `libs/booking/feat-check-booking/state` | Generatoren (`libPathError`, `assertKebabCase`) lehnen ab; von Hand angelegt (`project.json`) meldet `tooling-verify:verify` die Lib (Ordnerregel im Tag-Schema: Form, Layer, kebab-case für Scope/Feat/Client, unabhängig vom Konventions-Code abgeleitet wie die Tags). Neu: kebab-case auch für Feat- und Client-Ordner (`feat-CheckIn` rutschte vorher durch) | umgesetzt |
 | Nx-Projektname | Pfad unter `libs/` mit `-` | `booking-feat-check-booking-state` | Generatoren schreiben ihn in `project.json` (`projectNameFor`), `verify` (Config-Wächter) prüft | besteht |
 | Import-Alias | `@mo-transfer/<pfad>` | `@mo-transfer/booking/state` | exakter `paths`-Eintrag pro Lib + `package.json`-Name (`aliasFor`), von den Generatoren geschrieben, `verify` prüft | besteht |
-| Public API | nur `src/index.ts`, `internal/` wird nicht exportiert | `checkin/state/src/internal/checkin.mapper.ts` | Deep-Import: `no-restricted-imports` (besteht). `internal/` in `index.ts`: `blueprint/no-internal-export` | umgesetzt |
+| Public API | nur `src/index.ts`, `internal/` wird nicht exportiert | `checkin/state/src/internal/next-checkin-id.ts` | Deep-Import: `no-restricted-imports` (besteht). `internal/` in `index.ts`: `blueprint/no-internal-export` | umgesetzt |
 | Ordner unter `src/` | kebab-case | `fixtures/`, `internal/` | `blueprint/lib-file-naming` | umgesetzt |
-| Dateinamen je Layer | `<name>.ts` (Komponente, Service, HTTP-Wrapper) oder `<name>.<kind>.ts`; Kind nur im Layer: model/dto → types, utils → utils, events/mapper/store → state, store → ui/feature, data-access ohne Kind (`<n>-api.ts`, Wrapper), routes/providers/shell → shell, fixture/handlers → testing (in `fixtures/`/`handlers/`); Slice-`types`/`utils` nur mit Kind; Specs wie die Datei + `.spec` | `booking.store.ts`, `booking-card.ts`, `layout.shell.ts` | `blueprint/lib-file-naming` (Tabelle `FILE_KINDS` in den Konventionen) | umgesetzt |
+| Dateinamen je Layer | `<name>.ts` (Komponente, Service, HTTP-Wrapper) oder `<name>.<kind>.ts`; Kind nur im Layer: model → types (nur frontend-eigene Typen, keine DTO-Kopien), utils → utils, events/store → state, store → ui/feature, data-access ohne Kind (`<n>-api.ts`, Wrapper), routes/providers/shell → shell, fixture/handlers → testing (in `fixtures/`/`handlers/`); Slice-`types`/`utils` nur mit Kind; Specs wie die Datei + `.spec` | `booking.store.ts`, `booking-card.ts`, `layout.shell.ts` | `blueprint/lib-file-naming` (Tabelle `FILE_KINDS` in den Konventionen) | umgesetzt |
 | Store | `<n>.store.ts` → `<N>Store`, `*Store` nur in `.store.ts` | `CheckinDeskStore` | `blueprint/layer-symbol-naming` | umgesetzt |
 | HTTP-Klasse | `<n>-api.ts` → `<N>Api`, `*Api`-Klasse nur in `-api.ts` | `BookingApi` | `blueprint/layer-symbol-naming` | umgesetzt |
 | Feat-Container | feature-Lib: `feat-<feat>.ts` → `Feat<Feat>` des Feats der Lib | `FeatCheckBooking` | `blueprint/layer-symbol-naming` | umgesetzt |
@@ -966,7 +966,7 @@ Negativproben Namensschema (je `nx lint <projekt>` rot, danach zurückgebaut):
 | `booking.store.ts` in `booking/utils` | `booking-utils` | `blueprint/lib-file-naming`: belongs into a state/ui/feature lib |
 | `export class Bookings` in `booking/state/src/bookings.store.ts` | `booking-state` | `blueprint/layer-symbol-naming`: must be named "BookingsStore" |
 | Selektor `bk-booking-card` | `booking-ui` | `@angular-eslint/component-selector`: should start with … "app" |
-| `export * from './internal/checkin.mapper'` in `index.ts` | `checkin-state` | `blueprint/no-internal-export`: internal/ is lib-private |
+| `export * from './internal/next-checkin-id'` in `index.ts` | `checkin-state` | `blueprint/no-internal-export`: internal/ is lib-private |
 | Lib-Ordner `booking/feat-CheckIn/feature` (Kopie einer Feature-Lib, `project.json`, Tags und `paths` passend) | – | Graph und `nx lint` laufen; `tooling-verify:verify` rot: *folder "CheckIn" must be kebab-case*. Der Generator lehnt `feat booking CheckIn` ab. (`checkin/feat-CheckIn` geht auf macOS nicht: APFS ist case-insensitiv, `feat-checkin` existiert) |
 
 ## Selbst ausprobieren

@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import type { Checkin } from '@mo-transfer/checkin/generated/checkin-client/types';
 import { CheckinStore } from '@mo-transfer/checkin/state';
 // shared between sibling feats: lives in the slice root (no feat-port)
 import { checkinLabel, describeDesk } from '@mo-transfer/checkin/utils';
@@ -11,8 +12,8 @@ import { checkinLabel, describeDesk } from '@mo-transfer/checkin/utils';
     <h2>Check-in history</h2>
     <p>{{ deskStatus }}</p>
     <ul>
-      @for (record of checkinStore.all(); track record.id) {
-        <li>{{ label(record) }} — {{ record.checkedInAt }}</li>
+      @for (checkin of checkinStore.all(); track checkin.id) {
+        <li>{{ label(checkin) }} — {{ checkin.checked_in_at }}</li>
       }
     </ul>
   `,
@@ -22,7 +23,7 @@ export class FeatHistory {
 
   protected readonly deskStatus = describeDesk({ openArrivals: 0 });
 
-  protected label(record: { guestName: string; bookingId: string }): string {
-    return checkinLabel({ ...record, id: '', checkedInAt: '' });
+  protected label(checkin: Checkin): string {
+    return checkinLabel(checkin);
   }
 }

@@ -1,4 +1,4 @@
-import { Arrival } from '@mo-transfer/checkin/types';
+import type { Arrival } from '@mo-transfer/checkin/generated/checkin-client/types';
 
 let nextId = 1;
 

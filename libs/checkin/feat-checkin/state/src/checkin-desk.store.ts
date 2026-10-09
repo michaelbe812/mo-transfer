@@ -1,7 +1,7 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { CheckinApi } from '@mo-transfer/checkin/data-access';
 import { CheckinStore, guestArrived } from '@mo-transfer/checkin/state';
-import { Arrival } from '@mo-transfer/checkin/types';
+import type { Arrival } from '@mo-transfer/checkin/generated/checkin-client/types';
 
 // boundary-violation-example: import { BookingApi } from '@mo-transfer/booking/data-access'; // foreign slice (never, no port)
 

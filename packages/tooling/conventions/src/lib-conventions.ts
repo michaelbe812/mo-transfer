@@ -80,10 +80,8 @@ export const KEBAB_CASE = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
  */
 export const FILE_KINDS: Record<string, string[]> = {
   model: ['types'],
-  dto: ['types'],
   utils: ['utils'],
   events: ['state'],
-  mapper: ['state'],
   store: ['state', 'ui', 'feature'],
   routes: ['shell'],
   providers: ['shell'],

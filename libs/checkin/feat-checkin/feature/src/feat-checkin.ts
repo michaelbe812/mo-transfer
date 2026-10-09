@@ -3,7 +3,7 @@ import { AuthStore } from '@mo-transfer/shared/state';
 import { AppButton } from '@mo-transfer/shared/ui';
 import { pluralize } from '@mo-transfer/shared/utils';
 import { CheckinStore, guestArrived } from '@mo-transfer/checkin/state';
-import { Arrival } from '@mo-transfer/checkin/types';
+import type { Arrival } from '@mo-transfer/checkin/generated/checkin-client/types';
 import { ArrivalList } from '@mo-transfer/checkin/ui';
 import { CheckinDeskStore } from '@mo-transfer/checkin/feat-checkin/state';
 
@@ -25,7 +25,7 @@ import { CheckinDeskStore } from '@mo-transfer/checkin/feat-checkin/state';
       <app-button (clicked)="desk.checkIn(arrival)">Check in {{ arrival.guestName }}</app-button>
     }
     <h3>Checked in today ({{ checkinStore.count() }})</h3>
-    <app-arrival-list [records]="checkinStore.all()" (arrived)="onWalkIn($event)" />
+    <app-arrival-list [checkins]="checkinStore.all()" (arrived)="onWalkIn($event)" />
   `,
 })
 export class FeatCheckin {

@@ -26,7 +26,7 @@ describe('BookingApi with the generated default handlers of the booking-client',
   // generated baseline: every operation of the booking-client answers with the spec examples
   beforeEach(() => worker.use(...bookingClientHandlers));
 
-  test('maps the spec examples to domain bookings', async () => {
+  test('returns the spec examples as generated DTOs', async () => {
     const bookings = await TestBed.inject(BookingApi).loadBookings();
 
     expect(bookings.length).toBeGreaterThan(0);

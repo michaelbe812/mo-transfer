@@ -1,2 +1,1 @@
-export * from './booking.model';
-export * from './booking-notification.model';
+export * from './check-summary.model';

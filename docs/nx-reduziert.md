@@ -6,6 +6,10 @@
 - **keine Ports:** keine Marker `port`/`feat-port`, kein `InjectionToken`-Contract, kein `provideX()`-Wiring zwischen Contract und Impl.
 - **Slices sind geschlossen:** ein Slice importiert nie einen anderen Slice, ein Feat nie ein Geschwister-Feat. Gemeinsames liegt in `shared` bzw. in den Slice-Root-Libs. Die App komponiert Slices nur über ihre Shell (`entry`).
 
+- **Generierte DTOs sind das Modell:** Backend-Daten fließen als generierte DTOs (`<client>/types`) unverändert durch alle Layer bis in die ui. Keine eigenen Domänenmodelle, keine DTO-Kopien, keine Mapper.
+
+**Slice (Vertical):** Wir setzen eine Vertical-Slice-Architektur ein. Ein Slice ist immer eine in sich geschlossene Einheit, ein in sich geschlossenes Feature. Das kann eine Fachdomäne sein (booking, checkin), muss aber nicht: auch eine abgeschlossene Funktionalität oder das Layout (`layout`) ist ein Slice. Der Generator heißt aus historischen Gründen `domain`, legt aber jeden Slice an.
+
 Alles Übrige aus [`nx-umsetzung.md`](./nx-umsetzung.md) gilt unverändert (Build, Cache-Inputs, Testing & MSW, OpenAPI-Clients, Namensschema, Tooling). Dieses Dokument beschreibt nur, was anders ist.
 
 ## Struktur
@@ -13,7 +17,7 @@ Alles Übrige aus [`nx-umsetzung.md`](./nx-umsetzung.md) gilt unverändert (Buil
 ```
 apps/client/src/            type:app            dünne Shell: nur entry (Slice-Shells) + shared
 libs/
-  <slice>/                  booking, checkin, layout
+  <slice>/                  Vertical = geschlossenes Feature: booking, checkin, layout
     types/ utils/ data-access/ state/ ui/  scope:<slice> type:<layer> feat:none
     shell/                                 type:feature + entry   routes/providers = Slice-Root
     feat-<feat>/
@@ -24,8 +28,9 @@ libs/
   <domain>/generated/<client>/types|api|core|testing  scope:<domain> ┘ (HTTP gehört in data-access)
 ```
 
-- `data-access` = HTTP-Zugriff: `<name>-api.ts` (Klasse `<Name>Api`), Wrapper um generierte Clients (`booking-notifications.ts`), `ApiHttp` (`shared/data-access/http-client.ts`). Keine Stores, keine Events.
-- `state` = Signal Stores (`.store.ts`), Domain-Events (`.events.ts`), Mapper (`internal/*.mapper.ts`). Lädt über `data-access`.
+- `types` = Typen des Slice, die kein Backend-Vertrag sind (`CheckSummary`, `DeskSummary`). Backend-Daten nie hier, sondern als generierte DTOs aus `<client>/types` (auch `type:types`, also von jedem Layer importierbar).
+- `data-access` = HTTP-Zugriff: `<name>-api.ts` (Klasse `<Name>Api`), Wrapper um generierte Clients (`booking-notifications.ts`), `ApiHttp` (`shared/data-access/http-client.ts`). Gibt die generierten DTOs unverändert zurück, macht nur Promise statt Observable und Fehler mit Status. Keine Stores, keine Events, kein Mapping.
+- `state` = Signal Stores (`.store.ts`), Domain-Events (`.events.ts`). Lädt über `data-access`, hält die DTOs unverändert.
 - `api`/`core` sind nur noch Ordnernamen der generierten Clients, kein Layer.
 
 ## Regeln (`eslint.config.mjs`)
@@ -35,7 +40,7 @@ libs/
 type:types       -> types                                 + bannedExternalImports ['*']
 type:utils       -> types, utils
 type:data-access -> types, utils, data-access             (HTTP-Wrapper; generierte api/core)
-type:state       -> types, utils, data-access, state      (Stores, Events, Mapper)
+type:state       -> types, utils, data-access, state      (Stores, Events)
 type:ui          -> types, utils, ui                      (NICHT state/data-access: Werte per output() raus)
 type:feature     -> alle Produktions-Layer
 type:app     -> entry, scope:shared        UND nur Produktions-Layer
@@ -96,6 +101,17 @@ nx sync                                                                      # l
 
 `move` schreibt alle `@mo-transfer/<slice>/data`-Importe auf `…/state` um, `layer` legt nur fehlende Dateien an (`writeIfMissing`) und leitet die `peerDependencies` aus den schon verschobenen Quellen ab. Von Hand: `index.ts` der neuen Libs, Stores importieren `<Name>Api` aus `@mo-transfer/<slice>/data-access`, `peerDependencies` von `state` (nur noch `@angular/core`), `shared/state` ohne Specs → ohne `test`-Target/`tsconfig.spec.json` (verify meldet beides), Template-Datei `shared-api.ts` des Layer-Generators gelöscht. Danach `nx reset`: ohne Daemon hielt der Graph-Cache die alten Import-Auflösungen (`checkin-state` ohne Kante auf `checkin-data-access` → Build zog Quellen statt dist).
 
+### Schritt 3: generierte DTOs statt eigener Modelle
+
+| vorher | jetzt |
+|---|---|
+| `booking/types` (`Booking`, `BookingNotification`), `checkin/types` (`Arrival`, `CheckinDto`, `CheckinRecord`, `CheckinNotification`) | entfernt; alle Layer importieren `Booking`, `Arrival`, `Checkin`, `Notification` aus `<client>/types` |
+| `toBooking`, `toBookingNotification`, `toCheckinDto`, `toArrival`, `toCheckinNotification` in den Wrappern | entfernt; Wrapper geben die DTOs unverändert zurück |
+| `checkin/state/src/internal/checkin.mapper.ts` (`toCheckinRecord`) | entfernt; Beispiel für `internal/` ist jetzt `next-checkin-id.ts` |
+| `CheckSummary`/`DeskSummary` in `utils` | in `types` (`check-summary.model.ts`, `desk-summary.model.ts`): frontend-eigene Typen |
+| Datei-Kinds `dto` (types), `mapper` (state), ESLint-Ausnahme für `*.dto.ts` | entfernt |
+| Domain-Generator: `<d>.model.ts` als Domänenmodell | Platzhalter, bis der Slice einen generierten Client hat |
+
 ## Tooling
 
 | Teil | Änderung |
@@ -135,6 +151,7 @@ In `sheriff-blue-print` (Herkunft), Stand nach `data` → `data-access` + `state
 ## Trade-offs
 
 **Gewinn**
+- Eine Typwelt: generierte DTOs vom Backend bis in die ui, kein Mapping-Code, keine DTO-Kopien.
 - Ein Konzept weniger: keine Ports, keine Contract/Impl-Trennung, kein Wiring. HTTP liegt an genau einer Stelle (`data-access`), Zustand an einer anderen (`state`) — die Lint-Regel trennt sie, nicht eine Konvention.
 - 6 Libs weniger in der Demo (26 statt 32 Blueprint-Libs ohne testing/generated), keine Token-Indirektion beim Debuggen.
 - Klare, leicht erklärbare Regel: „nur eigener Slice + shared“.
@@ -146,11 +163,12 @@ In `sheriff-blue-print` (Herkunft), Stand nach `data` → `data-access` + `state
 - **ui ohne Events:** Dumme Komponenten geben nur Werte heraus, der Container baut das Event — etwas mehr Code im Container.
 - **Generierter Client-Code ist `type:data-access`:** `client api → domain data-access` blockt nur der Zyklus, nicht die Layer-Regel (Verify-Fall dokumentiert das); `client api → domain state` blockt zusätzlich die Matrix.
 - **Eine Lib mehr pro Slice** (`data-access` neben `state`): Store und HTTP-Wrapper liegen nicht mehr zusammen.
+- **DTOs bis in die ui:** eine Spec-Änderung (Feld umbenannt, Enum erweitert) oder ein Adapterwechsel (`Booking.StatusEnum` bei openapi-tools vs. Literal-Union bei hey-api) schlägt in allen Layern durch, nicht nur im Wrapper. Gewollt: der Compiler zeigt jede betroffene Stelle, es gibt keine zweite Typwelt und keinen Mapping-Code. Backend-Namen (snake_case) stehen im Frontend-Code.
 
 ## Entscheidungen
 
 - **`shared/state` darf Zustand halten** (z.B. `AuthStore`). Ohne Ports ist `shared` der einzige Ort für Zustand, den mehrere Slices brauchen. Kein eigener Marker.
-- **Mapper in `state`** (`internal/checkin.mapper.ts`, DTO → Domäne beim Laden in den Store). `data-access` liefert DTOs bzw. Domänenmodelle, die Wrapper um generierte Clients mappen weiter selbst (`toBooking`, Anti-Corruption direkt am generierten Service).
+- **Generierte DTOs sind das Modell, keine Mapper.** Stores, Feats, ui, utils und Test-Fixtures nutzen die DTOs der generierten Clients direkt (`Booking`, `Checkin`, `Arrival`, `Notification`), auch in snake_case, wenn das Backend so liefert (`checkin.guest_name`). `<slice>/types` hält nur frontend-eigene Typen. Kein `.dto.ts`, kein `.mapper.ts`: `blueprint/lib-file-naming` meldet beide als unbekannte Kind. Preis siehe Trade-offs.
 - **Feat-eigenes `data-access` erlaubt** (Konvention generisch: alle Layer außer shell/testing), der `feat`-Generator bietet nur `--state --ui`, die Demo braucht keins.
 - **`app` darf `shared/data-access`** (über `scope:shared` + Produktions-Layer), Slice-`data-access` nicht.
 - **`layout` bleibt eigener Slice**, nur von der App über `layout/shell` komponiert.

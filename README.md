@@ -8,7 +8,7 @@
 
 ## Blueprint
 
-Architektur: reduzierter Nx-Blueprint (übernommen aus sheriff-blue-print, Branch `feat/nx-reduced-blueprint`). Eine Nx-Lib pro Slice × Layer (`types`, `utils`, `data-access`, `state`, `ui`, `feature`/`shell`, `testing`), keine Ports, Slices und Feats geschlossen. Grenzen: Tags + `@nx/enforce-module-boundaries` in `eslint.config.mjs`. Import-Präfix `@mo-transfer/`.
+Architektur: reduzierter Nx-Blueprint (übernommen aus sheriff-blue-print, Branch `feat/nx-reduced-blueprint`). Eine Nx-Lib pro Slice × Layer (`types`, `utils`, `data-access`, `state`, `ui`, `feature`/`shell`, `testing`), keine Ports, Slices (Verticals = geschlossene Features) und Feats geschlossen, generierte DTOs unverändert in allen Layern (keine Mapper). Grenzen: Tags + `@nx/enforce-module-boundaries` in `eslint.config.mjs`. Import-Präfix `@mo-transfer/`.
 
 - Regelwerk: [`docs/nx-reduziert.md`](docs/nx-reduziert.md)
 - Umsetzung (Build, Testing/MSW, OpenAPI-Clients, Namensschema, Tooling): [`docs/nx-umsetzung.md`](docs/nx-umsetzung.md)
@@ -26,7 +26,7 @@ pnpm exec nx sync:check                             # app.routes.ts ↔ Slice-Sh
 pnpm exec nx serve client
 pnpm test:ui booking-state                          # Vitest UI
 
-# neue Domain / Feat / OpenAPI-Client
+# neuer Slice / Feat / OpenAPI-Client
 pnpm exec nx g @mo-transfer/tooling-workspace:domain payment
 pnpm exec nx g @mo-transfer/tooling-workspace:feat payment checkout --state --ui
 pnpm exec nx g @mo-transfer/tooling-openapi:client things-client --domain=payment --spec=./things.yaml

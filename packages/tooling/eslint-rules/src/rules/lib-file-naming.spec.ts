@@ -11,7 +11,7 @@ ruleTester.run(RULE_NAME, libFileNaming, {
   valid: [
     // every file of the example slices (booking/checkin/layout/shared)
     file('booking/types/src/booking.model.ts'),
-    file('checkin/types/src/checkin.dto.ts'),
+    file('checkin/types/src/desk-summary.model.ts'),
     file('booking/utils/src/booking.utils.ts'),
     file('booking/data-access/src/booking-api.ts'),
     file('booking/data-access/src/booking-notifications.ts'),
@@ -20,7 +20,7 @@ ruleTester.run(RULE_NAME, libFileNaming, {
     file('booking/state/src/booking.events.ts'),
     file('booking/state/src/booking.store.ts'),
     file('booking/state/src/booking.store.spec.ts'),
-    file('checkin/state/src/internal/checkin.mapper.ts'),
+    file('checkin/state/src/internal/next-checkin-id.ts'),
     file('booking/ui/src/booking-card.ts'),
     file('booking/ui/src/booking-card.store.ts'),
     file('booking/feat-check-booking/feature/src/feat-check-booking.ts'),
@@ -54,15 +54,17 @@ ruleTester.run(RULE_NAME, libFileNaming, {
     }),
     invalid('booking/ui/src/booking.routes.ts', 'kindLayer'),
     invalid('checkin/feat-checkin/state/src/desk.model.ts', 'kindLayer'),
-    // stores, events and mappers are state kinds — data-access holds plain HTTP wrappers only
+    // stores and events are state kinds — data-access holds plain HTTP wrappers only
     invalid('booking/data-access/src/booking.store.ts', 'kindLayer'),
     invalid('booking/data-access/src/booking.events.ts', 'kindLayer'),
-    invalid('checkin/data-access/src/internal/checkin.mapper.ts', 'kindLayer'),
+    // no DTO copies, no mappers: the generated DTOs are used as they are
+    invalid('checkin/types/src/checkin.dto.ts', 'unknownKind'),
+    invalid('checkin/state/src/internal/checkin.mapper.ts', 'unknownKind'),
     invalid('booking/types/src/booking.ts', 'plainFile', {
       file: 'booking.ts',
       layer: 'types',
       lib: 'libs/booking/types',
-      expected: 'booking.model.ts | booking.dto.ts',
+      expected: 'booking.model.ts',
     }),
     invalid('booking/utils/src/format.ts', 'plainFile'),
     // events are a kind of the state layer (no events layer)
@@ -71,7 +73,7 @@ ruleTester.run(RULE_NAME, libFileNaming, {
       file: 'booking.service.ts',
       kind: 'service',
       layer: 'state',
-      allowed: 'booking.ts | booking.events.ts | booking.mapper.ts | booking.store.ts',
+      allowed: 'booking.ts | booking.events.ts | booking.store.ts',
     }),
     invalid('booking/ui/src/booking-card.component.ts', 'unknownKind'),
     invalid('booking/ui/src/BookingCard.ts', 'fileCase', { file: 'BookingCard.ts', name: 'BookingCard' }),

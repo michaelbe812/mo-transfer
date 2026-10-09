@@ -125,8 +125,8 @@ const cases = [
   blocked('app: lib -> app', 'libs/booking/utils', 'apps/client/src/app/app', 'Projects cannot be imported by a relative or absolute path'),
 
   // encapsulation (public API = index.ts)
-  blocked('encapsulation: relative into foreign lib', 'libs/checkin/ui', '../../state/src/internal/checkin.mapper', 'Projects cannot be imported by a relative or absolute path'),
-  blocked('encapsulation: deep alias import', 'libs/checkin/feat-checkin/state', '@mo-transfer/checkin/state/src/internal/checkin.mapper', 'Deep import'),
+  blocked('encapsulation: relative into foreign lib', 'libs/checkin/ui', '../../state/src/internal/next-checkin-id', 'Projects cannot be imported by a relative or absolute path'),
+  blocked('encapsulation: deep alias import', 'libs/checkin/feat-checkin/state', '@mo-transfer/checkin/state/src/internal/next-checkin-id', 'Deep import'),
 
   // Nx-only extras: HTTP only in data-access
   blocked('nx: http not in ui', 'libs/booking/ui', '@angular/common/http', '@angular/common/http'),
@@ -286,7 +286,7 @@ const namingCases = [
   naming('naming: routes export ↔ scope', 'libs/booking/shell/src/booking.routes.ts', 'export const routes = [];\n', 'blueprint/layer-symbol-naming', '"bookingRoutes"'),
   naming('naming: component selector ↔ file', 'libs/booking/ui/src/tmp-verify.ts', component('app-other', 'TmpVerify'), 'blueprint/layer-symbol-naming', '"app-tmp-verify"'),
   naming('naming: component selector prefix', 'libs/booking/ui/src/tmp-verify.ts', component('bk-tmp-verify', 'TmpVerify'), '@angular-eslint/component-selector', 'prefix'),
-  naming('naming: internal/ in public API', 'libs/checkin/state/src/index.ts', "export * from './internal/checkin.mapper';\n", 'blueprint/no-internal-export', 'internal/ is lib-private'),
+  naming('naming: internal/ in public API', 'libs/checkin/state/src/index.ts', "export * from './internal/next-checkin-id';\n", 'blueprint/no-internal-export', 'internal/ is lib-private'),
   naming('naming: casing (class)', 'libs/booking/state/src/tmp-verify.ts', 'export class tmp_verify {}\n', '@typescript-eslint/naming-convention', 'PascalCase'),
   naming('naming: conforming names', 'libs/booking/state/src/tmp-verify.store.ts', 'export class TmpVerifyStore {}\n'),
   naming('naming: conforming HTTP wrapper', 'libs/booking/data-access/src/tmp-verify-api.ts', 'export class TmpVerifyApi {}\n'),

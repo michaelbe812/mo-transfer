@@ -1,21 +1,21 @@
 import { checkinClientHandlers, checkinClientHttp } from '@mo-transfer/checkin/generated/checkin-client/testing';
+import type { Arrival, Checkin } from '@mo-transfer/checkin/generated/checkin-client/types';
 import { notificationClientHandlers } from '@mo-transfer/generated/notification-client/testing';
-import { Arrival, CheckinDto } from '@mo-transfer/checkin/types';
 import { type Scenarios, withBaseline } from '@mo-transfer/shared/testing';
-import { aCheckinDto } from '../fixtures/checkin.fixture';
+import { aCheckin } from '../fixtures/checkin.fixture';
 
 /**
  * Backend contract of the checkin domain = the specs of its generated clients (checkin-client, the shared
  * notification-client). `checkinClientHttp` (openapi-msw) only accepts their paths, status codes and bodies — a
  * spec change breaks these handlers at compile time.
  */
-export const defaultCheckinDtos: CheckinDto[] = [
-  aCheckinDto({ id: 'c-1', booking_id: 'b-100', guest_name: 'Katherine Johnson' }),
+export const defaultCheckins: Checkin[] = [
+  aCheckin({ id: 'c-1', booking_id: 'b-100', guest_name: 'Katherine Johnson' }),
 ];
 
-/** Curated: the backend returns the default check-ins (hand-written fixtures in the raw backend shape). */
+/** Curated: the backend returns the default check-ins (hand-written fixtures, typed with the generated DTO). */
 const curatedCheckinHandlers = [
-  checkinClientHttp.get('/checkins', ({ response }) => response(200).json(defaultCheckinDtos)),
+  checkinClientHttp.get('/checkins', ({ response }) => response(200).json(defaultCheckins)),
 ];
 
 /**
@@ -27,7 +27,8 @@ export const checkinHandlers = withBaseline(curatedCheckinHandlers, checkinClien
 
 /** Deviations for a single test: `worker.use(checkinScenarios.empty())`. */
 export const checkinScenarios = {
-  withCheckins: (dtos: CheckinDto[]) => checkinClientHttp.get('/checkins', ({ response }) => response(200).json(dtos)),
+  withCheckins: (checkins: Checkin[]) =>
+    checkinClientHttp.get('/checkins', ({ response }) => response(200).json(checkins)),
   empty: () => checkinClientHttp.get('/checkins', ({ response }) => response(200).json([])),
   serverError: () =>
     checkinClientHttp.get('/checkins', ({ response }) =>
