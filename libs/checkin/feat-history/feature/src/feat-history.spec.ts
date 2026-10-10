@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { CheckinStore, deskUpdated } from '@mo-transfer/checkin/state';
 import { checkinHandlers, checkinScenarios } from '@mo-transfer/checkin/testing';
 import { test, worker } from '@mo-transfer/shared/testing';
 import { beforeEach, describe, expect } from 'vitest';
@@ -21,6 +22,15 @@ describe('FeatHistory (rendered in Chromium, backend via MSW)', () => {
     await expect
       .element(page.getByRole('listitem'))
       .toHaveTextContent('Katherine Johnson (b-100) — 2026-10-01T14:00:00.000Z');
+  });
+
+  test('shows the open arrivals the desk reported (slice root state)', async () => {
+    // arrange through the slice root's public API (in the app: feat-checkin loads arrivals)
+    TestBed.inject(CheckinStore).handle(deskUpdated(1));
+
+    renderHistory();
+
+    await expect.element(page.getByText('1 open arrival at the desk')).toBeVisible();
   });
 
   test('shows an empty history when the backend has no check-ins', async ({ worker }) => {

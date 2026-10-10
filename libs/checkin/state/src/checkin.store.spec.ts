@@ -3,6 +3,7 @@ import { CheckinNotifications } from '@mo-transfer/checkin/data-access';
 import { aCheckin, checkinHandlers, checkinScenarios, defaultCheckins } from '@mo-transfer/checkin/testing';
 import { test, worker } from '@mo-transfer/shared/testing';
 import { beforeEach, describe, expect } from 'vitest';
+import { deskUpdated } from './checkin.events';
 import { CheckinStore } from './checkin.store';
 
 describe('CheckinStore', () => {
@@ -62,5 +63,14 @@ describe('CheckinStore', () => {
 
     expect(store.loadError()).toBeNull();
     expect(store.all()).toEqual(defaultCheckins);
+  });
+
+  test('keeps the desk state the desk reports — a clear desk until then', () => {
+    const store = TestBed.inject(CheckinStore);
+    expect(store.desk()).toEqual({ openArrivals: 0 });
+
+    store.handle(deskUpdated(2));
+
+    expect(store.desk()).toEqual({ openArrivals: 2 });
   });
 });

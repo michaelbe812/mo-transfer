@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import type { Checkin } from '@mo-transfer/checkin/generated/checkin-client/types';
 import { CheckinStore } from '@mo-transfer/checkin/state';
 // shared between sibling feats: lives in the slice root (no feat-port)
@@ -13,7 +13,7 @@ import { checkinLabel, describeDesk } from '@mo-transfer/checkin/utils';
     @if (checkinStore.loadError(); as error) {
       <p role="alert">Check-ins could not be loaded: {{ error }}</p>
     }
-    <p>{{ deskStatus }}</p>
+    <p>{{ deskStatus() }}</p>
     <ul>
       @for (checkin of checkinStore.all(); track checkin.id) {
         <li>{{ label(checkin) }} — {{ checkin.checked_in_at }}</li>
@@ -24,7 +24,7 @@ import { checkinLabel, describeDesk } from '@mo-transfer/checkin/utils';
 export class FeatHistory {
   protected readonly checkinStore = inject(CheckinStore);
 
-  protected readonly deskStatus = describeDesk({ openArrivals: 0 });
+  protected readonly deskStatus = computed(() => describeDesk(this.checkinStore.desk()));
 
   constructor() {
     void this.checkinStore.ensureLoaded();
