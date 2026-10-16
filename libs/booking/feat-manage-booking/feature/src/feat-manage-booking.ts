@@ -29,6 +29,6 @@ export class FeatManageBooking {
   });
 
   constructor() {
-    void this.bookingStore.ensureLoaded();
+    this.bookingStore.ensureLoaded();
   }
 }

@@ -24,7 +24,7 @@ export class FeatCheckBooking {
   protected readonly checkStore = inject(CheckBookingStore);
 
   constructor() {
-    void this.bookingStore.ensureLoaded();
+    this.bookingStore.ensureLoaded();
   }
 
   protected onConfirmed(bookingId: string): void {

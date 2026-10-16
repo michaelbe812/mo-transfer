@@ -1,3 +1,4 @@
+import { ApplicationRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { bookingConfirmed, BookingStore } from '@mo-transfer/booking/state';
 import { bookingHandlers, bookingScenarios } from '@mo-transfer/booking/testing';
@@ -40,7 +41,9 @@ describe('FeatManageBooking (rendered in Chromium, backend via MSW)', () => {
     test('shows the last check with booking and time', async () => {
       // arrange through the slice root's public API (in the app: feat-check-booking confirms)
       const store = TestBed.inject(BookingStore);
-      await store.ensureLoaded();
+      store.ensureLoaded();
+      // a loading resource is a pending task (not expect.poll: it advances the faked Date)
+      await TestBed.inject(ApplicationRef).whenStable();
       store.handle(bookingConfirmed('b-100'));
 
       renderManageBooking();
