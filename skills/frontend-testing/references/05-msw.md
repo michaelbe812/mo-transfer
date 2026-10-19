@@ -10,16 +10,15 @@ Setting MSW up from scratch: `08-msw-setup.md`.
 
 | Piece | Lib | Content |
 |---|---|---|
-| `worker`, `test`, `FAKER_SEED`, `withBaseline`, `Scenarios` | `libs/shared/testing` | one `setupWorker()` + Vitest `test.extend` with auto fixture `worker`; layering helper + scenario type |
+| `worker`, `test`, `withBaseline`, `Scenarios`, `aNotification()` | `libs/shared/testing` | one `setupWorker()` + Vitest `test.extend` with auto fixture `worker`; layering helper + scenario type; builders of the shared clients |
 | `a<X>()` builders | `libs/<slice>/testing/src/fixtures/` | valid generated DTOs with sensible defaults, `overrides` |
 | `<slice>Handlers`, `<slice>Scenarios`, `default<X>s` | `libs/<slice>/testing/src/handlers/` | curated defaults on the generated baseline + named deviations, typed via `<client>Http` |
-| `<client>Http`, `paths` (+ `<client>Handlers`, `get<Op>ResponseMock()`, `get<Op>MockHandler()` with fake data) | `libs/[<slice>/]generated/<client>/testing` | generated from the OpenAPI spec (openapi-typescript, openapi-msw; mocks engine `schema-faker`) |
+| `<client>Http`, `paths` (+ `<client>Handlers`, bodies from spec examples) | `libs/[<slice>/]generated/<client>/testing` | generated from the OpenAPI spec (openapi-typescript, openapi-msw; mocks engine `examples`) |
 
 ## 2. The worker fixture (`shared/testing`)
 
 ```ts
 export const worker = setupWorker();                    // no initial handlers
-export const FAKER_SEED = 42;
 
 let workerStarted: Promise<unknown> | undefined;
 function startWorker(): Promise<unknown> {
@@ -34,7 +33,6 @@ function startWorker(): Promise<unknown> {
 export const test = testBase.extend<{ worker: typeof worker }>({
   worker: [
     async ({}, use) => {
-      faker.seed(FAKER_SEED);                           // deterministic generated data per test
       await startWorker();
       await use(worker);
       worker.resetHandlers();                           // removes defaults AND overrides
@@ -51,8 +49,7 @@ Rules:
   goes red instead of silently hitting a real backend.
 - **`resetHandlers()` after every test**, **no `stop()`** (redundant in the browser, per recipe).
 - `setupWorker()` **without** handlers: each spec states its defaults (no hidden global setup file).
-- Every spec imports `test` from `@mo-transfer/shared/testing`, not from `vitest` (otherwise no fixture → no worker,
-  no global seed). `describe`/`expect`/`beforeEach`/`vi` still come from `vitest`.
+- Every spec imports `test` from `@mo-transfer/shared/testing`, not from `vitest` (otherwise no fixture → no worker). `describe`/`expect`/`beforeEach`/`vi` still come from `vitest`.
 
 ## 3. Defaults per spec, deviations per test
 
@@ -72,7 +69,7 @@ describe('…', () => {
 });
 ```
 
-Order (Vitest 4 resolves auto fixtures for `beforeEach` too): fixture setup (worker running, seed set) →
+Order (Vitest 4 resolves auto fixtures for `beforeEach` too): fixture setup (worker running) →
 `beforeEach` (defaults) → test (`worker.use` prepends, newest handler wins) → fixture teardown (`resetHandlers`).
 Without `resetHandlers` a follow-up test sees stale overrides.
 
@@ -131,13 +128,13 @@ Generated per client from `openapi.yaml|json` (never committed, `generate-api-te
 |---|---|---|
 | `schema.ts` | openapi-typescript | `paths`, `components`, `operations` |
 | `http.ts` | openapi-msw | `<client>Http = createOpenApiHttp<paths>({ baseUrl })`, `<client>BaseUrl` |
-| `mocks.ts`, `model.ts`, `mock-runtime.ts` | schema-faker (spec examples first, faker for the rest) | `get<Op>MockHandler(override?)`, `get<Op>ResponseMock()` |
-| `handlers.ts` | – | `<client>Handlers`: one default handler per operation |
+| `handlers.ts` | testing preset (`examples`) | `<client>Handlers`: one handler per operation on `<client>Http`, body computed at generation time (spec examples, fixed placeholders otherwise) – typecheck checks it against the spec |
 
 Mocks engine (`openapi-clients.json → settings.testing.mocks`, per client `pipeline.testing.mocks`): **`none`** is the
-library default (only `schema.ts`, `http.ts`, `index.ts` — no fake data, handlers by hand on `<client>Http`);
-`schema-faker` adds the last two rows (this repo opts in, the slice baseline needs `<client>Handlers`); `orval` is
-deprecated. Details: `packages/tooling/openapi/README.md`.
+library default (only `schema.ts`, `http.ts`, `index.ts` — handlers by hand on `<client>Http`); `examples` adds
+`handlers.ts` (this repo opts in, the slice baseline needs `<client>Handlers`). No generated test data, no faker:
+generated lib = contract + baseline, test data = builders in the slice testing lib. Details:
+`packages/tooling/openapi/README.md`.
 
 ```ts
 beforeEach(() => worker.use(...<client>Handlers));                                // generated defaults
@@ -148,22 +145,18 @@ worker.use(<client>Http.get('/<items>', ({ response }) => response('default').js
 
 - **Typed handlers stop mock drift** (deck slide 10): a spec change breaks hand-written handlers at typecheck.
 - Use `<client>Http` for all hand-written handlers in `<slice>/testing` and for per-test overrides.
-- Generated defaults are good for "something valid comes back" (data-access, smoke). Assert on spec `example` values,
-  on values derived from `get<Op>ResponseMock()` (exactly the handler data), or on structure – put `example` on every
-  property of your own specs. Generated literals are allowed (stable, see §6) but use them sparingly.
-- Generated factories as data: `const [example] = get<Op>ResponseMock(); { ...example, id: 'n-1' }`.
+- Generated defaults are good for "something valid comes back" (data-access, smoke). Assert on spec `example` values
+  literally (`[{ id: 10, name: 'doggie' }]`) or on structure – put `example` on every property of your own specs
+  (otherwise placeholders: property name, `0`, `false`, `2026-01-01`).
+- Test data for overrides: builders, not generated factories – `aCheckin({ id: 'c-7' })`, `aNotification({ read: true })`.
 
 ## 6. Determinism and unhandled requests
 
-- schema-faker data is stable without any seed: every value has its own seed (operation + instance path + fingerprint
-  of its schema), dates relative to `MOCK_REF_DATE` (2026-01-01, UTC; `configureFakeData({ refDate })`). It changes
-  only with the spec or a deliberate faker upgrade (faker pinned exactly → own PR, `vitest -u`, review the diff) –
-  never with date, test/call order or other operations. Limits: query params are not part of the key, no list↔detail
-  consistency.
-- `faker.seed(FAKER_SEED)` before every test → code using the GLOBAL faker (hand-written builders, deprecated orval
-  engine) is identical in every run and order.
-- **Tests never assert unseeded random values.** Assert builder defaults, explicit overrides, spec examples, values
-  derived from `get<Op>ResponseMock()`, or counts you served.
+- Generated baseline is deterministic by construction: bodies are literals written at generation time (same spec →
+  byte-identical `handlers.ts`), no seed, no faker. Limits: one static response per operation (query/path params
+  ignored), no list↔detail consistency.
+- **Tests never assert random values.** Assert builder defaults, explicit overrides, spec examples, or counts you
+  served.
 - No handler → red. Prove it once per data-access class: a test without `worker.use` expecting the rejection and the MSW error log
   (`examples/data-access.spec.ts`, first test). Mutation probe: remove the `beforeEach` → spec must fail with
   `[MSW] Error: intercepted a request without a matching request handler`.

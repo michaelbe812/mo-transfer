@@ -11,8 +11,8 @@ import type { LibFiles, SliceNames } from './slice-templates';
 const SHARED_TESTING = aliasFor('shared/testing');
 
 /**
- * Scaffold: `<slice>Handlers` = curated (empty) + the `<client>Handlers` baseline of every own client with fake data
- * (mocks engine schema-faker/orval); `<slice>Scenarios` empty. The comment points at each client's typed `<client>Http`.
+ * Scaffold: `<slice>Handlers` = curated (empty) + the `<client>Handlers` baseline of every own client with generated
+ * handlers (mocks engine examples); `<slice>Scenarios` empty. The comment points at each client's typed `<client>Http`.
  */
 export function testingScaffoldFiles(n: SliceNames, clients: readonly ClientTestingExports[]): LibFiles {
   const baselines = clients.filter((client) => client.handlers);

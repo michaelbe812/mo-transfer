@@ -58,7 +58,7 @@ Rules:
 
 `data-access` is the only layer with HTTP (`<name>-api.ts` → `<Name>Api`, wrappers like `BookingNotifications`).
 Test it against the generated client + MSW (`examples/data-access.spec.ts`):
-- generated default handlers (`<client>Handlers`) → assert the **spec examples** (deterministic), never faker values,
+- generated default handlers (`<client>Handlers`) → assert the **spec examples** (deterministic, computed at generation time),
 - typed override via `<client>Http` → what the test serves comes back unchanged,
 - documented error response → translated `Error` (`GET /api/<items> failed: 503`),
 - no handler at all → the test **must fail** (`onUnhandledFrame: 'error'`; see `05-msw.md` §6).

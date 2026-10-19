@@ -1,6 +1,6 @@
 # OpenAPI-Tooling: Pipeline-Architektur
 
-Architektur von `@mo-transfer/tooling-openapi`: Owner-Entscheidungen 1–8 + Feature-Flag für Overlays. Bedienung und Consumer-Guide: [`packages/tooling/openapi/README.md`](../packages/tooling/openapi/README.md), Einbettung in den Blueprint: [`docs/nx-umsetzung.md` → OpenAPI-Clients](nx-umsetzung.md#openapi-clients).
+Architektur von `@mo-transfer/tooling-openapi`: Owner-Entscheidungen 1–8 + Feature-Flag für Overlays. Bedienung und Consumer-Guide: [`packages/tooling/openapi/README.md`](../packages/tooling/openapi/README.md), Einbettung in den Blueprint: [OpenAPI-Clients](openapi-clients.md).
 
 ## Architektur
 
@@ -34,7 +34,7 @@ flowchart LR
 | SPI v1 | `src/adapter.ts` (Export `./adapter`) | `defineAdapter`, `defineTransform`, `defineScaffold`, Kontext-Typen, `listTsFiles` |
 | Contract-Test | `src/adapter-testing.ts` (Export `./adapter-testing`) | `runAdapterContract(adapter, { specFile })` über die echten Stages |
 | Pipeline | `src/pipeline/runner.ts` + Stages | feste Reihenfolge, typisierter Kontext, Fehler mit Phase |
-| Presets | `pipeline/client-preset.ts`, `testing-preset.ts` | `generate-api-client` (Adapter → types/api/core) und `generate-api-testing` (openapi-typescript + orval-msw + openapi-msw) auf demselben Runner |
+| Presets | `pipeline/client-preset.ts`, `testing-preset.ts` | `generate-api-client` (Adapter → types/api/core) und `generate-api-testing` (openapi-typescript + openapi-msw + `handlers.ts` aus Spec-`example`s bei `examples`) auf demselben Runner |
 | Plugin | `src/plugin/openapi-clients.ts` | `createNodes` (Nx 23): `generate-api-client` + `update-spec` am Client, `generate-api-testing` an der Testing-Lib, `metadata.openapi`; `createDependencies`: Client → `npm:<pkg>` |
 | Generator | `src/generators/client` | Spec, `index.ts`, Client-`project.json`, Eintrag; Lib-Config über Scaffold (Default eingebaut, hier `@mo-transfer/tooling-conventions/openapi-scaffold`) |
 
@@ -56,9 +56,8 @@ flowchart LR
 | 4 | `command`-Adapter | `command`/`args`/`env` mit Platzhaltern, Glob-Klassifizierung, `runtime` als Versions-Input | NSwag, Skripte, Docker ohne JS |
 | 4 | Fehler | `OpenApiError` mit `phase`, `client`, `adapter`, `hint`, `cause`; Executor druckt Ursachen-Kette, `--verbose` (Option oder `NX_VERBOSE_LOGGING`) streamt Generator-Output + Stages + Stack | — |
 | 5 | Testing als zweites Preset | gleicher Runner (Overlays, Transforms, Format, Header gelten auch); `pipeline.testing: false` → Generator ohne Testing-Lib, kein Target; `generate-api-testing` inferiert, Teil-Libs + Kanten + `lint`/`typecheck`-`dependsOn` bleiben explizit | — |
-| 5 | Mocks-Engine `schema-faker` (Default) | Port des Spikes `spike/testing-without-orval` als Engine des Testing-Presets: Spec-Walk → `get<Op>ResponseMock`/`get<Op>MockHandler` (gleiche Namen wie orval), Schemas als Daten, `mock-runtime.ts` (faker + msw). Auswahl `settings.testing.mocks` (Default `schema-faker`) bzw. `pipeline.testing: { mocks }`; `orval` deprecated, eine Iteration wählbar, nur dann Cache-Input. Alle 3 Clients umgestellt | 0 neue Deps, schneller (pet: 722 vs. 992 ms Nx-Task), kleinerer generierter Code; orval entfernbar |
-| 5 | Runtime kopieren statt importieren | `mock-runtime.ts` pro Testing-Lib (gitignored), Quelle als Asset im Paket (nicht kompiliert, in dist kopiert) | Import aus dem Tooling-Paket: Boundary-Verstoß (Libs → Tooling verboten) + Paket-Einstieg im Browser-Bundle; gemeinsame Lib: workspace-spezifischer Ort, eigenes Projekt/Kanten. Kopie importiert nur msw + faker |
-| 5 | Stabile Fake-Daten | jede Zufallsentscheidung der Runtime mit eigenem Seed: Hash(Operation + Instanzpfad + Zweck + Fingerprint der eigenen Keywords), private Faker-Instanz (`en`, Mersenne 53), feste `MOCK_REF_DATE` (UTC). Details/Tabelle: packages/tooling/openapi/README.md → Stabile Fake-Daten | globaler Seed pro Test: Werte hängen von Aufruf-/Testreihenfolge, neuen Feldern/Operationen und dem Datum ab; Key = `$ref`-Name: alle `Pet`s gleich; eigener PRNG (sfc32, ~150× schnellerer Seed) statt Mersenne 53: nicht nötig (~35 µs/Seed, +~11 ms in `shared-data-access:test`), Mersenne bleibt Faker-Standard |
+| 5 | Mocks-Engine `examples` (Opt-in), Default `none` | `pipeline/examples/{example-value,example-handlers}.ts`: Spec-Walk zur Generierzeit → `handlers.ts` (`<client>Handlers`, ein Handler je Operation auf `<client>Http`, Bodies als Literale: Spec-`example`s, sonst feste Platzhalter). Auswahl `settings.testing.mocks` bzw. `pipeline.testing: { mocks }`; Quellen nur in ihrem Modus Cache-Input. Alle 4 Clients auf `examples`. `schema-faker`, `orval`, `model.ts`, `mock-runtime.ts` entfernt | Fake-Daten wurden von Fixtures nicht genutzt, wenig Wert; Handler bleiben, weil spec-synchron. Kein Zufall, kein faker, keine Runtime-Kopie; typecheck der Testing-Lib prüft die Bodies |
+| 5 | Testdaten nicht generiert | generierte Testing-Lib = Vertrag (`<client>Http`) + Baseline (`<client>Handlers`); Testdaten = handgeschriebene Fixtures `a<Dto>()` der Slice-Testing-Lib, shared Clients in `shared/testing` (`aNotification`) | lesbare, testrelevante Werte im Test statt Spec-Walk-Daten; kein faker im Workspace |
 | 6 | Layout `merged-core` | `layout: 'merged-core'` → core-Dateien + -Entries in die api-Lib (relative Imports bleiben), Generator ohne core-Lib, Outputs/Inputs/Kanten ohne core, verify kennt es, move/rename/remove tragen den Eintrag mit | einzige Variante neben types/api/core |
 | 7 | `createNodes` (Nx 23) | `createNodesV2` entfernt; Optionen `clientTargetName`, `testingTargetName`, `updateSpecTargetName` (Generator liest sie aus `nx.json` für `dependsOn`) | — |
 | 8 | Target-Namen | `generate-api-client`, `generate-api-testing`, `update-spec` unverändert (Defaults) | — |
@@ -73,19 +72,15 @@ flowchart LR
 | Absicherung | Modul-Ordner/Paket ist Cache-Input, Optionen schema-geprüft, Kopien der Dateien (kein halber Zustand), Duplikate/ungültige Parts → Fehler, Doku „muss deterministisch sein“ |
 | Alternative | nur deklarative Transforms (Regex-Replace aus JSON) oder eigener Adapter, der den Built-in wrappt |
 
-## orval vs. schema-faker (Spike-Messung, pet-client)
+## Mocks-Engine: orval → schema-faker → examples
 
-| | orval | schema-faker |
+| Stand | Engine | warum ersetzt |
 |---|---|---|
-| Generierung kalt / warm | ~690 ms / 45 ms | **~425 ms / 14 ms** |
-| Nx-Task `generate-api-testing` | 992 ms | **722 ms** |
-| Output pet / notification / booking | 23 Dateien 80,6 KiB / 10 · 9,8 KiB / 9 · 6,9 KiB | **7 · 60,9 KiB** / 7 · 18,1 KiB / 7 · 15,8 KiB (inkl. 9,7 KiB Runtime-Kopie) |
-| Browser-Bundle generierter Code (min) | 11,2 KiB | **6,9 KiB** |
-| Testlaufzeit `shared-data-access:test` | ~1,27 s | ~1,2–1,3 s (Rauschen) |
-| Abhängigkeiten | orval + 15 `@orval/*` | **0 neue** |
-| Grenzen | – | nur lokale `$ref`s, nie `null`, `default`/`not`/`if`/`patternProperties`/`prefixItems` ignoriert, keine orval-Inline-Typen, andere Werte als orval (pro Wert geseedet, kein globaler Seed) |
+| 1 | orval (msw-Mocks, `useExamples` + faker, globaler Seed) | orval + 15 `@orval/*`, langsamer (pet: 992 vs. 722 ms Nx-Task), Werte reihenfolgeabhängig |
+| 2 | schema-faker (eigener Spec-Walk, `mock-runtime.ts`-Kopie, faker pro Wert geseedet) | Fake-Daten von Fixtures nicht genutzt; Runtime-Kopie, faker-Pin, Seed-Logik ohne Gegenwert |
+| 3 | **`examples`** (heute) | – |
 
-Verworfene Alternativen (Spike): hey-api-Faker/msw-Plugins (ignoriert `example`, 501-Defaults), kubb/`@mswjs/source` (msw 3 nicht im Peer-Range), `msw-auto-mock` (AI-SDK-Deps), `openapi-backend`/Prism/Scalar (kein faker bzw. kein msw). Testing-Output ändert sich gegenüber main bewusst (andere Dateien/Werte), generierter Client-Code bleibt byte-identisch.
+Verworfene Alternativen (Spike): hey-api-Faker/msw-Plugins (ignoriert `example`, 501-Defaults), kubb/`@mswjs/source` (msw 3 nicht im Peer-Range), `msw-auto-mock` (AI-SDK-Deps), `openapi-backend`/Prism/Scalar (kein msw). Generierter Client-Code unberührt.
 
 ## Review-Fixes (TDD, `test/integration/robustness.spec.ts` u. a.)
 
@@ -95,9 +90,9 @@ Verworfene Alternativen (Spike): hey-api-Faker/msw-Plugins (ignoriert `example`,
 | H2 Pfadsicherheit | `settingsProblems`: `libsDir` relativ ohne `..`, `clientFolder`/`outputDir`/`sharedScope` ein kebab-Ordner, `specFiles` nur Dateinamen; Client-Pfade nur kebab-Segmente; Overlay- und Transform-Pfade relativ ohne `..`; write-Stage schreibt/löscht nur unter `<part>/src/<outputDir>` |
 | M1 fehlende Pakete | `externalDependencies` nur, wenn in der Root-`package.json` deklariert (→ Lockfile → `npm:`-Knoten) **und** installiert; sonst `metadata.openapi.missingPackages`, Warnung, verify-Problem — statt Hasher-Abbruch |
 | M2 `.ts`-Hook | Hook nur während des Ladens und nur für den Modulordner (bei npm-Paketen: Paketordner, auch unter `node_modules` — nie an Nodes Type Stripping), danach vorheriger Handler zurück. Folge: `.ts`-Helfer müssen statisch (Top-Level) importiert werden. Getestet unter Node 22.16 und 24.18 |
-| M3 Cache-Lücken | Module außerhalb des Workspace → Problem (Scaffold ausgenommen); `generate-api-testing` mit `adapters/files.ts`; Package-Modus mit `yaml`; Require-Cache des ganzen Modulordners geleert |
+| M3 Cache-Lücken | Module außerhalb des Workspace → Problem (Scaffold ausgenommen); `generate-api-testing` mit `adapters/files.ts` (seit `examples` entfallen); Package-Modus mit `yaml`; Require-Cache des ganzen Modulordners geleert |
 | M4 Parallel-Race | effektive Spec je Preset (`tmp/openapi/<client>/<preset>/spec`) |
-| Low | optionale Peers für alle Generator-Tools, `engines.node >=22.12`, dist ohne Source Maps, automatischer dist-Smoke-Test (Build → Exporte → Fixture mit installiertem dist), Target-Namen: Generator schreibt sie in `targetDefaults.dependsOn`, verify liest die Plugin-Optionen; Tooling-Inputs je Target eng (schema-faker/Testing-Preset nicht im Client-Hash, Adapter nicht im Testing-Hash) |
+| Low | optionale Peers für alle Generator-Tools, `engines.node >=22.12`, dist ohne Source Maps, automatischer dist-Smoke-Test (Build → Exporte → Fixture mit installiertem dist), Target-Namen: Generator schreibt sie in `targetDefaults.dependsOn`, verify liest die Plugin-Optionen; Tooling-Inputs je Target eng (examples/Testing-Preset nicht im Client-Hash, Adapter nicht im Testing-Hash) |
 
 ## Limitierungen
 
@@ -112,7 +107,7 @@ Verworfene Alternativen (Spike): hey-api-Faker/msw-Plugins (ignoriert `example`,
 | `node_modules`-Auflösung von npm-Adaptern ab Workspace-Root, Conditions `node`/`require`/`import`/`default` | — |
 | Projektnamen-Regel `/` → `-` und Part-Ordner `types`/`api`/`core`/`testing` sind fest | dokumentiert |
 | Datei-Name `openapi-clients.json` fest (Plugin-Glob ist statisch) | — |
-| schema-faker: nur lokale `$ref`s (externe Refs → Fehler beim Generieren) | Spec vorher bündeln (z. B. `@redocly/cli bundle`); Bündeln im spec-Stage ist eine mögliche Erweiterung |
+| `examples`: nur lokale `$ref`s (externe Refs → Fehler beim Generieren) | Spec vorher bündeln (z. B. `@redocly/cli bundle`); Bündeln im spec-Stage ist eine mögliche Erweiterung |
 
 ## Vereinfachung (Branch `refactor/openapi-simplify`)
 

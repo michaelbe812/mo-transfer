@@ -1,4 +1,4 @@
-// Excerpt: the testing-related parts of the workspace eslint.config.mjs (reduced blueprint, see docs/nx-reduziert.md).
+// Excerpt: the testing-related parts of the workspace eslint.config.mjs (reduced blueprint, see docs/architektur.md).
 // Not standalone: the real config also holds the full layer matrix, the HTTP ban outside data-access, the
 // generated scope/feat constraints, tooling constraints, the deep-import ban and the naming rules.
 import nx from '@nx/eslint-plugin';
@@ -21,7 +21,7 @@ const layerConstraints = [
 /** Test tooling never ships: banned in production code, allowed in type:testing and specs. */
 const testOnlyPackages = [
   'msw', 'msw/*', 'vitest', 'vitest/*', '@vitest/*', '@testing-library/*', 'playwright', 'playwright/*',
-  // generated testing libs of the OpenAPI clients: typed MSW + faker factories
+  // generated testing libs of the OpenAPI clients (typed MSW); faker stays banned should a builder add it
   'openapi-msw', '@faker-js/*',
 ];
 const noTestPackagesInProduction = [...productionLayers, 'type:app'].map((sourceTag) => ({

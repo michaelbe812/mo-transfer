@@ -1,6 +1,6 @@
 /**
  * The published package, end to end (review Low): build the dist into a temp folder, check what ships (no source
- * maps pointing to unshipped .ts, the schema-faker runtime asset), load every export in plain Node, then a fixture
+ * maps pointing to unshipped .ts), load every export in plain Node, then a fixture
  * workspace that installs the dist as @mo-transfer/tooling-openapi — plugin + executor run from the built JS,
  * the tooling enters the hash as the npm package.
  */
@@ -33,7 +33,7 @@ describe('dist smoke test', () => {
     const files = filesBelow(out);
     expect(files).toEqual(expect.arrayContaining(['package.json', 'executors.json', 'generators.json', 'openapi-clients.schema.json', 'README.md']));
     expect(files).toEqual(expect.arrayContaining(['src/index.js', 'src/index.d.ts', 'src/executors/generate.js', 'src/executors/client.schema.json']));
-    expect(files).toContain('src/pipeline/schema-faker/runtime/mock-runtime.ts');
+    expect(files.filter((file) => file.includes('mock-runtime'))).toEqual([]);
     expect(files.filter((file) => file.endsWith('.map'))).toEqual([]);
     expect(files.filter((file) => file.endsWith('.spec.js'))).toEqual([]);
     const manifest = JSON.parse(read(out, 'package.json'));

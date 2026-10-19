@@ -15,7 +15,7 @@ Look up MSW APIs in the official docs instead of guessing (msw 2 snippets are of
 ## 1. Install
 
 ```sh
-pnpm add -D msw @faker-js/faker
+pnpm add -D msw
 pnpm add -D openapi-msw openapi-typescript         # only with OpenAPI clients (step 6)
 pnpm exec playwright install chromium              # browser for Vitest browser mode, once
 ```
@@ -46,8 +46,8 @@ Exists in this repo. In a new workspace: a lib `libs/shared/testing` with tags `
 no build target (here written by the workspace generators — never `@nx/angular:library`).
 
 - `src/network.ts` = `examples/network.ts` (one `setupWorker()` without handlers, `onUnhandledFrame: 'error'`,
-  auto fixture `worker`, `faker.seed`, `resetHandlers()` after each test, no `stop()`).
-- `src/index.ts`: `export { test, worker, FAKER_SEED } from './network';` + `withBaseline`, `Scenarios` (`src/handlers.ts`).
+  auto fixture `worker`, `resetHandlers()` after each test, no `stop()`).
+- `src/index.ts`: `export { test, worker } from './network';` + `withBaseline`, `Scenarios` (`src/handlers.ts`) + builders of the shared clients (`src/fixtures/`, e.g. `aNotification`).
 - Only this lib imports `msw/browser`.
 
 ## 4. `libs/<slice>/testing`
@@ -67,7 +67,7 @@ The `type:testing` constraints and the bans on test packages are in `eslint.conf
 
 ## 6. Optional: generated mocks from OpenAPI
 
-Per client a generated `<client>/testing` lib (openapi-typescript + openapi-msw + schema-faker) with a `generate-api-testing` target;
+Per client a generated `<client>/testing` lib (openapi-typescript + openapi-msw; `settings.testing.mocks: examples` adds `<client>Handlers` from spec examples) with a `generate-api-testing` target;
 the `test` target `dependsOn: ["^generate-api-client", "^generate-api-testing"]` (→ `05-msw.md` §5).
 
 ## 7. First spec and verification

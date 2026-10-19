@@ -33,9 +33,9 @@ describe('testing generator', () => {
       expect(handlers).not.toMatch(/HttpResponse|aBooking|Example|'\/api\//);
     });
 
-    it('layers the generated baseline of the slice\'s own clients: <client>Handlers for a faking engine, only <client>Http hint for mocks none', async () => {
+    it('layers the generated baseline of the slice\'s own clients: <client>Handlers for the examples engine, only <client>Http hint for mocks none', async () => {
       writeClientsJson(tree, {
-        settings: { testing: { mocks: 'schema-faker' } },
+        settings: { testing: { mocks: 'examples' } },
         clients: {
           'booking/generated/booking-client': {},
           'booking/generated/lean-client': { pipeline: { testing: { mocks: 'none' } } },

@@ -4,7 +4,7 @@
   "settings": {
     "scaffold": "@mo-transfer/tooling-conventions/openapi-scaffold",
     "testing": {
-      "mocks": "schema-faker"
+      "mocks": "examples"
     }
   },
   "clients": {

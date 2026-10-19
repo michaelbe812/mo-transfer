@@ -173,16 +173,16 @@ describe('client config (project.json of clients and parts, inferred targets)', 
     });
   });
 
-  it('L6: narrow tooling inputs — testing-only code (schema-faker, testing preset) never re-generates the client code, adapters never the testing lib', () => {
+  it('L6: narrow tooling inputs — testing-only code (examples generator, testing preset) never re-generates the client code, adapters never the testing lib', () => {
     client('generated/pet-client');
-    const config: ClientsConfig = { settings: { testing: { mocks: 'schema-faker' } }, clients: { 'generated/pet-client': {} } };
+    const config: ClientsConfig = { settings: { testing: { mocks: 'examples' } }, clients: { 'generated/pet-client': {} } };
     const ctx = context(config, REPO_ROOT);
     const files = (inputs: unknown) => (inputs as unknown[]).filter((input): input is string => typeof input === 'string' && input.includes(SRC));
     const clientInputs = files(generateTarget(ctx, 'generated/pet-client', 'x.yaml')['inputs']);
     const testing = files(generateTestingTarget(ctx, 'generated/pet-client', 'x.yaml')['inputs']);
     const covers = (inputs: string[], file: string) =>
       inputs.some((input) => !input.startsWith('!') && new RegExp(`^${input.replace('{workspaceRoot}/', '').replace(/[.]/g, '\\.').replace('**/*', '.*')}$`).test(`${SRC}/${file}`));
-    for (const file of ['pipeline/schema-faker/mocks.ts', 'pipeline/schema-faker/runtime/mock-runtime.ts', 'pipeline/testing-preset.ts']) {
+    for (const file of ['pipeline/examples/example-handlers.ts', 'pipeline/examples/example-value.ts', 'pipeline/testing-preset.ts']) {
       expect(covers(clientInputs, file)).toBe(false);
       expect(covers(testing, file)).toBe(true);
     }
@@ -194,18 +194,18 @@ describe('client config (project.json of clients and parts, inferred targets)', 
     expect(covers(testing, 'adapters/hey-api.ts')).toBe(false);
     expect(covers(clientInputs, 'pipeline/client-preset.ts')).toBe(true);
     expect(covers(testing, 'pipeline/client-preset.ts')).toBe(false);
-    // mocks: none (default) — no fake data, no faker code: the schema-faker sources are no input
+    // mocks: none (default) — no generated handlers: the examples sources are no input
     const none = files(generateTestingTarget(context({ clients: { 'generated/pet-client': {} } }, REPO_ROOT), 'generated/pet-client', 'x.yaml')['inputs']);
     expect(covers(none, 'pipeline/testing-preset.ts')).toBe(true);
-    expect(covers(none, 'pipeline/schema-faker/mocks.ts')).toBe(false);
-    expect(covers(none, 'pipeline/schema-faker/runtime/mock-runtime.ts')).toBe(false);
+    expect(covers(none, 'pipeline/examples/example-handlers.ts')).toBe(false);
+    expect(covers(none, 'pipeline/examples/example-value.ts')).toBe(false);
   });
 
-  it('M3: testing target runs adapters/files.ts (readRawFiles) — an input; package mode includes yaml', () => {
+  it('M3: testing target needs no adapter code (adapters/files.ts no input); package mode includes yaml', () => {
     client('generated/pet-client');
     const config: ClientsConfig = { clients: { 'generated/pet-client': {} } };
     const inputs = generateTestingTarget(context(config, REPO_ROOT), 'generated/pet-client', 'x.yaml')['inputs'] as unknown[];
-    expect(inputs).toContain(`{workspaceRoot}/${SRC}/adapters/files.ts`);
+    expect(inputs).not.toContain(`{workspaceRoot}/${SRC}/adapters/files.ts`);
     write('node_modules/@mo-transfer/tooling-openapi/package.json', '{}');
     const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8'));
     write('package.json', JSON.stringify({ devDependencies: { ...manifest.devDependencies, '@mo-transfer/tooling-openapi': '1.0.0' } }));
@@ -232,27 +232,19 @@ describe('client config (project.json of clients and parts, inferred targets)', 
       ],
       outputs: ['{projectRoot}/src/generated'],
       options: { client: 'generated/pet-client' },
-      metadata: { description: 'OpenAPI testing lib (openapi-typescript, openapi-msw; mocks: none — no fake data)' },
+      metadata: { description: 'OpenAPI testing lib (openapi-typescript, openapi-msw; mocks: none — no generated handlers)' },
     });
-    // schema-faker: opt-in per client or as workspace default, same packages
-    const schemaFaker: ClientsConfig = { settings: { testing: { mocks: 'schema-faker' } }, clients: { 'generated/pet-client': {} } };
-    expect(generateTestingTarget(context(schemaFaker), 'generated/pet-client', 'x.yaml')['metadata']).toEqual({
-      description: 'OpenAPI testing lib (openapi-typescript, schema-faker msw mocks, openapi-msw)',
+    // examples: opt-in per client or as workspace default, same packages
+    const examples: ClientsConfig = { settings: { testing: { mocks: 'examples' } }, clients: { 'generated/pet-client': {} } };
+    expect(generateTestingTarget(context(examples), 'generated/pet-client', 'x.yaml')['metadata']).toEqual({
+      description: 'OpenAPI testing lib (openapi-typescript, openapi-msw, generated handlers from the spec examples)',
     });
-    expect(generateTestingTarget(context(schemaFaker), 'generated/pet-client', 'x.yaml')['inputs']).toContainEqual({
+    const perClient: ClientsConfig = { clients: { 'generated/pet-client': { pipeline: { testing: { mocks: 'examples' } } } } };
+    expect(generateTestingTarget(context(perClient), 'generated/pet-client', 'x.yaml')['inputs']).toContainEqual({
       externalDependencies: ['openapi-typescript', 'yaml', 'typescript'],
     });
-    // orval (deprecated) only in its mode: per client or as workspace default
-    const orval: ClientsConfig = { clients: { 'generated/pet-client': { pipeline: { testing: { mocks: 'orval' } } } } };
-    expect(generateTestingTarget(context(orval), 'generated/pet-client', 'x.yaml')['inputs']).toContainEqual({
-      externalDependencies: ['openapi-typescript', 'orval', 'yaml', 'typescript'],
-    });
-    const workspaceOrval: ClientsConfig = { settings: { testing: { mocks: 'orval' } }, clients: { 'generated/pet-client': {} } };
-    expect(generateTestingTarget(context(workspaceOrval), 'generated/pet-client', 'x.yaml')['metadata']).toEqual({
-      description: 'OpenAPI testing lib (openapi-typescript, orval msw mocks, openapi-msw)',
-    });
     const unknown = { clients: { 'generated/pet-client': { pipeline: { testing: { mocks: 'nope' } } } } } as unknown as ClientsConfig;
-    expect(inferClientTargets(context(unknown), 'generated/pet-client').metadata.problem).toBe('unknown mocks engine "nope" (none | schema-faker | orval)');
+    expect(inferClientTargets(context(unknown), 'generated/pet-client').metadata.problem).toBe('unknown mocks engine "nope" (none | examples)');
   });
 
   it('inferClientTargets: client + testing lib, target names, metadata; testing: false / no testing project → none', () => {

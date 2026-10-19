@@ -18,6 +18,7 @@
     "@angular/forms": "~22.0.4",
     "@angular/platform-browser": "~22.0.4",
     "@angular/router": "~22.0.4",
+    "@ngrx/signals": "^22.0.1",
     "rxjs": "~7.8.0"
   },
   "devDependencies": {
@@ -28,7 +29,6 @@
     "@angular/compiler-cli": "~22.0.4",
     "@angular/language-service": "~22.0.4",
     "@eslint/js": "^9.8.0",
-    "@faker-js/faker": "10.6.0",
     "@hey-api/openapi-ts": "0.83.1",
     "@mo-transfer/tooling-conventions": "workspace:*",
     "@mo-transfer/tooling-ng-lib": "workspace:*",
@@ -66,7 +66,6 @@
     "nx": "23.1.0",
     "openapi-msw": "2.0.0",
     "openapi-typescript": "7.13.0",
-    "orval": "8.38.0",
     "playwright": "^1.63.0",
     "prettier": "~3.6.2",
     "tslib": "^2.3.0",

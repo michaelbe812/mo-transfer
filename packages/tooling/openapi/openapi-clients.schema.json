@@ -85,9 +85,9 @@
           "type": "object",
           "properties": {
             "mocks": {
-              "enum": ["none", "schema-faker", "orval"],
+              "enum": ["none", "examples"],
               "default": "none",
-              "description": "mocks engine of the testing libs: none = scaffold only (schema.ts + typed <client>Http, no fake data, no generated handlers); schema-faker = + get<Op>…Mock factories and <client>Handlers (faker); orval is deprecated (removed next iteration)"
+              "description": "mocks engine of the testing libs: none = scaffold only (schema.ts + typed <client>Http, no generated handlers); examples = + <client>Handlers, bodies from the spec examples (fixed placeholders for the rest, no faker)"
             }
           },
           "additionalProperties": false
@@ -197,14 +197,14 @@
                     "type": "object",
                     "properties": {
                       "mocks": {
-                        "enum": ["none", "schema-faker", "orval"]
+                        "enum": ["none", "examples"]
                       }
                     },
                     "additionalProperties": false
                   }
                 ],
                 "default": "msw",
-                "description": "false: no testing lib; { mocks }: engine (default settings.testing.mocks = none; schema-faker opt-in, orval deprecated)"
+                "description": "false: no testing lib; { mocks }: engine (default settings.testing.mocks = none; examples opt-in)"
               }
             },
             "additionalProperties": false

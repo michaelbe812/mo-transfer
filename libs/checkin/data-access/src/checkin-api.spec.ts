@@ -1,9 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import {
-  checkinClientHandlers,
-  checkinClientHttp,
-  getListCheckinsResponseMock,
-} from '@mo-transfer/checkin/generated/checkin-client/testing';
+import { checkinClientHandlers, checkinClientHttp } from '@mo-transfer/checkin/generated/checkin-client/testing';
+import { aCheckin } from '@mo-transfer/checkin/testing';
 import { test, worker } from '@mo-transfer/shared/testing';
 import { beforeEach, describe, expect } from 'vitest';
 import { CheckinApi } from './checkin-api';
@@ -31,9 +28,8 @@ describe('CheckinApi (generated checkin-client behind the checkin data-access la
     ]);
   });
 
-  test('a typed override wins over the baseline (generated factory as data)', async ({ worker }) => {
-    const [example] = getListCheckinsResponseMock();
-    worker.use(checkinClientHttp.get('/checkins', ({ response }) => response(200).json([{ ...example, id: 'c-7' }])));
+  test('a typed override wins over the baseline (slice fixture as data)', async ({ worker }) => {
+    worker.use(checkinClientHttp.get('/checkins', ({ response }) => response(200).json([aCheckin({ id: 'c-7' })])));
 
     expect((await TestBed.inject(CheckinApi).loadCheckins()).map((checkin) => checkin.id)).toEqual(['c-7']);
   });

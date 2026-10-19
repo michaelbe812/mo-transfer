@@ -1,6 +1,6 @@
 # @mo-transfer/tooling-openapi
 
-Generierte OpenAPI-Clients für Nx 23: Pipeline, Adapter-SPI v1, Crystal-Plugin, Executoren, Generator `client`. Projekt `tooling-openapi` (`type:tooling`, `tooling:openapi`), **publishable** (keine Abhängigkeit auf andere Tooling-Libs). Architektur und Entscheidungen: [`docs/openapi-pipeline-architektur.md`](../../../docs/openapi-pipeline-architektur.md), Einbettung im Blueprint: [`docs/nx-umsetzung.md` → OpenAPI-Clients](../../../docs/nx-umsetzung.md#openapi-clients), Übersicht: [`packages/tooling`](../README.md).
+Generierte OpenAPI-Clients für Nx 23: Pipeline, Adapter-SPI v1, Crystal-Plugin, Executoren, Generator `client`. Projekt `tooling-openapi` (`type:tooling`, `tooling:openapi`), **publishable** (keine Abhängigkeit auf andere Tooling-Libs). Architektur und Entscheidungen: [`docs/openapi-pipeline-architektur.md`](../../../docs/openapi-pipeline-architektur.md), Einbettung im Blueprint: [`docs/openapi-clients.md`](../../../docs/openapi-clients.md), Übersicht: [`packages/tooling`](../README.md).
 
 ```
 spec[] (Overlays, experimentell) → generate → classify → transform[] → split → barrel → finalize[] (prettier, Header) → write
@@ -46,7 +46,7 @@ spec[] (Overlays, experimentell) → generate → classify → transform[] → s
 | `pipeline.overlays` | **experimentell**, nur mit `settings.features.overlays: true`: OpenAPI-Overlay-1.0-Dateien relativ zum Client-Ordner, in Reihenfolge. Ohne Flag: Generate scheitert mit Hinweis, verify meldet |
 | `pipeline.transforms` | Code-Hooks nach `classify` (beide Presets): Workspace-Modul oder Paket, `{ module, options }` möglich. Müssen deterministisch sein (Trade-off in der Architektur-Doku) |
 | `pipeline.format` | prettier (Workspace-Config) auf jede Datei; dann `.prettierrc*`, `.editorconfig`, `prettier` Inputs |
-| `pipeline.testing` | `msw` / `{ "mocks": "none" \| "schema-faker" \| "orval" }` (Mocks-Engine, Default `settings.testing.mocks` = `none`; `orval` **deprecated**, nächste Iteration entfernt) oder `false` (keine Testing-Lib, kein `generate-api-testing`). `orval` bzw. die schema-faker-Quellen sind nur in ihrem Modus Cache-Input |
+| `pipeline.testing` | `msw` / `{ "mocks": "none" \| "examples" }` (Mocks-Engine, Default `settings.testing.mocks` = `none`) oder `false` (keine Testing-Lib, kein `generate-api-testing`). Quellen von `examples` nur in ihrem Modus Cache-Input |
 | `adapters.<id>` | `module` (Workspace-Pfad, Paket, `builtin:<id>`), `packages`, `inputs`, `runtime`, `options` — deklarativ, das Plugin lädt keinen Adapter-Code |
 | `settings` | `libsDir` (`libs`), `clientFolder` (`generated`), `outputDir` (`generated`), `aliasPrefix` (`@mo-transfer/`), `sharedScope` (`shared`), `specFiles`, `scaffold`, `features.overlays` (`false`), `testing.mocks` (`none`). Fest: Header generierter Dateien, Tags (`scope:<scope>`, `generated`; Teil-Libs zusätzlich `type:<layer>`, `feat:none` — eigene Tags über `settings.scaffold`), Tooling-Cache-Inputs nach Ort (Quellen im Workspace → Globs, unter `node_modules` → `externalDependencies`, verlinkt außerhalb → keine) |
 
@@ -54,42 +54,22 @@ Jeder Eintrag ist `json`-Input (Felder `defaultAdapter`, `settings`, ggf. `adapt
 
 ## Testing-Lib: Mocks-Engines
 
-| | `none` (Default) | `schema-faker` (Opt-in) | `orval` (deprecated) |
-|---|---|---|---|
-| Dateien | `schema.ts`, `http.ts`, `index.ts` (3) | `schema.ts`, `http.ts`, `mocks.ts`, `model.ts`, `mock-runtime.ts`, `handlers.ts`, `index.ts` (7) | `schema.ts`, `http.ts`, `mocks.ts`, `model/**`, `handlers.ts`, `index.ts` |
-| Exporte | `paths`/`components`/`operations` (Typen), `<client>Http`, `<client>BaseUrl` | + `get<Op>ResponseMock(override?)`, `get<Op>MockHandler(override?, options?)`, `<Schema>`-Typen, `<client>Handlers`, `configureFakeData`, `MOCK_REF_DATE` | dieselben (+ orvals Inline-Typen wie `GetInventory200`) |
-| Daten | keine (Gerüst: Handler von Hand auf `<client>Http`) | Media-`example(s)` → Schema-/Property-`example` → `const`/`enum` → faker nach Typ/Format/Grenzen, stabil pro Wert (s. u.) | orval `useExamples` + faker (globaler Seed, reihenfolgeabhängig) |
-| Cache-Inputs | `openapi-typescript`, `yaml`, Testing-Preset (ohne schema-faker-Quellen) | + `pipeline/schema-faker/**` | + `orval` |
-| Abhängigkeiten im Test | msw, openapi-msw | + faker | + faker |
-| Grenzen | Spec ohne Operationen erlaubt | nur lokale `$ref`s (extern → Fehler, Spec vorher bündeln), nie `null`, kein `not`/`if`/`patternProperties`/`prefixItems`; Spec ohne Operationen → Fehler | Spec ohne Operationen → Fehler |
+| | `none` (Default) | `examples` (Opt-in) |
+|---|---|---|
+| Dateien | `schema.ts`, `http.ts`, `index.ts` (3) | + `handlers.ts` (4) |
+| Exporte | `paths`/`components`/`operations` (Typen), `<client>Http`, `<client>BaseUrl` | + `<client>Handlers` |
+| Daten | keine (Gerüst: Handler von Hand auf `<client>Http`) | beim Generieren berechnet, kein Zufall, byte-gleich pro Spec (s. u.) |
+| Cache-Inputs | `openapi-typescript`, `yaml`, Testing-Preset | + `pipeline/examples/**` |
+| Abhängigkeiten im Test | msw, openapi-msw | dito |
+| Grenzen | – | nur lokale `$ref`s; Spec ohne Operationen → leere `<client>Handlers` |
 
-Warum `none` Default: das Paket soll in fremden Workspaces kein Fake-Daten-Modell aufzwingen (Faker als Test-Abhängigkeit, generierte Defaults, die Specs unbemerkt grün halten). Wer die generierte Baseline will (wie mo-transfer: `settings.testing.mocks: "schema-faker"`), schaltet sie explizit ein; der Generator `client` nennt im Hinweis dann `<client>Handlers`, sonst nur `<client>Http`.
+`handlers.ts` = `<client>Handlers`: ein msw-Handler je Operation, geschrieben auf dem typisierten `<client>Http` (`bookingClientHttp.get("/bookings", ({ response }) => response(200).json([{ … }]))`) → typecheck der Testing-Lib prüft die Bodies gegen die Spec. Wildcard-/`default`-Codes: `response("default").json(body, { status: 200 })`. Ohne dokumentierte Antwort: plain `` http.<m>(`${<client>BaseUrl}/pfad`) `` mit leerem Body. Statische Pfade vor Templates.
 
-`mock-runtime.ts` (~15 KiB, gitignored) wird pro Testing-Lib kopiert, statt importiert: ein Import aus dem Tooling-Paket verletzte die Boundaries (Libs importieren kein Tooling) und zöge den Paket-Einstieg in Browser-Bundles; eine gemeinsame Lib wäre workspace-spezifisch. Die Kopie importiert nur msw + faker.
+**Wert-Reihenfolge**: Media-`example(s)` → Schema-`example`/`examples[0]` → `const` → `default` → `enum[0]` → erste oneOf/anyOf-Variante (Discriminator-Mapping beachtet) → fester Platzhalter nach Typ/Format: `date` `2026-01-01`, `date-time` `2026-01-01T00:00:00.000Z`, `time` `00:00:00`, `uuid` Null-UUID, `email` `user@example.com`, `uri`/`url` `https://example.com`, sonst string = Property-Name (auf `minLength`/`maxLength` gekürzt/aufgefüllt), integer/number = untere Grenze (exclusive beachtet, auf `multipleOf` gerundet, max. `maximum`) sonst `0`, boolean `false`. Objekte: required + optionale mit Example, `writeOnly` nie. Arrays: max(`minItems`, 1) Items (≤ `maxItems`; ab Tiefe 6 nur `minItems`).
 
-### Stabile Fake-Daten (schema-faker)
+Warum `none` Default: das Paket soll in fremden Workspaces keine generierten Defaults aufzwingen, die Specs unbemerkt grün halten. Wer die Baseline will (wie mo-transfer: `settings.testing.mocks: "examples"`), schaltet sie explizit ein; der Generator `client` nennt im Hinweis dann `<client>Handlers`, sonst nur `<client>Http`.
 
-Ziel: Fake-Daten dürfen in Assertions stehen — sie ändern sich nur, wenn sich der relevante Teil der Spec ändert. Dazu zieht `mock-runtime.ts` jede Zufallsentscheidung (Blattwert, Optional-Property ja/nein, Array-Länge, oneOf/anyOf-Variante, additionalProperties-Key) mit eigenem Seed:
-
-- **Seed** = 64-Bit-Hash (cyrb53, `faker.seed([hi, lo])`) aus Operation (`get<Op>ResponseMock` → Key `<Op>`) + Instanzpfad (`/[2]/tags/[0]`, nicht der `$ref`-Name: gleiche Schemas an verschiedenen Stellen → verschiedene Werte) + Zweck (`value`/`present`/`length`/`variant`/`key`) + Fingerprint.
-- **Fingerprint** = eigene wertrelevante Keywords des Knotens, Keys sortiert: normalisierter Typ (`[x, 'null']` = `x`), `format`, `enum` (sortiert), `minimum`/`maximum`/`exclusive*`/`multipleOf`, `minLength`/`maxLength`/`pattern`; Array-Länge nur `minItems`/`maxItems`. Keine Doku-Keys, keine Kinder.
-- **Faker-Instanz**: privat, `new Faker({ locale: [en, base], randomizer: generateMersenne53Randomizer() })`, vor jeder Entscheidung neu geseedet. Der globale `faker` und sein Seed spielen keine Rolle.
-- **Datum**: alle Datumsformate relativ zu `MOCK_REF_DATE` = `2026-01-01T00:00:00.000Z` (`date.past` → Jahr davor), als UTC-ISO-String → unabhängig von heute und von `TZ` (kein `TZ=UTC` nötig). Anderes Datum: `configureFakeData({ refDate })` (Export jeder Testing-Lib, gilt für alle Clients; ohne Argument zurück auf den Default).
-
-| Wert ändert sich bei | Wert bleibt bei |
-|---|---|
-| Änderung am eigenen Schema (Typ, `format`, `enum`-Werte, Grenzen, Länge, `pattern`) | anderem Datum/Uhrzeit/Zeitzone, Testreihenfolge, Aufrufreihenfolge, Mehrfachaufruf (jeder Request gleich) |
-| anderem Pfad (Property umbenannt/verschoben) oder anderer Operation (`operationId`) | globalem `faker.seed`/`faker`-Aufrufen dazwischen |
-| `minItems`/`maxItems` → Länge (bestehende Items bleiben, Items sind per Index geseedet) | neuen/entfernten Geschwister-Properties, neuen Schemas/Operationen, Änderungen an anderen Operationen |
-| Anzahl der oneOf/anyOf-Varianten → Wahl; required ↔ optional | Reihenfolge von Properties, `enum`-Werten, oneOf-Varianten |
-| `example`/`const` (gewinnen immer) | `description`/`title`/Doku-Keys, Auslagern in `$ref`/`allOf`, `type: [x, 'null']` statt `x` |
-| Faker-Upgrade (Datenlisten/Algorithmen), `configureFakeData` | neuen Feldern in Array-Items (Länge bleibt) |
-
-**Asserten** (Reihenfolge der Präferenz): 1. Spec-`example`s als Literale (Teil des Vertrags). 2. Werte aus `get<Op>ResponseMock()` ableiten — liefert exakt die Handler-Daten (`expect(pets).toEqual(getFindPetsByStatusResponseMock().map(toSummary))`), übersteht auch Faker-Upgrades. 3. Generierte Literale/Inline-Snapshots sind erlaubt (ändern sich nur mit Spec oder bewusstem Faker-Upgrade), aber sparsam. Testrelevante Werte (Grenzfälle, Status) nie dem Zufall überlassen: Override (`get<Op>ResponseMock({ … })`, `get<Op>MockHandler(body)`) oder Szenario.
-
-**Grenzen**: Query-/Pfadparameter sind nicht Teil des Keys (statische Antwort pro Operation; Filter/Paging per Override/Szenario). Keine Liste↔Detail-Konsistenz derselben Entität (Key = Instanzpfad). Keine Eindeutigkeit (kleine Wertebereiche wie `boolean`/`enum` wiederholen sich; kein `unique`). Kosten: ~35 µs pro Seed (Mersenne-Init), `shared-data-access:test` +~11 ms.
-
-**Faker-Upgrades**: `@faker-js/faker` ist exakt gepinnt (`10.6.0`, root `package.json`). Ein Upgrade (auch Minor) kann Werte ändern. Daher bewusst: eigener PR, kein Automerge, alle Specs laufen lassen, generierte Literale/Inline-Snapshots mit `vitest -u` neu schreiben und den Diff reviewen (`mock-runtime.spec.ts` pinnt Werte und zeigt die Drift zuerst). Eine Renovate-/Dependabot-Konfiguration gibt es im Repo nicht; kommt eine, `@faker-js/faker` als eigene Gruppe ohne Automerge mit Hinweis „Erwartungen neu generieren“.
+Konzept: generierte Testing-Lib = Vertrag (`<client>Http`) + Baseline (`<client>Handlers`). Testdaten gehören in die Slice-Testing-Lib (handgeschriebene Fixtures `a<Dto>()`), die der shared Clients in `shared/testing`. Kein faker. Specs asserten Spec-`example`s als Literale oder setzen testrelevante Werte per Fixture/Override.
 
 ## Eigener Adapter
 
@@ -152,7 +132,7 @@ Die dist hat keine Source Maps; ein Integrationstest (`test/integration/dist-smo
 | `nx test tooling-openapi` → `unit` (`src/**/*.spec.ts`) | Stages (split, barrel in-memory, classify inkl. merged-core), Overlay + JSONPath + Flag, Glob, Registry (Built-ins, Workspace, Paket, Alias, Probleme), Loader (`.ts` mit Helfer, CJS, `.mjs`, `type: module`, TLA, ESM-only npm, Patterns, vorheriger Hook), Validierung, Runner end-to-end mit TS-Workspace-Adapter (Overlay, Transforms, Format, Fehler je Phase), Contract-Helper mit `command`, Plugin (`createNodes`, Optionen, `createDependencies`), Generator (Blueprint- und eingebauter Scaffold, merged-core, `--no-testing`, Target-Namen) | ~5 s |
 | (dito) `integration` (`test/integration/**`) | echte Adapter (Jar, hey-api, nx-plugin-openapi), Testing-Preset + msw, Executoren, `update-spec`, `nx` im Fixture-Workspace; neu `pipeline-workspace.spec.ts`: TS-Workspace-Adapter mit SPI-Import, ESM-only Fake-npm-Adapter (Lockfile-Eintrag → `npm:`-Knoten + Kante), `command`, Overlay (Flag an/aus), Transform, merged-core, `testing: false`, Cache-Invalidierung je Client/Adapter/Overlay/Transform, `nx affected` | ~50 s (Java 11+) |
 
-Coverage (V8, Summe beider Projekte) ≥ **95 %** für alle vier Metriken, sonst rot. Stand: **99,36 % Statements, 97,11 % Branches, 100 % Functions, 99,78 % Lines** (241 Tests, alle drei Mocks-Engines end-to-end inkl. msw).
+Coverage (V8, Summe beider Projekte) ≥ **95 %** für alle vier Metriken, sonst rot. Stand: **~99,2 % Statements, ~96,3 % Branches, 100 % Functions, ~99,8 % Lines** (223 Tests, beide Mocks-Engines end-to-end inkl. msw).
 
 ```sh
 pnpm exec nx test tooling-openapi

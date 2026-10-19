@@ -14,7 +14,6 @@
     "src/**/*.ts"
   ],
   "exclude": [
-    "src/**/*.spec.ts",
-    "src/pipeline/schema-faker/runtime/**"
+    "src/**/*.spec.ts"
   ]
 }

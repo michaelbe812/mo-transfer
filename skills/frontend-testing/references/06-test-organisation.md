@@ -1,6 +1,6 @@
 # 06 – Test organisation (Nx: one lib per slice × layer)
 
-Workspace layout (→ `docs/nx-reduziert.md`): vertical slices (`booking`, `checkin`, `layout` — a slice is a
+Workspace layout (→ `docs/architektur.md`): vertical slices (`booking`, `checkin`, `layout` — a slice is a
 self-contained feature, not necessarily a business domain), libs `libs/<slice>/<layer>` and
 `libs/<slice>/feat-<feat>/<layer>`, layers `types`, `utils`, `data-access`, `state`, `ui`, `feature`/`shell`,
 `testing`. Tags `scope:<slice>|shared`, `type:<layer>`, `feat:<feat>|none`, `entry` (shell). Generated OpenAPI
@@ -12,8 +12,9 @@ slice, a feat never a sibling feat.
 ```
 libs/
   shared/testing/                 scope:shared   type:testing  feat:none   no build target
-    src/network.ts                  worker + test fixture + FAKER_SEED (imports no workspace lib)
+    src/network.ts                  worker + test fixture (imports no workspace lib)
     src/handlers.ts                 withBaseline, Scenarios
+    src/fixtures/                   builders of the shared clients (aNotification)
   <slice>/testing/                scope:<slice>  type:testing  feat:none   no build target
     src/fixtures/<x>.fixture.ts       a<X>() builders → generated DTOs
     src/handlers/<slice>.handlers.ts  <slice>Handlers (= withBaseline(curated, <client>Handlers…)), <slice>Scenarios, default<X>s
@@ -47,7 +48,7 @@ libs/
 | From | May import |
 |---|---|
 | Production layers (`types…feature`), `app` | **no** `type:testing`, no test packages |
-| `type:testing` | only `type:types`, `type:testing`, `scope:shared` (+ `msw`, `openapi-msw`, `@faker-js/faker`, `vitest`) |
+| `type:testing` | only `type:types`, `type:testing`, `scope:shared` (+ `msw`, `openapi-msw`, `vitest`) |
 | `shared/testing` | no workspace lib (so specs in `shared/*` can use it) |
 | Specs (`*.spec.ts`, `*.test.ts`, `test-setup.ts`) | same constraints as their lib **plus** `type:testing` — but only of the **own slice** and `shared`: the scope rules stay, a foreign slice's testing lib is blocked (there is no cross-slice code to test against) |
 | Specs in `type:types` | unchanged (testing libs build on types: a types spec importing them would be a cycle) |
@@ -80,10 +81,10 @@ Nx counts spec imports as project edges (`<slice>-state → <slice>-testing`).
 
 | Kind | Place |
 |---|---|
-| Worker, `test` fixture, global seed, `withBaseline`, `Scenarios` | `shared/testing` |
+| Worker, `test` fixture, `withBaseline`, `Scenarios`, builders of the shared clients (`aNotification`) | `shared/testing` |
 | Builders, handlers, scenarios of a slice | `<slice>/testing` |
 | Fakes for `shared/*` classes (e.g. `AuthStore`) | spec-local (`Pick<AuthStore, …>`); not in `shared/testing` — it imports no workspace lib (a `shared/state` spec using it would be a cycle) |
-| Generated types/handlers/factories of a client | `<client>/testing` (generated) |
+| Generated types, `<client>Http`, baseline `<client>Handlers` of a client (no test data) | `<client>/testing` (generated) |
 | Setup function used by one spec (`render<Feature>()`, `navigateTo()`) | local in the spec |
 | Setup used by several specs | provider/fake helpers (`provide<Slice>Testing()`) in `<slice>/testing`; the component/routes stay a parameter or a spec-local import – testing libs must not import `feature`/`shell` |
 

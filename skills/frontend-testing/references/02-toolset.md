@@ -9,7 +9,6 @@
 | MSW (`msw`) | 3 | network mocking via Service Worker |
 | openapi-msw | 2 | `createOpenApiHttp<paths>()` – typed handlers |
 | openapi-typescript | 7 | `paths`/`components` types from the spec |
-| `@faker-js/faker` | pinned exactly | data in generated mocks (schema-faker: private instance, seeded per value) |
 
 Vitest ≥ 4; with Vitest 5 add the worker plugin (§4). msw 3 needs `pnpm.peerDependencyRules.allowedVersions` for
 `msw` (`@vitest/mocker` peer) and `openapi-msw>msw`.

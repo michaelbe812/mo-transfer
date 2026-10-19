@@ -106,10 +106,10 @@ describe('settings validation (H2)', () => {
     );
   });
 
-  it('testing.mocks: library default none (scaffold only, no fake data), schema-faker/orval opt-in', () => {
+  it('testing.mocks: library default none (scaffold only, no generated handlers), examples opt-in', () => {
     expect(DEFAULT_SETTINGS.testing.mocks).toBe('none');
     expect(resolveSettings({}).testing.mocks).toBe('none');
-    expect(resolveSettings({ testing: { mocks: 'schema-faker' } }).testing.mocks).toBe('schema-faker');
+    expect(resolveSettings({ testing: { mocks: 'examples' } }).testing.mocks).toBe('examples');
   });
 
   it('overlays and transform files must be relative, without ..', () => {

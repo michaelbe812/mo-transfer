@@ -39,7 +39,6 @@
             "msw",
             "openapi-msw",
             "openapi-typescript",
-            "@faker-js/faker",
             "@angular/core",
             "yaml"
           ]

@@ -222,7 +222,7 @@ const cases = [
   allowedInGenerated('generated code: api -> core', 'libs/booking/generated/booking-client/api', `${BOOKING_CLIENT}/core`),
   allowedInGenerated('generated code: api -> @angular/common/http', 'libs/generated/pet-client/api', '@angular/common/http'),
   allowedInGenerated('generated code: core -> @angular/common/http', 'libs/generated/pet-client/core', '@angular/common/http'),
-  allowedInGenerated('generated code: testing -> msw, faker, openapi-msw', 'libs/generated/pet-client/testing', 'openapi-msw'),
+  allowedInGenerated('generated code: testing -> msw, openapi-msw', 'libs/generated/pet-client/testing', 'openapi-msw'),
 
   // tooling libs (packages/tooling/<lib>): explicit, acyclic package imports (conventions ← workspace → openapi, ng-lib)
   // openapi is publishable (buildable): no workspace tooling in its sources — the lib scaffold is loaded at run time
@@ -259,7 +259,7 @@ const cases = [
 ];
 
 /**
- * Naming scheme (docs/nx-umsetzung.md → Namensschema): the rule logic is covered by the RuleTester specs of
+ * Naming scheme (docs/namensschema.md): the rule logic is covered by the RuleTester specs of
  * tooling-eslint-rules; these cases prove the wiring in the real eslint.config.mjs — loader, files/ignores,
  * options (selector prefix) — incl. the exclusion of generated code. `file` may be an existing file:
  * only its virtual content is linted.
@@ -709,7 +709,7 @@ function checkClientBundle() {
   }
   const distDir = 'dist/apps/client';
   const files = readdirSync(distDir, { recursive: true }).filter((f) => statSync(join(distDir, f)).isFile());
-  // faker: the generated testing libs (orval mocks) must never reach the app
+  // faker: test-only, banned in production code (eslint), must never reach the app
   const testOnlyMarkers = /\bmsw\b|mockServiceWorker|setupWorker|vitest|faker/i;
   for (const file of files) {
     if (testOnlyMarkers.test(file) || testOnlyMarkers.test(readFileSync(join(distDir, file), 'latin1'))) {
@@ -782,8 +782,8 @@ const AFFECTED_PROBES = [
   // the plugin shapes the client targets: an input of every client's generate-api-client (no tooling fallback in CI)
   { file: 'packages/tooling/openapi/src/plugin/openapi-clients.ts', expected: ['generated-pet-client', 'booking-generated-booking-client', 'booking-data-access', 'client'] },
   { file: 'packages/tooling/openapi/src/pipeline/testing-preset.ts', expected: ['booking-generated-booking-client-testing'], notExpected: ['booking-generated-booking-client'] },
-  // testing-only code (schema-faker) never reaches the client code generation
-  { file: 'packages/tooling/openapi/src/pipeline/schema-faker/mocks.ts', expected: ['generated-pet-client-testing'], notExpected: ['generated-pet-client'] },
+  // testing-only code (examples generator) never reaches the client code generation
+  { file: 'packages/tooling/openapi/src/pipeline/examples/example-handlers.ts', expected: ['generated-pet-client-testing'], notExpected: ['generated-pet-client'] },
   // the adapter registry decides the client targets' inputs: every client
   { file: 'packages/tooling/openapi/src/registry/registry.ts', expected: ['generated-pet-client', 'booking-generated-booking-client', 'client'] },
   { file: 'openapi-clients.json', expected: ['generated-pet-client-api', 'booking-generated-booking-client-testing', 'client'] },

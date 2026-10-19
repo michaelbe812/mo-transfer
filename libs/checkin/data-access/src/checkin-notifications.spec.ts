@@ -1,16 +1,12 @@
 import { TestBed } from '@angular/core/testing';
-import {
-  getListNotificationsResponseMock,
-  type Notification,
-  notificationClientHandlers,
-  notificationClientHttp,
-} from '@mo-transfer/generated/notification-client/testing';
-import { test, worker } from '@mo-transfer/shared/testing';
+import { notificationClientHandlers, notificationClientHttp } from '@mo-transfer/generated/notification-client/testing';
+import type { Notification } from '@mo-transfer/generated/notification-client/types';
+import { aNotification, test, worker } from '@mo-transfer/shared/testing';
 import { beforeEach, describe, expect } from 'vitest';
 import { CheckinNotifications } from './checkin-notifications';
 
 describe('CheckinNotifications (shared notification-client behind the checkin data-access layer)', () => {
-  // generated default handlers of the shared client: spec examples, stable faker values for the rest
+  // generated default handlers of the shared client: the spec examples
   beforeEach(() => worker.use(...notificationClientHandlers));
 
   test('loads through the generated default handler', async () => {
@@ -26,11 +22,10 @@ describe('CheckinNotifications (shared notification-client behind the checkin da
     });
   });
 
-  test('asks for topic "checkin" only (typed scenario, generated factory as data)', async ({ worker }) => {
-    const [example] = getListNotificationsResponseMock();
+  test('asks for topic "checkin" only (typed scenario, shared fixture as data)', async ({ worker }) => {
     const all: Notification[] = [
-      { ...example, id: 'n-booking', topic: 'booking' },
-      { ...example, id: 'n-checkin', topic: 'checkin' },
+      aNotification({ id: 'n-booking', topic: 'booking' }),
+      aNotification({ id: 'n-checkin', topic: 'checkin' }),
     ];
     worker.use(
       notificationClientHttp.get('/notifications', ({ query, response }) =>

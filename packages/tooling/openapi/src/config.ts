@@ -45,7 +45,7 @@ export interface PipelineConfig {
   /** prettier (workspace config) on every generated file, default false */
   format?: boolean;
   /**
-   * testing lib: `msw` / `{ mocks }` (mocks engine, default settings.testing.mocks = none; `schema-faker` opt-in, `orval` deprecated)
+   * testing lib: `msw` / `{ mocks }` (mocks engine, default settings.testing.mocks = none; `examples` opt-in)
    * or none (`false`: the client generator skips it, no generate-api-testing)
    */
   testing?: 'msw' | false | { mocks?: MockEngine };

@@ -5,7 +5,7 @@
  *
  *   payment   domain, default: scaffold-only testing lib (no client)
  *   orders    domain --examples: example fixtures/handlers/scenarios + example store spec
- *   booking   testing generator on a slice with two own clients: schema-faker (→ <client>Handlers baseline) and
+ *   booking   testing generator on a slice with two own clients: examples (→ <client>Handlers baseline) and
  *             mocks none (no generated handlers — the scaffold must not import any)
  */
 import type { Tree } from '@nx/devkit';
@@ -44,10 +44,16 @@ components:
 const BOOKING_CLIENTS = ['booking/generated/booking-client', 'booking/generated/lean-client'];
 
 /** The repo's own sources of a lib folder, copied into the fixture (the generated code imports them). */
-function copyRepoSources(tree: Tree, dir: string): void {
-  for (const file of readdirSync(join(REPO_ROOT, dir))) {
-    if (file.endsWith('.ts') && !file.endsWith('.spec.ts')) tree.write(`${dir}/${file}`, readFileSync(join(REPO_ROOT, dir, file), 'utf-8'));
+/** The real shared/testing (recursively), plus a stand-in for the generated client types its fixtures import. */
+function copySharedTesting(tree: Tree, dir = 'libs/shared/testing/src'): void {
+  for (const entry of readdirSync(join(REPO_ROOT, dir), { withFileTypes: true })) {
+    if (entry.isDirectory()) copySharedTesting(tree, `${dir}/${entry.name}`);
+    else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.spec.ts')) tree.write(`${dir}/${entry.name}`, readFileSync(join(REPO_ROOT, dir, entry.name), 'utf-8'));
   }
+  tree.write(
+    'libs/generated/notification-client/types/src/index.ts',
+    "export interface Notification { id: string; topic: 'booking' | 'checkin'; message: string; read: boolean; createdAt: string }\n",
+  );
 }
 
 function flush(tree: Tree, root: string): void {
@@ -93,10 +99,10 @@ describe('generated testing libs compile in a fixture workspace (real shared/tes
 
   beforeAll(async () => {
     const tree = createBlueprintTree();
-    copyRepoSources(tree, 'libs/shared/testing/src');
+    copySharedTesting(tree);
     tree.write('libs/shared/data-access/src/index.ts', readFileSync(join(REPO_ROOT, 'libs/shared/data-access/src/http-client.ts'), 'utf-8'));
     writeClientsJson(tree, {
-      settings: { testing: { mocks: 'schema-faker' } },
+      settings: { testing: { mocks: 'examples' } },
       clients: { [BOOKING_CLIENTS[0]]: {}, [BOOKING_CLIENTS[1]]: { pipeline: { testing: { mocks: 'none' } } } },
     });
     for (const clientPath of BOOKING_CLIENTS) {
@@ -114,7 +120,7 @@ describe('generated testing libs compile in a fixture workspace (real shared/tes
   }, 60_000);
   afterAll(() => rmSync(root, { recursive: true, force: true }));
 
-  it('the baseline of the schema-faker client is layered, the none client contributes no handlers', () => {
+  it('the baseline of the examples client is layered, the none client contributes no handlers', () => {
     const handlers = readFileSync(join(root, 'libs/booking/testing/src/handlers/booking.handlers.ts'), 'utf-8');
     expect(handlers).toContain('withBaseline(curatedBookingHandlers, bookingClientHandlers)');
     expect(handlers).not.toContain('leanClientHandlers');
@@ -140,7 +146,7 @@ describe('--examples compile for every entity shape (fixture workspace, real sha
 
   beforeAll(async () => {
     const tree = createBlueprintTree();
-    copyRepoSources(tree, 'libs/shared/testing/src');
+    copySharedTesting(tree);
     tree.write('libs/shared/data-access/src/index.ts', readFileSync(join(REPO_ROOT, 'libs/shared/data-access/src/http-client.ts'), 'utf-8'));
     tree.write('libs/booking/types/src/booking.model.ts', 'export interface Booking {\n  id: number;\n  guestName: string;\n}\n');
     tree.write('libs/layout/types/src/index.ts', 'export {};\n');

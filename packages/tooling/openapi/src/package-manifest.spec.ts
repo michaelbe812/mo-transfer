@@ -10,16 +10,15 @@ const manifest = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'ut
   engines?: Record<string, string>;
   peerDependencies?: Record<string, string>;
   peerDependenciesMeta?: Record<string, { optional?: boolean }>;
+  devDependencies?: Record<string, string>;
 };
 
 /** imported lazily by adapters / presets / finalize: needed only when that feature is used */
 const OPTIONAL_TOOLS = [
   'prettier',
-  'orval',
   'openapi-typescript',
   'openapi-msw',
   'msw',
-  '@faker-js/faker',
   '@hey-api/openapi-ts',
   '@openapitools/openapi-generator-cli',
   '@nx-plugin-openapi/core',
@@ -33,8 +32,11 @@ describe('package manifest', () => {
     expect(manifest.peerDependenciesMeta?.[name]?.optional).toBe(true);
   });
 
-  it('@faker-js/faker: one major only — fake values depend on the faker version (schema-faker runtime)', () => {
-    expect(manifest.peerDependencies?.['@faker-js/faker']).toBe('^10.6.0');
+  it('no faker, no orval: the testing preset generates without them', () => {
+    for (const name of ['@faker-js/faker', 'orval']) {
+      expect(manifest.peerDependencies?.[name]).toBeUndefined();
+      expect(manifest.devDependencies?.[name]).toBeUndefined();
+    }
   });
 
   it('nx, @nx/devkit, typescript: required peers; engines.node from the loader (require(esm), node:util)', () => {

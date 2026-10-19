@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenAPI-Testing-Libs im Slice-Konzept</title>
+<style>
+:root{
+  --bg:#f7f7f5; --panel:#ffffff; --ink:#1d1f23; --muted:#5d636e; --line:#d9dce1;
+  --gen:#e8f0fe; --gen-b:#3b6fd8; --slice:#e7f6ec; --slice-b:#2f8f55; --test:#fff4e0; --test-b:#c47d12;
+  --warn:#fdecec; --warn-b:#c2413b; --code:#f0f1f3; --accent:#3b6fd8;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#15171a; --panel:#1d2025; --ink:#e7e9ec; --muted:#9aa1ac; --line:#343a43;
+  --gen:#1b2840; --gen-b:#6d97ee; --slice:#16301f; --slice-b:#5cc184; --test:#352812; --test-b:#e6a440;
+  --warn:#3a1c1b; --warn-b:#ec7a74; --code:#262a31; --accent:#6d97ee; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#15171a; --panel:#1d2025; --ink:#e7e9ec; --muted:#9aa1ac; --line:#343a43;
+  --gen:#1b2840; --gen-b:#6d97ee; --slice:#16301f; --slice-b:#5cc184; --test:#352812; --test-b:#e6a440;
+  --warn:#3a1c1b; --warn-b:#ec7a74; --code:#262a31; --accent:#6d97ee; color-scheme:dark;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1120px;margin:0 auto;padding-block:32px 80px;padding-inline:20px}
+h1{font-size:1.9rem;margin:0 0 4px}
+h2{font-size:1.35rem;margin:56px 0 12px;padding-top:12px;border-top:1px solid var(--line)}
+h3{font-size:1.05rem;margin:28px 0 8px}
+p,li{max-width:78ch}
+.sub{color:var(--muted);margin:0 0 24px}
+code{font:0.86em ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code);padding:1px 5px;border-radius:4px}
+pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto;font:0.82rem/1.5 ui-monospace,Menlo,monospace}
+pre code{background:none;padding:0}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px}
+nav.toc a{color:var(--accent);text-decoration:none;border:1px solid var(--line);padding:4px 10px;border-radius:999px;font-size:.88rem;background:var(--panel)}
+.tldr{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:8px;padding:14px 18px}
+.tldr ul{margin:6px 0 0;padding-left:20px}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;background:var(--panel);font-size:.9rem}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+th{background:var(--code);font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.85rem;color:var(--muted);margin:8px 0 14px}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px;border:1.5px solid}
+.sw.gen{background:var(--gen);border-color:var(--gen-b)} .sw.slice{background:var(--slice);border-color:var(--slice-b)} .sw.test{background:var(--test);border-color:var(--test-b)}
+
+/* layer diagram */
+.layers{display:grid;gap:10px}
+.layer{border:1.5px solid;border-radius:10px;padding:12px 14px;background:var(--panel)}
+.layer.gen{background:var(--gen);border-color:var(--gen-b)}
+.layer.slice{background:var(--slice);border-color:var(--slice-b)}
+.layer.test{background:var(--test);border-color:var(--test-b)}
+.layer h4{margin:0 0 8px;font-size:.95rem}
+.layer .tag{font-size:.75rem;color:var(--muted);font-weight:400;margin-left:6px}
+.boxes{display:flex;flex-wrap:wrap;gap:8px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-size:.84rem;flex:1 1 180px}
+.box b{display:block;font-family:ui-monospace,Menlo,monospace;font-size:.8rem}
+.box.hl{outline:2px dashed var(--warn-b);outline-offset:1px}
+.arrow{text-align:center;color:var(--muted);font-size:.85rem;line-height:1.2}
+
+/* priority stack */
+.stack{display:flex;flex-direction:column;gap:4px;max-width:560px}
+.stack div{border-radius:6px;padding:8px 12px;font-size:.88rem;border:1.5px solid}
+.p1{background:var(--test);border-color:var(--test-b)} .p2{background:var(--slice);border-color:var(--slice-b)} .p3{background:var(--gen);border-color:var(--gen-b)}
+
+/* options */
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.opt{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.opt.rec{border:2px solid var(--slice-b)}
+.opt h4{margin:0 0 6px}
+.opt .badge{font-size:.72rem;background:var(--slice-b);color:#fff;border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:2px}
+.opt ul{padding-left:18px;margin:6px 0}
+.pro{color:var(--slice-b)} .con{color:var(--warn-b)}
+
+/* pipeline */
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:0}
+.stage{flex:1 1 120px;min-width:120px;background:var(--panel);border:1.5px solid var(--gen-b);border-radius:8px;padding:8px 10px;font-size:.8rem;position:relative;margin:4px 14px 4px 0}
+.stage:not(:last-child)::after{content:"→";position:absolute;right:-13px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:700}
+.stage b{display:block;font-family:ui-monospace,Menlo,monospace;font-size:.82rem;margin-bottom:3px}
+.stage.noop{border-style:dashed;opacity:.75}
+.stage.key{background:var(--gen)}
+.phase{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--panel);margin:10px 0}
+.phase h4{margin:0 0 8px}
+.chain{font-family:ui-monospace,Menlo,monospace;font-size:.8rem;background:var(--code);border-radius:8px;padding:10px 12px;overflow-x:auto;white-space:pre}
+
+/* path formula */
+.path{font-family:ui-monospace,Menlo,monospace;font-size:1rem;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;overflow-x:auto;white-space:nowrap}
+.seg{display:inline-block;padding:2px 6px;border-radius:5px;margin:0 1px;position:relative}
+.seg.cfg{background:var(--gen);border:1px solid var(--gen-b)}
+.seg.key{background:var(--slice);border:1px solid var(--slice-b)}
+.seg.fix{background:var(--code);border:1px solid var(--line)}
+.callout{background:var(--warn);border-left:4px solid var(--warn-b);border-radius:6px;padding:10px 14px;margin:12px 0}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+ol.q li{margin:4px 0}
+</style>
+</head>
+<body>
+<main>
+
+<h1>Generierte Testing-Libs im Slice-Konzept</h1>
+<p class="sub">Wie passen <code>generate-api-testing</code>, die generierte Baseline und die Slice-Testing-Libs zusammen? Stand: <code>feat/testing-mocks-ohne-faker</code>, <code>settings.testing.mocks: "examples"</code>.</p>
+
+<nav class="toc">
+  <a href="#tldr">Kurzantwort</a>
+  <a href="#schichten">1 · Schichten</a>
+  <a href="#daten">2 · Testdaten (entschieden)</a>
+  <a href="#pipeline">3 · Task-Pipeline</a>
+  <a href="#outcomes">4 · Outcomes</a>
+  <a href="#ort">5 · Ort konfigurieren</a>
+  <a href="#fragen">Offene Fragen</a>
+</nav>
+
+<section id="tldr" class="tldr">
+<b>Kurzantwort</b>
+<ul>
+  <li>Drei Schichten: <b>generierte Client-Testing-Lib</b> (Vertrag + Baseline) → <b>Slice-Testing-Lib</b> (Fixtures, kuratierte Handler, Szenarien) → <b>Specs</b>.</li>
+  <li><b>Entschieden: keine generierten Testdaten, kein faker.</b> Die generierte Lib liefert Vertrag (<code>&lt;client&gt;Http</code>) + Baseline (<code>&lt;client&gt;Handlers</code>); Testdaten sind handgeschriebene Fixtures der Slice-Testing-Lib (<code>a&lt;Dto&gt;()</code>), die der shared Clients in <code>shared/testing</code> (<code>aNotification()</code>).</li>
+  <li>Baseline-Bodies werden <b>beim Generieren</b> aus Spec-<code>example</code>s berechnet (sonst feste Platzhalter) – kein Zufall, byte-gleich pro Spec, vom Typecheck gegen die Spec geprüft.</li>
+  <li>Grund: generierte Fake-Daten nutzte keine Fixture, wenig Wert. Handler bleiben, weil sie mit der Spec synchron bleiben („jede Operation antwortet“).</li>
+  <li>Pipeline: derselbe Runner wie für den Client, Preset <code>testing</code>. Unabhängig vom Adapter, nur aus der Spec. Ergebnis landet gitignored in <code>&lt;client&gt;/testing/src/generated/</code>.</li>
+  <li>Den Ort steuern Client-Schlüssel + <code>settings.libsDir / clientFolder / outputDir / aliasPrefix / sharedScope</code>. Der Teilordner <code>testing</code> ist fest.</li>
+</ul>
+</section>
+
+<!-- ============================================================ -->
+<h2 id="schichten">1 · Schichtenmodell</h2>
+<div class="legend">
+  <span><span class="sw gen"></span>generiert (gitignored, <code>type:testing</code>, <code>generated</code>)</span>
+  <span><span class="sw slice"></span>handgeschrieben pro Slice</span>
+  <span><span class="sw test"></span>Specs</span>
+</div>
+
+<div class="layers">
+  <div class="layer test">
+    <h4>Specs <span class="tag">libs/&lt;slice&gt;/{data-access,state,feat-*,ui}/**/*.spec.ts</span></h4>
+    <div class="boxes">
+      <div class="box"><b>beforeEach</b><code>worker.use(...bookingHandlers)</code></div>
+      <div class="box"><b>Abweichung</b><code>worker.use(bookingScenarios.empty())</code></div>
+      <div class="box"><b>data-access-Specs</b>nutzen <code>&lt;client&gt;Handlers</code> direkt, asserten Spec-<code>example</code>s literal</div>
+    </div>
+  </div>
+  <div class="arrow">▲ importiert</div>
+  <div class="layer slice">
+    <h4>Slice-Testing-Lib <span class="tag">libs/booking/testing · @mo-transfer/booking/testing</span></h4>
+    <div class="boxes">
+      <div class="box"><b>fixtures/</b><code>aBooking(overrides)</code> – Builder, typisiert mit generiertem DTO</div>
+      <div class="box"><b>handlers/ – kuratiert</b><code>curatedBookingHandlers</code> auf <code>bookingClientHttp</code></div>
+      <div class="box"><b>handlers/ – Defaults</b><code>withBaseline(curated, bookingClientHandlers, notificationClientHandlers)</code></div>
+      <div class="box"><b>handlers/ – Szenarien</b><code>bookingScenarios</code> <code>satisfies Scenarios</code></div>
+    </div>
+  </div>
+  <div class="arrow">▲ importiert <code>&lt;client&gt;Http</code>, <code>&lt;client&gt;Handlers</code>, DTO-Typen</div>
+  <div class="layer gen">
+    <h4>Generierte Client-Testing-Lib <span class="tag">libs/booking/generated/booking-client/testing · …/booking-client/testing</span></h4>
+    <div class="boxes">
+      <div class="box"><b>schema.ts</b>paths / components / operations (Typen)</div>
+      <div class="box"><b>http.ts</b><code>bookingClientHttp</code> (openapi-msw), <code>bookingClientBaseUrl</code></div>
+            <div class="box"><b>handlers.ts</b><code>bookingClientHandlers</code> = ein Handler je Operation auf <code>bookingClientHttp</code>, Bodies aus Spec-<code>example</code>s</div>
+    </div>
+  </div>
+  <div class="arrow">▲ <code>generate-api-testing</code> aus <code>openapi.yaml</code></div>
+</div>
+
+<h3>Wer gewinnt zur Laufzeit (MSW: erster Treffer)</h3>
+<div class="stack">
+  <div class="p1"><b>1.</b> <code>worker.use(scenario)</code> im Test – wird vorangestellt</div>
+  <div class="p2"><b>2.</b> kuratierte Handler der Slice (<code>withBaseline</code> setzt sie nach vorn)</div>
+  <div class="p3"><b>3.</b> generierte Baseline <code>&lt;client&gt;Handlers</code> – alles Übrige, inkl. genutzter shared Clients</div>
+</div>
+<p>Beleg: Mutationsprobe in <code>docs/testing.md</code> – Reihenfolge in <code>withBaseline</code> getauscht → <code>booking-state:test</code> rot.</p>
+
+<!-- ============================================================ -->
+<h2 id="daten">2 · Testdaten: entschieden</h2>
+<p>Früher (<code>schema-faker</code>) lieferte die generierte Lib zusätzlich Fake-Daten (<code>get&lt;Op&gt;ResponseMock</code>, faker, <code>mock-runtime.ts</code>) – zweite Datenquelle neben den Fixtures. Optionen waren A behalten, B rausnehmen, C Schema-Factories. Gewählt: <b>Baseline behalten, Fake-Daten raus</b> (Engine <code>examples</code>).</p>
+<div class="wrap"><table>
+<tr><th>Ebene</th><th>Datenquelle</th><th>Beispiel</th></tr>
+<tr><td>Generierte Client-Testing-Lib</td><td>nur Baseline: Spec-<code>example</code>s, sonst Platzhalter</td><td><code>bookingClientHandlers</code></td></tr>
+<tr><td>Slice-Testing-Lib</td><td>Fixtures <code>a&lt;Dto&gt;()</code> für kuratierte Handler/Szenarien</td><td><code>aBooking()</code>, <code>aCheckin({ id: 'c-7' })</code></td></tr>
+<tr><td><code>shared/testing</code></td><td>Fixtures der shared Clients</td><td><code>aNotification(…)</code></td></tr>
+<tr><td><code>data-access</code>-Specs (Wrapper)</td><td>Spec-<code>example</code>s literal, Overrides mit Fixtures</td><td><code>pet-api.spec.ts</code>: <code>[{ id: 10, name: 'doggie' }]</code></td></tr>
+<tr><td><code>state</code> / <code>feat-*</code> / <code>ui</code>-Specs</td><td>Slice-Testing-Lib</td><td><code>&lt;slice&gt;Handlers</code>, <code>&lt;slice&gt;Scenarios</code></td></tr>
+</table></div>
+
+<h3>Wert-Reihenfolge der Baseline</h3>
+<p>Media-<code>example(s)</code> → Schema-<code>example</code>/<code>examples[0]</code> → <code>const</code> → <code>default</code> → <code>enum[0]</code> → erste oneOf/anyOf-Variante (Discriminator) → Platzhalter: date <code>2026-01-01</code>, date-time <code>2026-01-01T00:00:00.000Z</code>, uuid Null-UUID, email <code>user@example.com</code>, uri <code>https://example.com</code>, string = Property-Name, Zahl = untere Grenze sonst <code>0</code>, boolean <code>false</code>. Objekte: required + optionale mit Example. Arrays: max(<code>minItems</code>, 1). Nur lokale <code>$ref</code>s. Lesbare Daten → <code>example</code> an jedes Property der eigenen Specs.</p>
+
+<!-- ============================================================ -->
+<h2 id="pipeline">3 · Task-Pipeline der Testing-Lib</h2>
+
+<div class="phase">
+<h4>Phase 1 · Gerüst (einmalig, committet) – Generator <code>client</code></h4>
+<p><code>nx g @mo-transfer/tooling-openapi:client booking-client --domain=booking --spec=… [--no-testing]</code></p>
+<ul>
+  <li>Eintrag in <code>openapi-clients.json</code> (ohne <code>pipeline.testing: false</code> → Testing-Lib)</li>
+  <li><code>&lt;client&gt;/testing/project.json</code>: Name <code>booking-generated-booking-client-testing</code>, Tags <code>scope:booking type:testing feat:none generated</code>, <code>implicitDependencies</code> → Client-Projekt, <code>lint</code>/<code>typecheck</code> mit <code>dependsOn: [generate-api-testing, ^generate-api-client, ^generate-api-testing]</code></li>
+  <li><code>testing/src/index.ts</code> = <code>export * from './generated';</code> (Pflicht – sonst bricht die Pipeline in <code>generate</code> ab)</li>
+  <li>tsconfig + <code>paths</code>-Alias über <code>settings.scaffold</code>; Hinweis nennt <code>&lt;client&gt;Handlers</code> (<code>examples</code>) bzw. nur <code>&lt;client&gt;Http</code> (<code>none</code>)</li>
+</ul>
+</div>
+
+<div class="phase">
+<h4>Phase 2 · Auslösung – Nx</h4>
+<div class="chain">nx test booking-state
+  └─ dependsOn ^generate-api-testing  (targetDefaults, transitiv über den Graph)
+       └─ booking-generated-booking-client-testing:generate-api-testing   ← inferiert vom Crystal-Plugin (createNodes)
+            executor  @mo-transfer/tooling-openapi:generate-testing   options { client: "booking/generated/booking-client" }
+            └─ facade.generateTesting → resolveClient (liest openapi-clients.json zur Laufzeit) → runPipeline(testingPreset(mocks))</div>
+<p>Gecacht. Cache-Hit → Outputs <code>src/generated</code> werden nur wiederhergestellt.</p>
+</div>
+
+<div class="phase">
+<h4>Phase 3 · Runner, Preset <code>testing</code> (dieselben Stages wie der Client)</h4>
+<div class="flow">
+  <div class="stage"><b>spec</b>Overlays (nur mit Feature-Flag) → <code>tmp/openapi/&lt;pfad&gt;/testing/</code></div>
+  <div class="stage key"><b>generate</b>Prüft <code>src/index.ts</code>; <code>servers[0].url</code>; openapi-typescript → <code>schema.ts</code>; <code>http.ts</code>; Engine <code>examples</code> → <code>handlers.ts</code></div>
+  <div class="stage"><b>classify</b>alle Dateien → Teil <code>testing</code>, sortiert</div>
+  <div class="stage"><b>transform[]</b><code>pipeline.transforms</code>, <code>ctx.preset = 'testing'</code></div>
+  <div class="stage noop"><b>split</b>läuft, ändert nichts (nur ein Teil)</div>
+  <div class="stage noop"><b>barrel</b>aus (<code>barrel: false</code>), <code>index.ts</code> kommt vom Preset</div>
+  <div class="stage"><b>finalize</b>prettier (<code>pipeline.format</code>) + Header „Do not edit, do not commit“</div>
+  <div class="stage key"><b>write</b>ersetzt <code>testing/src/&lt;outputDir&gt;/</code> komplett</div>
+</div>
+<p>Unabhängig vom Code-Adapter (openapi-tools, hey-api …): das Testing-Preset liest nur die Spec. Fehler tragen die Phase (<code>OpenApiError</code>, <code>--verbose</code> streamt). Ausgabe deterministisch.</p>
+</div>
+
+<h3>Was <code>generate</code> je Mocks-Engine erzeugt</h3>
+<div class="wrap"><table>
+<tr><th></th><th><code>none</code> (Library-Default)</th><th><code>examples</code> (dieses Repo)</th></tr>
+<tr><td>Dateien</td><td>schema, http, index (3)</td><td>+ handlers (4)</td></tr>
+<tr><td>Werkzeug</td><td>openapi-typescript, openapi-msw</td><td>+ eigener Spec-Walk zur Generierzeit, kein faker</td></tr>
+<tr><td>Spec ohne Operationen</td><td>erlaubt</td><td>erlaubt (leere <code>&lt;client&gt;Handlers</code>)</td></tr>
+<tr><td>Cache-Inputs zusätzlich</td><td>–</td><td><code>pipeline/examples/**</code></td></tr>
+</table></div>
+
+<!-- ============================================================ -->
+<h2 id="outcomes">4 · Outcomes und ihr Zweck</h2>
+<div class="wrap"><table>
+<tr><th>Outcome</th><th>Export</th><th>Zweck</th><th>Konsument</th></tr>
+<tr><td><code>schema.ts</code></td><td><code>paths</code>, <code>components</code>, <code>operations</code></td><td>Typen der Spec (Pfade, Methoden, Status, Bodies) – Basis für typisierte Handler</td><td><code>http.ts</code>, selten direkt</td></tr>
+<tr><td><code>http.ts</code></td><td><code>&lt;client&gt;Http</code>, <code>&lt;client&gt;BaseUrl</code></td><td><b>Vertragsschutz</b>: nur Spec-Pfade/-Status/-Bodies erlaubt → Spec-Änderung bricht handgeschriebene Handler beim Typecheck. BaseUrl = was der Client ruft</td><td>Slice-Testing-Lib (kuratiert, Szenarien), Specs</td></tr>
+<tr><td><code>handlers.ts</code></td><td><code>&lt;client&gt;Handlers</code></td><td><b>Baseline</b>: jede Operation antwortet mit Erfolgsstatus, Body aus Spec-<code>example</code>s (beim Generieren berechnet, typgeprüft) – Tests müssen Nebenschauplätze nicht mocken</td><td><code>withBaseline(…)</code> der Slice</td></tr>
+<tr><td><code>index.ts</code></td><td>Barrel</td><td>öffentliche API unter <code>@mo-transfer/&lt;pfad&gt;/testing</code></td><td>–</td></tr>
+<tr><td>Nx-Cache-Eintrag</td><td>–</td><td>Inputs: Spec, Overlays, <code>settings</code> + <code>clients.&lt;pfad&gt;.pipeline</code> (json-Input), Preset-Quellen, Transforms, Pakete. Output: <code>src/generated</code>. Konsumenten hashen es über <code>dependentTasksOutputFiles</code></td><td>Nx</td></tr>
+</table></div>
+
+<!-- ============================================================ -->
+<h2 id="ort">5 · Ort konfigurieren</h2>
+<p>Pfad der Testing-Lib (<code>partRoot</code> in <code>settings.ts</code>):</p>
+<div class="path">
+  <span class="seg cfg">libs</span>/<span class="seg key">booking</span>/<span class="seg cfg">generated</span>/<span class="seg key">booking-client</span>/<span class="seg fix">testing</span>/src/<span class="seg cfg">generated</span>/…
+</div>
+<div class="legend">
+  <span><span class="sw gen"></span>settings</span>
+  <span><span class="sw slice"></span>Client-Schlüssel in <code>openapi-clients.json</code></span>
+  <span><span class="sw" style="background:var(--code);border-color:var(--line)"></span>fest</span>
+</div>
+
+<div class="wrap"><table>
+<tr><th>Stellschraube</th><th>Default</th><th>Wirkung auf die Testing-Lib</th></tr>
+<tr><td><b>Client-Schlüssel</b> <code>clients.&lt;pfad&gt;</code></td><td>–</td><td><code>generated/&lt;name&gt;</code> → shared (scope <code>shared</code>, alle Slices); <code>&lt;domain&gt;/generated/&lt;name&gt;</code> → slice-privat (scope <code>&lt;domain&gt;</code>). Bestimmt Ordner, Projektname, Alias, Tags</td></tr>
+<tr><td><code>settings.libsDir</code></td><td><code>libs</code></td><td>Wurzel aller Client-Ordner</td></tr>
+<tr><td><code>settings.clientFolder</code></td><td><code>generated</code></td><td>reservierter Zwischenordner (kein Scope, kein Layer)</td></tr>
+<tr><td><code>settings.outputDir</code></td><td><code>generated</code></td><td>gitignored Unterordner unter <code>src/</code>; <code>index.ts</code> muss ihn re-exportieren</td></tr>
+<tr><td><code>settings.aliasPrefix</code></td><td><code>@mo-transfer/</code></td><td>Alias = <code>&lt;prefix&gt;&lt;pfad&gt;/testing</code></td></tr>
+<tr><td><code>settings.sharedScope</code></td><td><code>shared</code></td><td>Scope-Tag shared Clients</td></tr>
+<tr><td><code>settings.scaffold</code></td><td>eingebaut</td><td>project.json/tsconfig/Tags der Lib (hier <code>tooling-conventions/openapi-scaffold</code>)</td></tr>
+<tr><td><code>pipeline.testing: false</code> / <code>--no-testing</code></td><td>an</td><td>keine Testing-Lib, kein <code>generate-api-testing</code></td></tr>
+<tr><td><code>pipeline.testing.mocks</code> / <code>settings.testing.mocks</code></td><td><code>none</code></td><td>Inhalt, nicht Ort (s. Abschnitt 3)</td></tr>
+<tr><td>Plugin-Option <code>testingTargetName</code> (<code>nx.json</code>)</td><td><code>generate-api-testing</code></td><td>Target-Name, nicht Ort</td></tr>
+<tr><td>fest</td><td>–</td><td>Teilordner <code>testing</code>, Tags <code>type:testing feat:none generated</code>, tmp-Pfad <code>tmp/openapi/&lt;pfad&gt;</code>. Pfade werden validiert (bleiben im Workspace)</td></tr>
+</table></div>
+
+<p>Bewusst <b>nicht</b> möglich: die Testing-Lib in die Slice-Testing-Lib legen (z.B. <code>libs/booking/testing/src/generated</code>). Gründe: ein Projekt = ein Generator-Output (Cache, <code>write</code> ersetzt den Ordner komplett), eigene Tags <code>generated</code>, Boundaries.</p>
+
+<!-- ============================================================ -->
+<h2 id="fragen">Offene Fragen</h2>
+<p>Keine – Option (keine generierten Testdaten, Baseline behalten), Lint-Regel gegen <code>get*ResponseMock</code> (entfällt), Override-Basis (Fixtures) und orval-Entfernung sind entschieden bzw. umgesetzt.</p>
+
+</main>
+</body>
+</html>

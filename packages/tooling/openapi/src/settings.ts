@@ -18,12 +18,11 @@ export interface FeatureFlags {
 }
 
 /**
- * Mocks engine of the testing preset: `none` (default: scaffold only — schema + typed `<client>Http`, no fake data,
- * no generated handlers), `schema-faker` (opt-in, own generator: `get<Op>…Mock`, `<client>Handlers`) or `orval`
- * (deprecated, removed next iteration).
+ * Mocks engine of the testing preset: `none` (default: scaffold only — schema + typed `<client>Http`, no generated
+ * handlers) or `examples` (opt-in: `<client>Handlers`, bodies from the spec examples, no faker).
  */
-export type MockEngine = 'none' | 'schema-faker' | 'orval';
-export const MOCK_ENGINES: readonly MockEngine[] = ['none', 'schema-faker', 'orval'];
+export type MockEngine = 'none' | 'examples';
+export const MOCK_ENGINES: readonly MockEngine[] = ['none', 'examples'];
 
 export interface TestingSettings {
   /** workspace default, a client overrides it with pipeline.testing: { mocks } */

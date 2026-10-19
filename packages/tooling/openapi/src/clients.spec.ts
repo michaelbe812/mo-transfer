@@ -147,10 +147,10 @@ describe('openapi-clients.json on the Tree', () => {
     expect(tree.exists('libs/generated/z-client/project.json')).toBe(false);
   });
 
-  it('domainClientTestingExports: testing exports of a slice\'s own clients — <client>Handlers only for a faking engine', () => {
+  it('domainClientTestingExports: testing exports of a slice\'s own clients — <client>Handlers only for the examples engine', () => {
     const testingLib = (clientPath: string) => tree.write(`libs/${clientPath}/testing/src/index.ts`, "export * from './generated';\n");
     writeClientsJson(tree, {
-      settings: { testing: { mocks: 'schema-faker' } },
+      settings: { testing: { mocks: 'examples' } },
       clients: {
         'booking/generated/booking-client': {},
         'booking/generated/lean-client': { pipeline: { testing: { mocks: 'none' } } },

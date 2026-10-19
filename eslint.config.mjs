@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * REDUCED blueprint as pure Nx module boundaries — see docs/nx-umsetzung.md.
+ * REDUCED blueprint as pure Nx module boundaries — see docs/modulgrenzen.md.≈
  * One lib per slice x layer, tags:
  *   scope:<slice>   booking, checkin, layout, ... | shared
  *   type:<layer>    types, utils, data-access, state, ui, feature | app
@@ -61,7 +61,7 @@ const layerConstraints = [
 /** Test tooling never ships: banned in production code, allowed in type:testing and specs. */
 const testOnlyPackages = [
     "msw", "msw/*", "vitest", "vitest/*", "@vitest/*", "@testing-library/*", "playwright", "playwright/*",
-    // generated testing libs of the OpenAPI clients: typed MSW + faker factories
+    // generated testing libs of the OpenAPI clients (typed MSW); faker stays banned should a builder add it
     "openapi-msw", "@faker-js/*",
 ];
 const noTestPackagesInProduction = [...productionLayers, "type:app"].map((sourceTag) => ({
@@ -182,7 +182,7 @@ export const specDepConstraints = blueprintDepConstraints
 export const specFiles = ["**/*.spec.ts", "**/*.test.ts", "**/test-setup.ts"];
 
 /**
- * Naming scheme (docs/nx-umsetzung.md → Namensschema): local rules in packages/tooling/eslint-rules,
+ * Naming scheme (docs/namensschema.md): local rules in packages/tooling/eslint-rules,
  * loaded from source (swc, no build) by Nx's loadWorkspaceRules. Layer, scope and feat come from
  * @mo-transfer/tooling-conventions — the same path parser the generators derive the tags with.
  * A load error surfaces as "Could not find 'blueprint/…'" — never as silently missing rules.

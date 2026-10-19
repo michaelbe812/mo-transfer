@@ -2,80 +2,25 @@
  * Preset `testing` (target generate-api-testing): the client's testing lib <client>/testing/src/generated/**
  * (gitignored), from the spec only — independent of the code generator adapter. Mocks engines:
  *
- *   all           schema.ts (openapi-typescript: paths, components, operations), http.ts (openapi-msw: `<client>Http`,
- *                 `<client>BaseUrl`), index.ts
- *   none          (default) nothing else: scaffold only, no fake data — handlers are written by hand on `<client>Http`
- *   schema-faker  (opt-in) + mocks.ts, model.ts, mock-runtime.ts, handlers.ts (`<client>Handlers`): own spec walk,
- *                 faker at test time (./schema-faker)
- *   orval         (deprecated, removed next iteration) + mocks.ts, model/**, handlers.ts from orval (msw mocks, faker)
+ *   all       schema.ts (openapi-typescript: paths, components, operations), http.ts (openapi-msw: `<client>Http`,
+ *             `<client>BaseUrl`), index.ts
+ *   none      (default) nothing else: scaffold only — handlers are written by hand on `<client>Http`
+ *   examples  (opt-in) + handlers.ts (`<client>Handlers`): one typed handler per operation, bodies from the spec
+ *             examples (fixed placeholders for the rest), computed at generation time (./examples)
  *
- * The faking engines export get<Op>ResponseMock() / get<Op>MockHandler() per operation and the component types.
- * Same runner as the client: overlays, transforms, format and header apply here, too. Deterministic output; faker
- * values are seeded per test by the `worker` fixture of shared/testing.
+ * Same runner as the client: overlays, transforms, format and header apply here, too. Deterministic output.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parse as parseYaml } from 'yaml';
 import { camelCase, type MockEngine, partRoot, TESTING_PART } from '../settings';
-import { readRawFiles } from '../adapters/files';
 import type { PipelineContext, PipelinePreset } from './runner';
-import { generateSchemaFakerMocks } from './schema-faker/mocks';
+import { generateExampleHandlers } from './examples/example-handlers';
 
 export interface TestingPreset extends PipelinePreset {
   /** servers[0].url of the spec, known after generate */
   baseUrl?: string;
-}
-
-/** orval: msw mocks only (it needs a client target; the fetch client is dropped) → mocks.ts, handlers.ts, index.ts, model/**. */
-async function orvalMocks({ client, workspaceRoot, specFile, rawDir }: PipelineContext, name: string): Promise<Map<string, string>> {
-  const { generate } = await import('orval');
-  await generate(
-    {
-      input: { target: specFile },
-      output: {
-        mode: 'split',
-        target: join(rawDir, 'client.ts'),
-        schemas: join(rawDir, 'model'),
-        client: 'fetch',
-        mock: { generators: [{ type: 'msw', useExamples: true, delay: false }] },
-      },
-    },
-    workspaceRoot,
-  );
-  // a spec without operations: orval writes no mock file at all
-  const mocksFile = join(rawDir, 'client.msw.ts');
-  const mocks = existsSync(mocksFile) ? readFileSync(mocksFile, 'utf-8') : '';
-  // orval's "all handlers" function is named after the spec title: get<Title>Mock = () => [...]
-  const aggregate = /export const (get\w+Mock) = \(\) => \[/.exec(mocks)?.[1];
-  if (!aggregate) throw new Error(`${client.spec.file}: orval produced no msw handlers (no operations?)`);
-  const files = new Map<string, string>([
-    ['mocks.ts', mocks],
-    [
-      'handlers.ts',
-      [
-        "import type { HttpHandler } from 'msw';",
-        `import { ${aggregate} } from './mocks';`,
-        '',
-        '/** Default handlers: every operation of the spec answers 200 with its examples, faker fills the rest. */',
-        `export const ${name}Handlers: HttpHandler[] = ${aggregate}();`,
-        '',
-      ].join('\n'),
-    ],
-    [
-      'index.ts',
-      [
-        "export type { components, operations, paths } from './schema';",
-        "export * from './model';",
-        "export * from './mocks';",
-        "export * from './http';",
-        "export * from './handlers';",
-        '',
-      ].join('\n'),
-    ],
-  ]);
-  for (const [file, content] of readRawFiles(join(rawDir, 'model'))) files.set(`model/${file}`, content);
-  return files;
 }
 
 /** Barrel of mocks engine `none`: types + typed http, nothing faked. */
@@ -120,11 +65,8 @@ export function testingPreset(mocks: MockEngine = 'none'): TestingPreset {
       ]);
       if (mocks === 'none') {
         files.set('index.ts', SCAFFOLD_INDEX);
-      } else if (mocks === 'orval') {
-        console.warn('mocks engine orval is deprecated (removed next iteration): pipeline.testing.mocks / settings.testing.mocks → schema-faker');
-        for (const [file, content] of await orvalMocks(context, name)) files.set(file, content);
       } else {
-        for (const [file, content] of Object.entries(generateSchemaFakerMocks({ document: document as Record<string, unknown>, name, specPath: client.spec.file }))) {
+        for (const [file, content] of Object.entries(generateExampleHandlers({ document: document as Record<string, unknown>, name }))) {
           files.set(file, content);
         }
       }

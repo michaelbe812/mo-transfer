@@ -12,7 +12,7 @@
 | `vi.mock('…module')` | TestBed provider of the class we don't control (`{ provide: AuthStore, useValue: fake }`) |
 | Copied JSON blobs per test | `a<X>(overrides)` builders, `<slice>Scenarios` |
 | Untyped `http.get('/api/…')` when a spec exists | `<client>Http` (openapi-msw) – drift breaks the build |
-| Asserting faker values | assert builder defaults, overrides, spec examples, served counts |
+| Random test data (faker & co.), generated factories as test data | assert builder defaults, overrides, spec examples, served counts |
 | Global setup file registering handlers | `beforeEach(() => worker.use(...<slice>Handlers))` in the spec |
 | `worker.stop()` / new worker per spec / `onUnhandledRequest: 'bypass'` | one worker, `resetHandlers`, `onUnhandledFrame: 'error'` |
 | `import { test } from 'vitest'` in MSW specs | `import { test, worker } from '@mo-transfer/shared/testing'` |

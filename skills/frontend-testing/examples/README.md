@@ -1,7 +1,7 @@
 # Examples
 
 Specs and infra files for this workspace (reduced Nx blueprint: vertical slices, one lib per slice × layer, no
-ports, generated OpenAPI DTOs in every layer — `docs/nx-reduziert.md`). They mirror the real libs: placed at the
+ports, generated OpenAPI DTOs in every layer — `docs/architektur.md`). They mirror the real libs: placed at the
 path in the table, they compile, lint and pass (checked once by copying them in). Read `booking`/`checkin` as
 `<slice>`, `booking-client`/`checkin-client` as `<client>`.
 
@@ -16,7 +16,7 @@ path in the table, they compile, lint and pass (checked once by copying them in)
 | `store.spec.ts` | `libs/checkin/state/src/checkin.store.spec.ts` | real store + `CheckinApi` vs. MSW, DTOs held as they are, scenarios, error path, domain event + fake `Date` |
 | `data-access.spec.ts` | `libs/booking/data-access/src/booking-api.spec.ts` | wrapper vs. generated client, **unhandled → red**, generated defaults (spec examples), typed error override |
 | `unit.spec.ts` | `libs/checkin/utils/src/checkin.utils.spec.ts` | pure function on a generated DTO, no TestBed/MSW |
-| `network.ts` | `libs/shared/testing/src/network.ts` | worker + auto fixture, `onUnhandledFrame: 'error'`, `faker.seed`, `resetHandlers` |
+| `network.ts` | `libs/shared/testing/src/network.ts` | worker + auto fixture, `onUnhandledFrame: 'error'`, `resetHandlers` |
 | `slice-testing/fixtures.ts` | `libs/booking/testing/src/fixtures/booking.fixture.ts` | builder `aBooking()` returning the generated `Booking` DTO |
 | `slice-testing/handlers.ts` | `libs/booking/testing/src/handlers/booking.handlers.ts` | `bookingHandlers` (curated on the generated baseline), `bookingScenarios` typed via `bookingClientHttp` |
 | `vitest-base.config.mts` | `vitest-base.config.mts` (workspace root) | runnerConfig: msw 3 fixes for the Angular builder, worker via `msw/vite`, `globals: false` |
@@ -26,4 +26,4 @@ A lib's first spec also needs `tsconfig.spec.json` + `"test": {}` in its `projec
 `ArrivalList` is used once and covered by the `feat-checkin` integration test). None of the component specs calls `detectChanges`, `whenStable`, `fakeAsync`,
 `tick` or waits manually.
 
-Minimum versions: Vitest ≥ 4 (browser mode, `@vitest/browser-playwright`) · Playwright (Chromium) · msw ≥ 3.0.2 (`msw/vite`) · openapi-msw ≥ 2 · openapi-typescript ≥ 7 · `@faker-js/faker` (pinned exactly; schema-faker seeds per value).
+Minimum versions: Vitest ≥ 4 (browser mode, `@vitest/browser-playwright`) · Playwright (Chromium) · msw ≥ 3.0.2 (`msw/vite`) · openapi-msw ≥ 2 · openapi-typescript ≥ 7. No faker.

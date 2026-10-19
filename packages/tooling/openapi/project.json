@@ -75,10 +75,8 @@
             "@nx-plugin-openapi/plugin-openapi",
             "@nx-plugin-openapi/plugin-hey-api",
             "openapi-typescript",
-            "orval",
             "openapi-msw",
             "msw",
-            "@faker-js/faker",
             "@angular/core",
             "@angular/common",
             "rxjs"
@@ -90,7 +88,7 @@
       ],
       "outputs": ["{projectRoot}/coverage"],
       "metadata": {
-        "description": "All tests: unit + integration (jar/Java, hey-api, nx-plugin-openapi, orval, msw, tsc, nx in a fixture workspace) with coverage; fails below 95 %"
+        "description": "All tests: unit + integration (jar/Java, hey-api, nx-plugin-openapi, msw, tsc, nx in a fixture workspace) with coverage; fails below 95 %"
       },
       "options": {
         "command": "vitest run --config packages/tooling/openapi/vitest.config.mts --coverage"

@@ -261,7 +261,7 @@ describe('client generator', () => {
   });
 
   it('formats (formatFiles) and tells how to generate and use the client', async () => {
-    clientsJson(tree, { settings: { ...SETTINGS, testing: { mocks: 'schema-faker' } }, clients: {} });
+    clientsJson(tree, { settings: { ...SETTINGS, testing: { mocks: 'examples' } }, clients: {} });
     const info = vi.spyOn(logger, 'info').mockImplementation(() => undefined);
     const callback = await clientGenerator(tree, { name: 'demo-client', domain: 'booking', spec: 'specs/demo.yaml' });
     callback();

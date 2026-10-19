@@ -1,13 +1,13 @@
 ---
 name: angular-testing
-description: Frontend testing strategy and patterns for Angular in this Nx workspace (reduced Nx blueprint: vertical slices, one lib per slice × layer, generated OpenAPI DTOs everywhere; Vitest ≥ 4 browser mode with Playwright/Chromium, page/userEvent/expect.element from vitest/browser, MSW ≥ 3, typed mocks generated from OpenAPI via openapi-msw/schema-faker). Use when writing, reviewing or fixing tests or specs (*.spec.ts), component/integration/store/data-access tests, MSW handlers, fixtures or test data builders, testing libs (type:testing), test target / vitest config, flaky tests, or when deciding what to test where (testing honeycomb).
+description: Frontend testing strategy and patterns for Angular in this Nx workspace (reduced Nx blueprint: vertical slices, one lib per slice × layer, generated OpenAPI DTOs everywhere; Vitest ≥ 4 browser mode with Playwright/Chromium, page/userEvent/expect.element from vitest/browser, MSW ≥ 3, typed handlers generated from OpenAPI via openapi-msw + spec examples). Use when writing, reviewing or fixing tests or specs (*.spec.ts), component/integration/store/data-access tests, MSW handlers, fixtures or test data builders, testing libs (type:testing), test target / vitest config, flaky tests, or when deciding what to test where (testing honeycomb).
 ---
 
 # Frontend Testing Strategy
 
 ## Hints
 - Right now we don't write E2E tests.
-- Architecture this skill assumes (→ `docs/nx-reduziert.md`): vertical slices (a slice is always a self-contained
+- Architecture this skill assumes (→ `docs/architektur.md`): vertical slices (a slice is always a self-contained
   feature — a business domain like `booking`/`checkin`, but also `layout`), one Nx lib per slice × layer
   (`types`, `utils`, `data-access`, `state`, `ui`, `feature`/`shell`, `testing`), feats `feat-<f>/` inside a slice.
   **No ports, no DI tokens:** slices never import each other, feats never import sibling feats. HTTP only in
@@ -83,10 +83,10 @@ description: Frontend testing strategy and patterns for Angular in this Nx works
   (builders `a<X>()` returning generated DTOs, typed via `<client>Http`) win, the generated baseline answers every
   other operation of the slice's clients; scenarios `satisfies Scenarios`. State/feature specs use the slice
   handlers + scenarios, data-access specs the generated `<client>Handlers` + typed `<client>Http` overrides.
-- Generated defaults with fake data (`settings.testing.mocks: schema-faker`, set in this repo); builders
-  `a<X>(overrides)`; `faker.seed` per test (global faker only). schema-faker data is stable per value: assert on
-  spec examples, on values derived from `get<Op>ResponseMock()`, sparingly on generated literals; never on unseeded
-  randomness.
+- Generated baseline (`settings.testing.mocks: examples`, set in this repo): `<client>Handlers` with bodies computed
+  at generation time from spec examples (fixed placeholders otherwise) – deterministic, no faker anywhere. Generated
+  lib = contract (`<client>Http`) + baseline; test data = hand-written builders `a<X>(overrides)` in the slice
+  testing lib (shared clients: `shared/testing`, e.g. `aNotification()`). Assert on spec examples or builder values.
 
 **Organisation** → `references/06-test-organisation.md`
 - `libs/shared/testing` (worker + `test` + `withBaseline`), `libs/<slice>/testing` (fixtures, handlers, scenarios),

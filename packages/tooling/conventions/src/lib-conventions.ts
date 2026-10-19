@@ -57,7 +57,7 @@ export const CLIENT_SPEC_FILES = ['openapi.yaml', 'openapi.json'];
  * Parts of a client = libs below its folder, part → layer. `api` and `core` are `data-access` (HTTP is the
  * data-access layer's job), not `utils`: the generated runtime (Configuration, encoder, client) imports
  * @angular/common/http. The folder names stay `api`/`core` — `api` is no layer.
- * `testing`: MSW handlers, faker factories and the typed `<client>Http` — generated from the spec only.
+ * `testing`: MSW handlers (spec examples) and the typed `<client>Http` — generated from the spec only.
  */
 export const CLIENT_PARTS: Record<string, string> = {
   types: 'types',

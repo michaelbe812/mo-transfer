@@ -123,7 +123,6 @@
             "@vitest/browser-playwright",
             "msw",
             "openapi-msw",
-            "@faker-js/faker",
             "@angular/build"
           ]
         }
