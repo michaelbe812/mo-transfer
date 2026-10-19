@@ -1,6 +1,6 @@
 # @mo-transfer/tooling-eslint-rules
 
-ESLint-Regeln des Namensschemas (Plugin-Präfix `blueprint/`). Projekt `tooling-eslint-rules` (`type:tooling`, `tooling:eslint-rules`), importiert nur `@mo-transfer/tooling-conventions`. Übersicht: [`packages/tooling`](../README.md), Namensschema: [`docs/nx-umsetzung.md` → Namensschema](../../../docs/nx-umsetzung.md#namensschema).
+ESLint-Regeln des Namensschemas (Plugin-Präfix `blueprint/`). Projekt `tooling-eslint-rules` (`type:tooling`, `tooling:eslint-rules`), importiert nur `@mo-transfer/tooling-conventions`. Übersicht: [`packages/tooling`](../README.md), Namensschema: [`docs/namensschema.md`](../../../docs/namensschema.md).
 
 Layer, Scope und Feat kommen aus `parseLibPath` der Konventionen, also aus demselben Parser, mit dem die Generatoren die Tags ableiten. Die Tabellen (`FILE_KINDS`, `KIND_ONLY_LAYERS`, `KIND_FOLDERS`, `INTERNAL_FOLDER`) stehen ebenfalls in `lib-conventions.ts`. Generierte Client-Libs und `src/generated/**` sind ausgenommen.
 

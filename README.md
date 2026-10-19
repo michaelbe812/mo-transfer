@@ -10,8 +10,7 @@
 
 Architektur: reduzierter Nx-Blueprint (übernommen aus sheriff-blue-print, Branch `feat/nx-reduced-blueprint`). Eine Nx-Lib pro Slice × Layer (`types`, `utils`, `data-access`, `state`, `ui`, `feature`/`shell`, `testing`), keine Ports, Slices (Verticals = geschlossene Features) und Feats geschlossen, generierte DTOs unverändert in allen Layern (keine Mapper). Grenzen: Tags + `@nx/enforce-module-boundaries` in `eslint.config.mjs`. Import-Präfix `@mo-transfer/`.
 
-- Regelwerk: [`docs/nx-reduziert.md`](docs/nx-reduziert.md)
-- Umsetzung (Build, Testing/MSW, OpenAPI-Clients, Namensschema, Tooling): [`docs/nx-umsetzung.md`](docs/nx-umsetzung.md)
+- Dokumentation, ein Dokument pro Thema: [`docs/README.md`](docs/README.md) (Architektur, Modulgrenzen, Lib-Konfiguration, Namensschema, Testing, OpenAPI-Clients, Tooling, Verifikation, …)
 - Vergleich vollständig vs. reduziert: [`docs/blueprint-vergleich.html`](docs/blueprint-vergleich.html), Präsentation: [`docs/architektur.pptx`](docs/architektur.pptx)
 - Tooling (Generatoren, Executoren, Verify): [`packages/tooling/README.md`](packages/tooling/README.md)
 
