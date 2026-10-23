@@ -99,14 +99,56 @@ Der Server prüft Bucket/Container beim Start und bricht bei falscher Konfigurat
 
 Ein Treffer verlängert nichts: ein Eintrag läuft trotz Nutzung ab und wird dann neu gebaut.
 
-## Betrieb
+## Produktivbetrieb
+
+Checkliste, in dieser Reihenfolge:
+
+1. **Speicher anlegen**, privat (kein öffentlicher Zugriff):
+   - MinIO/S3: Bucket, z. B. `nx-cache`. Eigener Benutzer mit Policy nur auf diesen Bucket: `s3:GetObject`, `s3:PutObject`, `s3:ListBucket`. `ListBucket` ist Pflicht: ohne liefert S3 bei einem Miss 403 statt 404 → Server antwortet 500.
+   - Azure: Storage Account + Container, z. B. `nx-cache`. Identität des Servers mit Rolle **Storage Blob Data Contributor** auf dem Container (Managed Identity bevorzugt, sonst Connection String/Key als Secret).
+2. **Ablauf einrichten** pro Präfix, z. B. `trusted/` 14 Tage, `dev/` 3 Tage (siehe [Retention](#server-konfigurieren)). Ohne Regel wächst der Speicher unbegrenzt.
+3. **Tokens erzeugen** (`openssl rand -base64 32`):
+   - ein CI-Token (`NX_CACHE_CI_TOKENS`), nur für Pipelines auf `main`/Release
+   - ein Read-only-Token (`NX_CACHE_READ_ONLY_TOKENS`) für PR-Pipelines
+   - ein Dev-Token pro Entwickler (`NX_CACHE_DEV_TOKENS`, kommagetrennt)
+4. **Server deployen**: Image bauen und in die eigene Registry pushen (`docker build -t <registry>/nx-remote-cache-custom:<version> packages/nx-remote-cache-custom`), Env aus Secrets (Beispiele unten). Zustandslos: mehrere Replicas möglich. Richtwert 0,5 vCPU / 512 MiB.
+5. **Davor TLS + Proxy**: HTTPS-Endpoint, z. B. `https://nx-cache.<firma>.de`. Body-Limit ≥ `NX_CACHE_MAX_ENTRY_BYTES` (nginx: `client_max_body_size 2g;`), Request-Timeout ≥ 5 min, kein Puffern der Bodies (nginx: `proxy_request_buffering off;`). Erreichbar für CI-Agents und Entwickler (VPN/IP-Allowlist nach Bedarf). Health-Probe: `GET /health`.
+6. **CI anbinden**: `NX_SELF_HOSTED_REMOTE_CACHE_SERVER` + `NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN`, CI-Token nur für geschützte Branches, PRs Read-only (siehe [Nx anbinden](#nx-anbinden)). Nx ≥ 22.7.7 / 23.0.2.
+7. **Entwickler anbinden**: persönlichen Dev-Token verteilen (Passwort-Manager), Variablen in `~/.zshrc`/direnv.
+8. **Prüfen**: `nx reset && nx run-many -t build` zweimal auf verschiedenen Rechnern → `[remote cache]`. Optional der E2E gegen den echten Server: `NX_CACHE_E2E_URLS=https://… NX_CACHE_E2E_CI_TOKEN=… NX_CACHE_E2E_DEV_TOKEN=… NX_CACHE_E2E_RO_TOKEN=… npx vitest run --config packages/nx-remote-cache-custom/vitest.config.mts src/e2e` (legt ein paar kleine Einträge an).
+
+**Laufend:**
+
+- Token rotieren: neuen Token zur Liste hinzufügen, Clients umstellen, alten entfernen, Server neu starten. Entwickler verlässt das Team → seinen Token aus `NX_CACHE_DEV_TOKENS` streichen.
+- Logs: Start-Zeile `storage: …`, Fehler als `storage get/put failed` (500 an den Client). Nx bricht bei Cache-Fehlern nicht ab, baut dann lokal.
+- Cache leeren (z. B. nach Verdacht auf ein kaputtes Artefakt): Präfix `trusted/` bzw. `dev/` im Bucket/Container löschen, es wird neu befüllt.
+- Updates: Image neu bauen (Node-Basis-Image, Abhängigkeiten), Nx-Version der Clients aktuell halten.
+
+**Beispiel-Env MinIO:**
 
 ```sh
-docker build -t nx-remote-cache-custom packages/nx-remote-cache-custom    # oder: nx run nx-remote-cache-custom:docker-build
-docker run -p 3000:3000 --env-file cache.env nx-remote-cache-custom
+STORAGE_PROVIDER=minio
+S3_ENDPOINT=https://minio.<firma>.de
+S3_BUCKET=nx-cache
+S3_ACCESS_KEY_ID=nx-cache
+S3_SECRET_ACCESS_KEY=<secret>
+NX_CACHE_CI_TOKENS=<ci-token>
+NX_CACHE_READ_ONLY_TOKENS=<ro-token>
+NX_CACHE_DEV_TOKENS=<token-anna>,<token-ben>
 ```
 
-Das Image ist eigenständig (keine Workspace-Abhängigkeiten), läuft als `node`, mit `HEALTHCHECK` auf `/health`. TLS terminiert davor (Ingress, Container Apps, Reverse Proxy). Ziele z. B. Azure Container Apps / AKS (Managed Identity → Variante 3) oder neben MinIO im selben Docker-Stack.
+**Beispiel-Env Azure (Managed Identity):**
+
+```sh
+STORAGE_PROVIDER=azure
+AZURE_STORAGE_ACCOUNT_URL=https://<account>.blob.core.windows.net
+AZURE_STORAGE_CONTAINER=nx-cache
+NX_CACHE_CI_TOKENS=<ci-token>
+NX_CACHE_READ_ONLY_TOKENS=<ro-token>
+NX_CACHE_DEV_TOKENS=<token-anna>,<token-ben>
+```
+
+Lokal starten: `docker run -p 3000:3000 --env-file cache.env nx-remote-cache-custom`. Das Image ist eigenständig (keine Workspace-Abhängigkeiten), läuft als `node`, mit `HEALTHCHECK` auf `/health`.
 
 ## Entwicklung
 
