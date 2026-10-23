@@ -2,6 +2,7 @@ packages:
   - 'packages/tooling/*'
   - 'packages/openapi-bench'
   - 'packages/coupling-analysis'
+  - 'packages/nx-remote-cache-custom'
 
 autoInstallPeers: true
 onlyBuiltDependencies:

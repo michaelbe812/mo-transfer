@@ -1,0 +1,56 @@
+{
+  "name": "@berger-engineering/nx-remote-cache-custom",
+  "version": "0.1.0",
+  "description": "Self-hosted Nx remote cache server (Nx custom remote cache OpenAPI spec) with MinIO/S3 and Azure Blob Storage backends, read-only/read-write tokens and write-once uploads (CREEP mitigation).",
+  "keywords": [
+    "nx",
+    "remote-cache",
+    "self-hosted",
+    "minio",
+    "s3",
+    "azure-blob-storage",
+    "effect"
+  ],
+  "license": "MIT",
+  "author": "Michael Berger <michael.berger@berger-engineering.io>",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "nx-remote-cache-custom": "dist/main.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.lib.json && node scripts/fix-declarations.mjs && chmod +x dist/main.js",
+    "start": "node dist/main.js",
+    "prepack": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1156.0",
+    "@azure/identity": "4.14.0",
+    "@azure/storage-blob": "12.34.0",
+    "@effect/platform-node": "4.0.6",
+    "effect": "4.0.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "typescript": "~6.0.3"
+  }
+}

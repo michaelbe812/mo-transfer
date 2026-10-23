@@ -2,16 +2,18 @@
 
 Werkzeug des Blueprints (übernommen aus sheriff-blue-print, Branch `feat/nx-reduced-blueprint`: explizite Config pro Lib; einziges Crystal-Plugin: `generate-api-client`/`update-spec` der OpenAPI-Clients), aufgeteilt in sechs Nx-Libs. `packages/tooling` selbst ist nur ein Gruppierungsordner, kein Projekt und kein Paket.
 
-| Lib | Paket / Projekt | Tag | Inhalt | Details |
-|---|---|---|---|---|
-| `conventions` | `@mo-transfer/tooling-conventions` / `tooling-conventions` | `tooling:conventions` | Pfad → Name/Tags/Alias, Layer, reservierter Ordner `generated`, Client-Pfade, Scope-Liste (`lib-scopes.json`), Vorlage der Config-Dateien pro Lib, Tree-Helfer (Config + `paths` schreiben/verschieben), Lib-Scaffold für den OpenAPI-Generator (`./openapi-scaffold`), Fixture-Workspace für Specs | [README](conventions/README.md) |
-| `openapi` | `@mo-transfer/tooling-openapi` / `tooling-openapi` | `tooling:openapi` | **publishable**: Pipeline (spec → generate → classify → transform → split → barrel → finalize → write), Adapter-SPI v1 + Registry + Loader, Plugin (`generate-api-client`/`generate-api-testing`/`update-spec` aus `openapi-clients.json`), Executoren, Generator `client`, `build` → dist + `npm pack` | [README](openapi/README.md), [Architektur](../../docs/openapi-pipeline-architektur.md) |
-| `workspace` | `@mo-transfer/tooling-workspace` / `tooling-workspace` | `tooling:workspace` | Generatoren domain/layer/feat/testing/move/rename/remove/component/service/store (schreiben/pflegen die Config-Dateien), Sync-Generator `app-routes` | [README](workspace/README.md) |
-| `ng-lib` | `@mo-transfer/tooling-ng-lib` / `tooling-ng-lib` | `tooling:ng-lib` | Executor `test`: `@nx/angular:unit-test` durchgereicht, Vitest UI per `--ui` (Hasher) | [README](ng-lib/README.md) |
-| `verify` | `@mo-transfer/tooling-verify` / `tooling-verify` | `tooling:verify` | `verify` (Boundaries, Namensregeln, Config pro Lib, Tag-Schema + Ordnerregel, Clients, Tooling-Libs, affected, Bundle-Scan), `verify:nx-internals`, dist-Snapshot | [README](verify/README.md) |
-| `eslint-rules` | `@mo-transfer/tooling-eslint-rules` / `tooling-eslint-rules` | `tooling:eslint-rules` | ESLint-Regeln des Namensschemas (`blueprint/lib-file-naming`, `layer-symbol-naming`, `no-internal-export`), geladen von `eslint.config.mjs` | [README](eslint-rules/README.md) |
+| Lib            | Paket / Projekt                                              | Tag                    | Inhalt                                                                                                                                                                                                                                                                                                  | Details                                                                                |
+| -------------- | ------------------------------------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `conventions`  | `@mo-transfer/tooling-conventions` / `tooling-conventions`   | `tooling:conventions`  | Pfad → Name/Tags/Alias, Layer, reservierter Ordner `generated`, Client-Pfade, Scope-Liste (`lib-scopes.json`), Vorlage der Config-Dateien pro Lib, Tree-Helfer (Config + `paths` schreiben/verschieben), Lib-Scaffold für den OpenAPI-Generator (`./openapi-scaffold`), Fixture-Workspace für Specs     | [README](conventions/README.md)                                                        |
+| `openapi`      | `@mo-transfer/tooling-openapi` / `tooling-openapi`           | `tooling:openapi`      | **publishable**: Pipeline (spec → generate → classify → transform → split → barrel → finalize → write), Adapter-SPI v1 + Registry + Loader, Plugin (`generate-api-client`/`generate-api-testing`/`update-spec` aus `openapi-clients.json`), Executoren, Generator `client`, `build` → dist + `npm pack` | [README](openapi/README.md), [Architektur](../../docs/openapi-pipeline-architektur.md) |
+| `workspace`    | `@mo-transfer/tooling-workspace` / `tooling-workspace`       | `tooling:workspace`    | Generatoren domain/layer/feat/testing/move/rename/remove/component/service/store (schreiben/pflegen die Config-Dateien), Sync-Generator `app-routes`                                                                                                                                                    | [README](workspace/README.md)                                                          |
+| `ng-lib`       | `@mo-transfer/tooling-ng-lib` / `tooling-ng-lib`             | `tooling:ng-lib`       | Executor `test`: `@nx/angular:unit-test` durchgereicht, Vitest UI per `--ui` (Hasher)                                                                                                                                                                                                                   | [README](ng-lib/README.md)                                                             |
+| `verify`       | `@mo-transfer/tooling-verify` / `tooling-verify`             | `tooling:verify`       | `verify` (Boundaries, Namensregeln, Config pro Lib, Tag-Schema + Ordnerregel, Clients, Tooling-Libs, affected, Bundle-Scan), `verify:nx-internals`, dist-Snapshot                                                                                                                                       | [README](verify/README.md)                                                             |
+| `eslint-rules` | `@mo-transfer/tooling-eslint-rules` / `tooling-eslint-rules` | `tooling:eslint-rules` | ESLint-Regeln des Namensschemas (`blueprint/lib-file-naming`, `layer-symbol-naming`, `no-internal-export`), geladen von `eslint.config.mjs`                                                                                                                                                             | [README](eslint-rules/README.md)                                                       |
 
 Daneben, außerhalb dieser Gruppe: [`packages/coupling-analysis`](../coupling-analysis/README.md) (`@berger-engineering/coupling-analysis`, übernommen aus sheriff-blue-print), eigenständiges, veröffentlichbares CLI für die Schnitt-Analyse beliebiger Repos (Tag `type:tooling`, `tooling:coupling`, importiert keine Tooling-Lib).
+
+Ebenso eigenständig: [`packages/nx-remote-cache-custom`](../nx-remote-cache-custom/README.md) (`@berger-engineering/nx-remote-cache-custom`), self-hosted Nx Remote Cache (MinIO/S3, Azure Blob) als Docker-Image (Tag `type:tooling`, `tooling:nx-remote-cache`, importiert keine Tooling-Lib).
 
 Alle tragen zusätzlich `type:tooling` (darf nur `type:tooling` importieren, Libs in `libs/` dürfen kein Tooling importieren).
 
@@ -24,14 +26,14 @@ conventions  ◀── workspace ──▶ openapi (publishable, importiert kein
      └── eslint-rules (von eslint.config.mjs geladen)
 ```
 
-| Lib | darf importieren | Grund |
-|---|---|---|
-| `conventions` | nichts | Basis: Pfad-Konventionen und Config-Vorlagen gelten für alle Generatoren; `lib-conventions.ts`/`lib-files.ts` ohne Runtime-Imports |
-| `openapi` | nichts (Specs: `conventions/testing`) | publishable: Workspace-Annahmen (Ordner, Alias, Header …) sind Settings in `openapi-clients.json`, die Lib-Config schreibt ein Scaffold (`settings.scaffold` → `@mo-transfer/tooling-conventions/openapi-scaffold`, zur Laufzeit geladen). ESLint erzwingt es (buildable → keine nicht-buildable Imports) |
-| `workspace` | `conventions`, `openapi` | `move`/`rename`/`remove` halten `openapi-clients.json` und Client-`project.json` (Name, Tags) nach (`@mo-transfer/tooling-openapi/clients`). Die Abhängigkeit auf `ng-lib` ist entfallen: Targets stehen in `project.json` + `nx.json` |
-| `ng-lib` | nichts | kapselt das eine verbliebene Nx-Interna (unit-test-Executor), weiß nichts von Konventionen oder OpenAPI |
-| `verify` | nichts | prüft von außen (Projekt-Graph, Dateien, ESLint, git), leitet Tags und Ordnerregel unabhängig ab |
-| `eslint-rules` | `conventions` | Layer/Scope/Feat und Datei-Kinds aus denselben Konventionen wie die Generatoren, keine doppelte Logik |
+| Lib            | darf importieren                      | Grund                                                                                                                                                                                                                                                                                                     |
+| -------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `conventions`  | nichts                                | Basis: Pfad-Konventionen und Config-Vorlagen gelten für alle Generatoren; `lib-conventions.ts`/`lib-files.ts` ohne Runtime-Imports                                                                                                                                                                        |
+| `openapi`      | nichts (Specs: `conventions/testing`) | publishable: Workspace-Annahmen (Ordner, Alias, Header …) sind Settings in `openapi-clients.json`, die Lib-Config schreibt ein Scaffold (`settings.scaffold` → `@mo-transfer/tooling-conventions/openapi-scaffold`, zur Laufzeit geladen). ESLint erzwingt es (buildable → keine nicht-buildable Imports) |
+| `workspace`    | `conventions`, `openapi`              | `move`/`rename`/`remove` halten `openapi-clients.json` und Client-`project.json` (Name, Tags) nach (`@mo-transfer/tooling-openapi/clients`). Die Abhängigkeit auf `ng-lib` ist entfallen: Targets stehen in `project.json` + `nx.json`                                                                    |
+| `ng-lib`       | nichts                                | kapselt das eine verbliebene Nx-Interna (unit-test-Executor), weiß nichts von Konventionen oder OpenAPI                                                                                                                                                                                                   |
+| `verify`       | nichts                                | prüft von außen (Projekt-Graph, Dateien, ESLint, git), leitet Tags und Ordnerregel unabhängig ab                                                                                                                                                                                                          |
+| `eslint-rules` | `conventions`                         | Layer/Scope/Feat und Datei-Kinds aus denselben Konventionen wie die Generatoren, keine doppelte Logik                                                                                                                                                                                                     |
 
 Durchgesetzt über `depConstraints` (`eslint.config.mjs`, `toolingConstraints`) und 20 Verify-Fälle (`tooling: …`), zyklenfrei (Zyklen meldet die Regel zusätzlich). Imports über Lib-Grenzen nur per Paketname, relative Pfade blockiert die Regel.
 
@@ -61,26 +63,26 @@ Alle schreiben bzw. pflegen die Config-Dateien der Libs und die `paths`. `compon
 
 ## Checks
 
-| Befehl | prüft |
-|---|---|
+| Befehl                                              | prüft                                                                                                                                                                                                                                                          |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `nx run-many -t lint test typecheck -p 'tooling-*'` | Specs pro Lib (Vitest, Node): conventions, workspace, openapi, eslint-rules (RuleTester). `tooling-openapi:test` = Unit + Integration (echte Adapter, msw, tsc, `nx` im Fixture-Workspace, Java) mit Coverage ≥ 95 %, siehe [openapi](openapi/README.md#tests) |
-| `pnpm verify` (`nx run tooling-verify:verify`) | siehe [verify](verify/README.md) |
-| `pnpm verify:nx-internals` | nach `nx migrate` / Angular-Update |
-| `pnpm coupling --repo <path>` | Schnitt-Analyse aus den Quellen, siehe [`packages/coupling-analysis`](../coupling-analysis/README.md) |
+| `pnpm verify` (`nx run tooling-verify:verify`)      | siehe [verify](verify/README.md)                                                                                                                                                                                                                               |
+| `pnpm verify:nx-internals`                          | nach `nx migrate` / Angular-Update                                                                                                                                                                                                                             |
+| `pnpm coupling --repo <path>`                       | Schnitt-Analyse aus den Quellen, siehe [`packages/coupling-analysis`](../coupling-analysis/README.md)                                                                                                                                                          |
 
 ## `nx affected`
 
 Die Libs haben keine Graph-Kante zum Tooling. Nötig ist sie nicht: jede Tooling-Datei, die eine Lib-Task nutzt, ist `{workspaceRoot}`-Input dieser Task, und `nx affected` folgt Inputs. Die CI braucht deshalb keinen Tooling-Fallback:
 
-| Änderung in | betroffen |
-|---|---|
-| `ng-lib/src/**` | alle Libs mit `test` + Abhängige (App) |
-| `openapi/src/{pipeline,registry,executors,plugin}/**`, `openapi/src/{adapter,config,errors,facade,settings,project-config}.ts` | Client-Projekte + Testing-Libs + Abhängige (Pipeline, Registry, Plugin formen Targets und Output) |
-| `openapi/src/adapters/**` | Client-Projekte + Abhängige |
-| eigener Adapter / Transform (Ordner des Moduls), Overlay-Datei (mit Flag) | nur die Clients, die ihn nutzen (+ Abhängige) |
-| `openapi-clients.json` | alle Client-Projekte + Abhängige (Input von `update-spec`; der Cache von `generate-api-client` bleibt pro Eintrag) |
-| `libs/<lib>/project.json` (Tags, Targets) | die Lib + Abhängige |
-| `conventions/src/lib-conventions.ts`, `eslint-rules/src/**` | `lint` aller Projekte (Namensregeln lesen die Konventionen); Specs der Regeln sind aus dem Hash ausgenommen, `affected` ignoriert die Negation aber |
-| übrige `conventions/**`, Generatoren, `verify` | nur Tooling-Libs (auf `feat/nx-blueprint` (extern) waren zusätzlich die Plugins `lint`-Input aller Libs) |
+| Änderung in                                                                                                                    | betroffen                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ng-lib/src/**`                                                                                                                | alle Libs mit `test` + Abhängige (App)                                                                                                              |
+| `openapi/src/{pipeline,registry,executors,plugin}/**`, `openapi/src/{adapter,config,errors,facade,settings,project-config}.ts` | Client-Projekte + Testing-Libs + Abhängige (Pipeline, Registry, Plugin formen Targets und Output)                                                   |
+| `openapi/src/adapters/**`                                                                                                      | Client-Projekte + Abhängige                                                                                                                         |
+| eigener Adapter / Transform (Ordner des Moduls), Overlay-Datei (mit Flag)                                                      | nur die Clients, die ihn nutzen (+ Abhängige)                                                                                                       |
+| `openapi-clients.json`                                                                                                         | alle Client-Projekte + Abhängige (Input von `update-spec`; der Cache von `generate-api-client` bleibt pro Eintrag)                                  |
+| `libs/<lib>/project.json` (Tags, Targets)                                                                                      | die Lib + Abhängige                                                                                                                                 |
+| `conventions/src/lib-conventions.ts`, `eslint-rules/src/**`                                                                    | `lint` aller Projekte (Namensregeln lesen die Konventionen); Specs der Regeln sind aus dem Hash ausgenommen, `affected` ignoriert die Negation aber |
+| übrige `conventions/**`, Generatoren, `verify`                                                                                 | nur Tooling-Libs (auf `feat/nx-blueprint` (extern) waren zusätzlich die Plugins `lint`-Input aller Libs)                                            |
 
 `verify` probt das mit `nx show projects --affected --files=…` (10 Proben, positiv und negativ). Implizite Kanten Lib → Tooling-Lib wären gröber und würden den Graphen mit ~50 Kanten füllen, deshalb nicht umgesetzt.

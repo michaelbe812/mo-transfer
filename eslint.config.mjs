@@ -123,6 +123,7 @@ function deepImportPatterns() {
  *   verify       proofs, read the project graph — standalone
  *   eslint-rules naming rules (blueprint/*), loaded by this config — conventions only
  *   coupling     packages/coupling-analysis: publishable cut analysis for any repo (no blueprint conventions) — standalone
+ *   nx-remote-cache packages/nx-remote-cache-custom: self-hosted Nx remote cache server (MinIO/S3, Azure Blob) — standalone
  */
 const toolingConstraints = [
     { sourceTag: "tooling:conventions", onlyDependOnLibsWithTags: [] },
@@ -132,6 +133,7 @@ const toolingConstraints = [
     { sourceTag: "tooling:verify", onlyDependOnLibsWithTags: [] },
     { sourceTag: "tooling:eslint-rules", onlyDependOnLibsWithTags: ["tooling:conventions"] },
     { sourceTag: "tooling:coupling", onlyDependOnLibsWithTags: [] },
+    { sourceTag: "tooling:nx-remote-cache", onlyDependOnLibsWithTags: [] },
 ];
 
 /**

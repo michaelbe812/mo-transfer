@@ -1,0 +1,100 @@
+{
+  "name": "nx-remote-cache-custom",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/nx-remote-cache-custom/src",
+  "tags": ["type:tooling", "tooling:nx-remote-cache"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "dependsOn": [],
+      "inputs": [
+        "default",
+        "^default",
+        {
+          "externalDependencies": ["typescript"]
+        }
+      ],
+      "options": {
+        "command": "tsc -p packages/nx-remote-cache-custom/tsconfig.json"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^default",
+        {
+          "externalDependencies": ["vitest", "typescript"]
+        }
+      ],
+      "options": {
+        "command": "vitest run --config packages/nx-remote-cache-custom/vitest.config.mts"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "production",
+        "{projectRoot}/scripts/**/*",
+        {
+          "externalDependencies": ["typescript"]
+        }
+      ],
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "command": "npm run build",
+        "cwd": "packages/nx-remote-cache-custom"
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "continuous": true,
+      "options": {
+        "command": "node --experimental-strip-types --no-warnings=ExperimentalWarning packages/nx-remote-cache-custom/src/main.ts"
+      }
+    },
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "docker build -t nx-remote-cache-custom packages/nx-remote-cache-custom"
+      }
+    },
+    "stack": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "docker compose -f packages/nx-remote-cache-custom/docker/compose.yml up -d --build"
+      }
+    },
+    "test-integration": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "vitest run --config packages/nx-remote-cache-custom/vitest.config.mts src/storage",
+        "env": {
+          "NX_CACHE_IT_S3_ENDPOINT": "http://localhost:9000",
+          "NX_CACHE_IT_AZURE_CONNECTION_STRING": "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://localhost:10000/devstoreaccount1;"
+        }
+      }
+    },
+    "e2e": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "vitest run --config packages/nx-remote-cache-custom/vitest.config.mts src/e2e",
+        "env": {
+          "NX_CACHE_E2E_URLS": "http://localhost:3100,http://localhost:3200"
+        }
+      }
+    }
+  }
+}
