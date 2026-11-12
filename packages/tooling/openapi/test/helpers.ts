@@ -172,6 +172,20 @@ export function executorContext(root: string, projectName: string, targetName: s
   };
 }
 
+type PluginEntry = string | { plugin: string; options?: unknown };
+
+/** The repo's nx.json with local plugins (`./packages/…`) pointing into the repo — the fixture has no such files. */
+export const fixtureNxJson = () => {
+  const nxJson = JSON.parse(readFileSync(join(repoRoot, 'nx.json'), 'utf-8')) as { plugins?: PluginEntry[] };
+  const absolute = (path: string) => (path.startsWith('./') ? join(repoRoot, path) : path);
+  return {
+    ...nxJson,
+    plugins: nxJson.plugins?.map((entry) =>
+      typeof entry === 'string' ? absolute(entry) : { ...entry, plugin: absolute(entry.plugin) },
+    ),
+  };
+};
+
 /** Exact paths of the repo's tooling exports (Nx loads generators with swc + these paths), absolute. */
 export const toolingPaths = (): Record<string, string[]> =>
   Object.fromEntries(
@@ -204,13 +218,14 @@ export function createNxFixture(name: string, options: { ownNodeModules?: boolea
   const root = createWorkspace(name, options);
   write(root, 'package.json', readFileSync(join(repoRoot, 'package.json'), 'utf-8'));
   write(root, 'pnpm-lock.yaml', readFileSync(join(repoRoot, 'pnpm-lock.yaml'), 'utf-8'));
-  write(root, 'nx.json', readFileSync(join(repoRoot, 'nx.json'), 'utf-8'));
+  write(root, 'nx.json', JSON.stringify(fixtureNxJson(), null, 2));
   write(root, 'lib-scopes.json', JSON.stringify({ scopes: ['shared'] }));
   write(root, 'tsconfig.base.json', JSON.stringify({ compilerOptions: { paths: toolingPaths() } }));
   const env = (): NodeJS.ProcessEnv => ({
     ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('NX_'))),
     NX_DAEMON: 'false',
     NX_NO_CLOUD: 'true',
+    NX_METRICS_DISABLED: 'true',
     NX_CACHE_DIRECTORY: join(root, '.nx/cache'),
     NX_WORKSPACE_DATA_DIRECTORY: join(root, '.nx/workspace-data'),
     FORCE_COLOR: '0',

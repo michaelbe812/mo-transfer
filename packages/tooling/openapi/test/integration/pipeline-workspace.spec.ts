@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-import { createWorkspace, filesBelow, read, removeWorkspace, repoRoot, SCAFFOLD, THINGS_SPEC, write } from '../helpers';
+import { createWorkspace, filesBelow, fixtureNxJson, read, removeWorkspace, repoRoot, SCAFFOLD, THINGS_SPEC, write } from '../helpers';
 
 const TOOLING_PATHS = Object.fromEntries(
   Object.entries(
@@ -92,6 +92,7 @@ describe('extension points with nx in a fixture workspace', () => {
   const nxEnv = () => ({
     ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('NX_'))),
     NX_DAEMON: 'false',
+    NX_METRICS_DISABLED: 'true',
     NX_NO_CLOUD: 'true',
     NX_CACHE_DIRECTORY: join(root, '.nx/cache'),
     NX_WORKSPACE_DATA_DIRECTORY: join(root, '.nx/workspace-data'),
@@ -138,7 +139,7 @@ describe('extension points with nx in a fixture workspace', () => {
     lock.packages['@acme/openapi-adapter@1.0.0'] = { resolution: { integrity: 'sha512-ZmFrZQ==' } };
     lock.snapshots['@acme/openapi-adapter@1.0.0'] = {};
     write(root, 'pnpm-lock.yaml', stringifyYaml(lock));
-    write(root, 'nx.json', readFileSync(join(repoRoot, 'nx.json'), 'utf-8'));
+    write(root, 'nx.json', JSON.stringify(fixtureNxJson(), null, 2));
     write(root, 'lib-scopes.json', JSON.stringify({ scopes: ['shared'] }));
     write(root, 'tsconfig.base.json', JSON.stringify({ compilerOptions: { paths: TOOLING_PATHS } }));
     write(root, 'specs/things.yaml', THINGS_SPEC);
