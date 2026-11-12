@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  # nx-remote-cache-custom on the host (its own compose stack, port 3100); add more targets per cache instance
+  - job_name: nx-cache
+    metrics_path: /metrics
+    # authorization: { credentials: <NX_CACHE_METRICS_TOKEN> }   # when the cache server protects /metrics
+    static_configs:
+      - targets: ['host.docker.internal:3100']
+        labels: { instance_name: cache-minio }

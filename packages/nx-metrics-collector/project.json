@@ -1,0 +1,79 @@
+{
+  "name": "nx-metrics-collector",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/nx-metrics-collector/src",
+  "tags": ["type:tooling", "tooling:nx-metrics-collector"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "dependsOn": [],
+      "inputs": [
+        "default",
+        "^default",
+        {
+          "externalDependencies": ["typescript"]
+        }
+      ],
+      "options": {
+        "command": "tsc -p packages/nx-metrics-collector/tsconfig.json"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^default",
+        {
+          "externalDependencies": ["vitest", "typescript"]
+        }
+      ],
+      "options": {
+        "command": "vitest run --config packages/nx-metrics-collector/vitest.config.mts"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "production",
+        "{projectRoot}/scripts/**/*",
+        {
+          "externalDependencies": ["typescript"]
+        }
+      ],
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "command": "npm run build",
+        "cwd": "packages/nx-metrics-collector"
+      }
+    },
+    "stack": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "docker compose -f packages/nx-metrics-collector/docker/compose.yml up -d --build"
+      }
+    },
+    "dashboard": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node packages/nx-metrics-collector/scripts/build-dashboard.mjs"
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "continuous": true,
+      "options": {
+        "command": "node --experimental-strip-types --no-warnings=ExperimentalWarning packages/nx-metrics-collector/src/main.ts"
+      }
+    }
+  }
+}

@@ -1,0 +1,1203 @@
+{
+  "uid": "nx-metrics",
+  "title": "Nx Metrics",
+  "description": "Wirkung von Slicing und Remote Cache: Plugin-Records (@berger-engineering/nx-metrics) + Cache-Server",
+  "tags": [
+    "nx",
+    "ci",
+    "cache"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "1m",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "ci",
+        "label": "Wo",
+        "type": "custom",
+        "query": "all,ci,local",
+        "hide": 0,
+        "current": {
+          "text": "all",
+          "value": "all"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": "all",
+            "value": "all"
+          },
+          {
+            "selected": false,
+            "text": "ci",
+            "value": "ci"
+          },
+          {
+            "selected": false,
+            "text": "local",
+            "value": "local"
+          }
+        ]
+      },
+      {
+        "name": "branch",
+        "label": "Branch",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "nx-metrics-pg"
+        },
+        "hide": 0,
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": false,
+        "query": "select distinct git_branch from runs where git_branch is not null order by 1",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "rate",
+        "label": "€/Dev-Stunde",
+        "description": "Stundensatz für die Ersparnis lokaler Läufe",
+        "type": "textbox",
+        "query": "90",
+        "current": {
+          "text": "90",
+          "value": "90"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": "90",
+            "value": "90"
+          }
+        ],
+        "hide": 0
+      },
+      {
+        "name": "ci_price",
+        "label": "€/CI-Minute",
+        "description": "Preis einer CI-Minute (GitHub Linux 2-Core ≈ 0,008 $)",
+        "type": "textbox",
+        "query": "0.008",
+        "current": {
+          "text": "0.008",
+          "value": "0.008"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": "0.008",
+            "value": "0.008"
+          }
+        ],
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Nx: Läufe und Cache (Plugin-Records)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Läufe",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "nx-metrics-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "nx-metrics-pg"
+          },
+          "rawSql": "select count(*) as runs from runs where $__timeFilter(started_at) and ('$ci' = 'all' or ci = ('$ci' = 'ci')) and coalesce(git_branch, '') ~ '^${branch:regex}$'",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "description": "nx run / run-many / affected Aufrufe im Zeitraum",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Cache-Hit-Rate",
+      "gridPos": {
+        "x": 4,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "nx-metrics-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "nx-metrics-pg"
+          },
+          "rawSql": "select sum(local_hit + remote_hit)::float / nullif(sum(local_hit + remote_hit + miss), 0) as hit_rate from runs where $__timeFilter(started_at) and ('$ci' = 'all' or ci = ('$ci' = 'ci')) and coalesce(git_branch, '') ~ '^${branch:regex}$'",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "description": "Treffer / (Treffer + Misses), nur cachebare Tasks",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "davon Remote",
+      "gridPos": {
+        "x": 8,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "nx-metrics-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "nx-metrics-pg"
+          },
+          "rawSql": "select sum(remote_hit)::float / nullif(sum(local_hit + remote_hit + miss), 0) as remote from runs where $__timeFilter(started_at) and ('$ci' = 'all' or ci = ('$ci' = 'ci')) and coalesce(git_branch, '') ~ '^${branch:regex}$'",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "description": "Anteil der cachebaren Tasks, die aus dem Remote Cache kamen",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Gesparte Zeit",
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "nx-metrics-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "nx-metrics-pg"
+          },
+          "rawSql": "select sum(saved_ms) / 3600000.0 as hours from task_facts where $__timeFilter(run_started_at) and ('$ci' = 'all' or ci = ('$ci' = 'ci')) and coalesce(git_branch, '') ~ '^${branch:regex}$'",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "description": "je Hit: Median-Dauer desselben Tasks als Miss minus Dauer des Hits (Fallback: Median des Targets)",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "decimals": 1,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Ersparnis Entwickler",
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "nx-metrics-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "nx-metrics-pg"
+          },
+          "rawSql": "select sum(saved_ms) filter (where not ci) / 3600000.0 * $rate as eur from task_facts where $__timeFilter(run_started_at) and ('$ci' = 'all' or ci = ('$ci' = 'ci')) and coalesce(git_branch, '') ~ '^${branch:regex}$'",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "description": "gesparte Zeit lokaler Läufe × Stundensatz ($rate €/h) — Obergrenze, nicht jede Minute ist Wartezeit",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Ersparnis CI",
+      "gridPos": {
+        "x": 20,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "nx-metrics-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "nx-metrics-pg"
+          },
+          "rawSql": "select sum(saved_ms) filter (where ci) / 60000.0 * $ci_price as eur from task_facts where $__timeFilter(run_started_at) and ('$ci' = 'all' or ci = ('$ci' = 'ci')) and coalesce(git_branch, '') ~ '^${branch:regex}$'",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "description": "gesparte CI-Minuten × Preis ($ci_price €/min)",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Hit-Rate pro Tag",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "nx-metrics-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "nx-metrics-pg"
+          },
+          "rawSql": "select $__timeGroupAlias(started_at, 1d), sum(local_hit)::float / nullif(sum(local_hit + remote_hit + miss), 0) as \"lokal\", sum(remote_hit)::float / nullif(sum(local_hit + remote_hit + miss), 0) as \"remote\" from runs where $__timeFilter(started_at) and ('$ci' = 'all' or ci = ('$ci' = 'ci')) and coalesce(git_branch, '') ~ '^${branch:regex}$' group by 1 order by 1",
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 40,
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Laufdauer p50 / p90 pro Tag",
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "nx-metrics-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "nx-metrics-pg"
+          },
+          "rawSql": "select $__timeGroupAlias(started_at, 1d), percentile_cont(0.5) within group (order by duration_ms) as \"p50\", percentile_cont(0.9) within group (order by duration_ms) as \"p90\" from runs where $__timeFilter(started_at) and ('$ci' = 'all' or ci = ('$ci' = 'ci')) and coalesce(git_branch, '') ~ '^${branch:regex}$' group by 1 order by 1",
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Gesparte Zeit pro Tag",
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "nx-metrics-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "nx-metrics-pg"
+          },
+          "rawSql": "select $__timeGroupAlias(run_started_at, 1d), sum(saved_ms) filter (where ci) / 3600000.0 as \"CI\", sum(saved_ms) filter (where not ci) / 3600000.0 as \"lokal\" from task_facts where $__timeFilter(run_started_at) and ('$ci' = 'all' or ci = ('$ci' = 'ci')) and coalesce(git_branch, '') ~ '^${branch:regex}$' group by 1 order by 1",
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 2,
+            "fillOpacity": 80,
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Tasks pro Tag nach Cache-Ergebnis",
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "nx-metrics-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "nx-metrics-pg"
+          },
+          "rawSql": "select $__timeGroupAlias(run_started_at, 1d), count(*) filter (where cache = 'miss') as \"miss\", count(*) filter (where cache = 'local-hit') as \"lokal\", count(*) filter (where cache = 'remote-hit') as \"remote\" from task_facts where $__timeFilter(run_started_at) and ('$ci' = 'all' or ci = ('$ci' = 'ci')) and coalesce(git_branch, '') ~ '^${branch:regex}$' group by 1 order by 1",
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 2,
+            "fillOpacity": 80,
+            "spanNulls": true,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "table",
+      "title": "Targets",
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "nx-metrics-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "nx-metrics-pg"
+          },
+          "rawSql": "select target, count(*) as tasks,\n  percentile_cont(0.5) within group (order by duration_ms) filter (where cache = 'miss') as \"miss p50\",\n  percentile_cont(0.9) within group (order by duration_ms) filter (where cache = 'miss') as \"miss p90\",\n  count(*) filter (where cache in ('local-hit', 'remote-hit'))::float / nullif(count(*) filter (where cache in ('local-hit', 'remote-hit', 'miss')), 0) as \"hit rate\",\n  count(*) filter (where cache = 'remote-hit') as \"remote hits\",\n  sum(saved_ms) / 3600000.0 as \"gespart\"\nfrom task_facts where $__timeFilter(run_started_at) and ('$ci' = 'all' or ci = ('$ci' = 'ci')) and coalesce(git_branch, '') ~ '^${branch:regex}$' group by target order by \"miss p50\" desc nulls last",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "miss p50"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "miss p90"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "hit rate"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "gespart"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "h"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "Langsamste Tasks (Miss-Median)",
+      "gridPos": {
+        "x": 12,
+        "y": 21,
+        "w": 12,
+        "h": 9
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "nx-metrics-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "nx-metrics-pg"
+          },
+          "rawSql": "select task_id as task, count(*) as misses,\n  percentile_cont(0.5) within group (order by duration_ms) as \"p50\",\n  percentile_cont(0.9) within group (order by duration_ms) as \"p90\",\n  max(duration_ms) as \"max\"\nfrom task_facts where $__timeFilter(run_started_at) and ('$ci' = 'all' or ci = ('$ci' = 'ci')) and coalesce(git_branch, '') ~ '^${branch:regex}$' and cache = 'miss' and duration_ms is not null group by task_id order by \"p50\" desc limit 20",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p50"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p90"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    },
+    {
+      "id": 14,
+      "type": "table",
+      "title": "Letzte Läufe",
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "nx-metrics-pg"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "nx-metrics-pg"
+          },
+          "rawSql": "select started_at as \"Start\", command, label, git_branch as branch, case when ci then coalesce(ci_provider, 'ci') else 'lokal' end as \"wo\",\n  remote_cache as \"remote\", duration_ms as \"Dauer\", tasks_total as tasks, miss, local_hit as \"lokal\", remote_hit as \"remote hits\", hit_rate as \"hit rate\", failed\nfrom runs where $__timeFilter(started_at) and ('$ci' = 'all' or ci = ('$ci' = 'ci')) and coalesce(git_branch, '') ~ '^${branch:regex}$' order by started_at desc limit 50",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Dauer"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "hit rate"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    },
+    {
+      "id": 15,
+      "type": "row",
+      "title": "Cache-Server (Prometheus, nx-remote-cache-custom)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 38,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Requests/s nach Ergebnis",
+      "gridPos": {
+        "x": 0,
+        "y": 39,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "nx-cache-prom"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "sum by (operation, outcome) (rate(nx_cache_requests_total[$__rate_interval]))",
+          "legendFormat": "{{operation}} {{outcome}}",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "Server-Hit-Rate (GET)",
+      "gridPos": {
+        "x": 8,
+        "y": 39,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "nx-cache-prom"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "sum(rate(nx_cache_requests_total{operation=\"get\",outcome=\"hit\"}[$__rate_interval])) / sum(rate(nx_cache_requests_total{operation=\"get\",outcome=~\"hit|miss\"}[$__rate_interval]))",
+          "legendFormat": "hit rate",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "GET-Latenz (bis erstes Byte)",
+      "gridPos": {
+        "x": 16,
+        "y": 39,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "nx-cache-prom"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(nx_cache_request_duration_seconds_bucket{operation=\"get\"}[$__rate_interval])))",
+          "legendFormat": "p50",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(nx_cache_request_duration_seconds_bucket{operation=\"get\"}[$__rate_interval])))",
+          "legendFormat": "p95",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 19,
+      "type": "timeseries",
+      "title": "Durchsatz",
+      "gridPos": {
+        "x": 0,
+        "y": 47,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "nx-cache-prom"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "sum by (operation) (rate(nx_cache_bytes_total[$__rate_interval]))",
+          "legendFormat": "{{operation}}",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "Eintragsgröße p50 / p95",
+      "gridPos": {
+        "x": 8,
+        "y": 47,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "nx-cache-prom"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, operation) (rate(nx_cache_entry_bytes_bucket[1h])))",
+          "legendFormat": "p50 {{operation}}",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, operation) (rate(nx_cache_entry_bytes_bucket[1h])))",
+          "legendFormat": "p95 {{operation}}",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Abgelehnt / Fehler",
+      "gridPos": {
+        "x": 16,
+        "y": 47,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "nx-cache-prom"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "sum by (outcome) (increase(nx_cache_requests_total{outcome=~\"error|unauthorized|forbidden|too-large|invalid\"}[$__rate_interval]))",
+          "legendFormat": "{{outcome}}",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 2,
+            "fillOpacity": 80,
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    }
+  ]
+}

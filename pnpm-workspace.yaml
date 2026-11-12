@@ -4,6 +4,7 @@ packages:
   - 'packages/coupling-analysis'
   - 'packages/nx-remote-cache-custom'
   - 'packages/nx-metrics'
+  - 'packages/nx-metrics-collector'
 
 autoInstallPeers: true
 onlyBuiltDependencies:

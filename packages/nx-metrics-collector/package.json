@@ -1,0 +1,49 @@
+{
+  "name": "@berger-engineering/nx-metrics-collector",
+  "version": "0.1.0",
+  "description": "Collector for @berger-engineering/nx-metrics run records: HTTP endpoint → Postgres, plus a Grafana stack (provisioned dashboards, Prometheus for the nx-remote-cache-custom server).",
+  "keywords": [
+    "nx",
+    "metrics",
+    "grafana",
+    "postgres",
+    "ci",
+    "remote-cache"
+  ],
+  "license": "MIT",
+  "author": "Michael Berger",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "nx-metrics-collector": "dist/main.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.lib.json && node scripts/fix-declarations.mjs && chmod +x dist/main.js",
+    "start": "node dist/main.js",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "@types/pg": "8.23.1",
+    "typescript": "~6.0.3"
+  }
+}

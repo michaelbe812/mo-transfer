@@ -125,6 +125,7 @@ function deepImportPatterns() {
  *   coupling     packages/coupling-analysis: publishable cut analysis for any repo (no blueprint conventions) — standalone
  *   nx-remote-cache packages/nx-remote-cache-custom: self-hosted Nx remote cache server (MinIO/S3, Azure Blob) — standalone
  *   nx-metrics   packages/nx-metrics: Nx run metrics (postTasksExecution plugin), bench, graph/affected metrics — standalone
+ *   nx-metrics-collector packages/nx-metrics-collector: HTTP collector → Postgres + Grafana stack — standalone
  */
 const toolingConstraints = [
     { sourceTag: "tooling:conventions", onlyDependOnLibsWithTags: [] },
@@ -136,6 +137,7 @@ const toolingConstraints = [
     { sourceTag: "tooling:coupling", onlyDependOnLibsWithTags: [] },
     { sourceTag: "tooling:nx-remote-cache", onlyDependOnLibsWithTags: [] },
     { sourceTag: "tooling:nx-metrics", onlyDependOnLibsWithTags: [] },
+    { sourceTag: "tooling:nx-metrics-collector", onlyDependOnLibsWithTags: [] },
 ];
 
 /**

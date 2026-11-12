@@ -1,0 +1,60 @@
+# nx-metrics stack: Postgres + collector + Prometheus (scrapes the cache server) + Grafana with provisioned dashboard.
+#   docker compose -f packages/nx-metrics-collector/docker/compose.yml up -d --build
+# Grafana:    http://localhost:3300  (admin/admin, anonymous viewer on)  → Dashboards → "Nx Metrics"
+# Collector:  http://localhost:4000/v1/runs  token `metrics-token`  (NX_METRICS_ENDPOINT / NX_METRICS_TOKEN)
+# Prometheus: http://localhost:9090  scrapes the cache server on the host (:3100, nx-remote-cache-custom stack)
+name: nx-metrics
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: nxmetrics
+      POSTGRES_PASSWORD: nxmetrics
+      POSTGRES_DB: nxmetrics
+    ports: ['5433:5432']
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U nxmetrics -d nxmetrics']
+      interval: 3s
+      retries: 20
+
+  collector:
+    build: ..
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgres://nxmetrics:nxmetrics@postgres:5432/nxmetrics
+      COLLECTOR_TOKENS: metrics-token
+    ports: ['4000:4000']
+
+  prometheus:
+    image: prom/prometheus:latest
+    command: ['--config.file=/etc/prometheus/prometheus.yml', '--storage.tsdb.retention.time=90d']
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    extra_hosts: ['host.docker.internal:host-gateway']
+    ports: ['9090:9090']
+
+  grafana:
+    image: grafana/grafana:latest
+    depends_on: [postgres, prometheus]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/nx-metrics.json
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports: ['3300:3000']
+
+volumes:
+  postgres-data:
+  prometheus-data:
+  grafana-data:
