@@ -1,0 +1,70 @@
+# Nightly Nx bench (nx-metrics.bench.json) + graph/affected snapshot → artifacts, time series of the architecture.
+# GitHub-hosted runners are shared and noisy: compare medians over several nights, or use a self-hosted runner
+# (runs-on) for reproducible numbers. Manual run: Actions → nx-bench → Run workflow (optional baseline ref).
+name: nx-bench
+
+on:
+  schedule:
+    - cron: '0 3 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      baseline:
+        description: 'additionally bench this ref (e.g. the commit before the refactoring) and compare'
+        required: false
+      iterations:
+        description: 'iterations per scenario'
+        default: '3'
+
+permissions:
+  contents: read
+
+env:
+  NX_SELF_HOSTED_REMOTE_CACHE_SERVER: ${{ vars.NX_CACHE_URL }}
+  NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN: ${{ secrets.NX_CACHE_RO_TOKEN }}
+  NX_METRICS_ENDPOINT: ${{ vars.NX_METRICS_ENDPOINT }}
+  NX_METRICS_TOKEN: ${{ secrets.NX_METRICS_TOKEN }}
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: bench HEAD
+        run: pnpm -s nx-metrics bench --ref HEAD --name nightly --iterations "${{ inputs.iterations || '3' }}" --out tmp/nx-bench/nightly
+      - name: bench baseline
+        if: inputs.baseline != ''
+        run: |
+          pnpm -s nx-metrics bench --ref "${{ inputs.baseline }}" --name baseline --iterations "${{ inputs.iterations || '3' }}" --out tmp/nx-bench/baseline
+          pnpm -s nx-metrics compare tmp/nx-bench/baseline/bench.json tmp/nx-bench/nightly/bench.json --out tmp/nx-bench/compare.md
+      - name: graph + affected snapshot
+        run: |
+          pnpm -s nx-metrics graph --out tmp/nx-bench/graph
+          pnpm -s nx-metrics affected --commits 100 --with-target test --out tmp/nx-bench/affected
+      - name: summary
+        if: always()
+        run: |
+          for file in tmp/nx-bench/compare.md tmp/nx-bench/nightly/bench.md tmp/nx-bench/graph/graph.md; do
+            if [ -f "$file" ]; then cat "$file" >> "$GITHUB_STEP_SUMMARY"; fi
+          done
+      - name: push bench records to the collector
+        if: always() && env.NX_METRICS_ENDPOINT != ''
+        run: pnpm -s nx-metrics push --input tmp/nx-bench/nightly/runs.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nx-bench-${{ github.run_id }}
+          path: |
+            tmp/nx-bench/**/*.md
+            tmp/nx-bench/**/*.json
+            tmp/nx-bench/**/runs.jsonl
+          retention-days: 180

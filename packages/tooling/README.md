@@ -17,6 +17,8 @@ Ebenso eigenständig: [`packages/nx-remote-cache-custom`](../nx-remote-cache-cus
 
 Ebenso eigenständig: [`packages/nx-metrics`](../nx-metrics/README.md) (`@berger-engineering/nx-metrics`), misst die Wirkung von Slicing und Remote Cache: `postTasksExecution`-Plugin (in `nx.json` registriert, schreibt `.nx/metrics/runs.jsonl`), Bench-Szenarien (`nx-metrics.bench.json`), Report, Graph- und Affected-Metriken (Tag `type:tooling`, `tooling:nx-metrics`, importiert keine Tooling-Lib).
 
+Dazu [`packages/nx-metrics-collector`](../nx-metrics-collector/README.md) (`@berger-engineering/nx-metrics-collector`): nimmt die Run-Records per HTTP an (Postgres), Compose-Stack mit Prometheus (scrapt `/metrics` des Cache-Servers) und Grafana-Dashboard „Nx Metrics“ inkl. ROI (Tag `type:tooling`, `tooling:nx-metrics-collector`, importiert keine Tooling-Lib).
+
 Alle tragen zusätzlich `type:tooling` (darf nur `type:tooling` importieren, Libs in `libs/` dürfen kein Tooling importieren).
 
 ## Abhängigkeiten

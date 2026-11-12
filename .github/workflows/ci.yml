@@ -1,0 +1,61 @@
+# CI: affected lint/typecheck/test/build, every run measured by the nx-metrics plugin (nx.json).
+# Optional repo settings (Settings → Secrets and variables → Actions):
+#   vars.NX_CACHE_URL          remote cache (nx-remote-cache-custom), e.g. https://nx-cache.example.com
+#   secrets.NX_CACHE_CI_TOKEN  write token, used on main only;  secrets.NX_CACHE_RO_TOKEN  read-only, PRs
+#   vars.NX_METRICS_ENDPOINT   collector, e.g. https://nx-metrics.example.com/v1/runs;  secrets.NX_METRICS_TOKEN
+# Without them CI still runs: local cache only, records only as artifact + job summary.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  NX_SELF_HOSTED_REMOTE_CACHE_SERVER: ${{ vars.NX_CACHE_URL }}
+  NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.NX_CACHE_CI_TOKEN || secrets.NX_CACHE_RO_TOKEN }}
+  NX_METRICS_ENDPOINT: ${{ vars.NX_METRICS_ENDPOINT }}
+  NX_METRICS_TOKEN: ${{ secrets.NX_METRICS_TOKEN }}
+  NX_METRICS_LABEL: ci:${{ github.event_name }}
+  NX_METRICS_CONSOLE: summary
+
+jobs:
+  affected:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Playwright Chromium (Vitest browser mode)
+        run: pnpm exec playwright install --with-deps chromium
+      - uses: nrwl/nx-set-shas@v4
+      - name: nx affected
+        run: pnpm exec nx affected -t lint typecheck test build --exclude=client-e2e
+      - name: nx-metrics summary
+        if: always()
+        run: |
+          if [ -f .nx/metrics/runs.jsonl ]; then
+            pnpm -s nx-metrics report --group-by none >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nx-metrics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .nx/metrics/runs.jsonl
+          if-no-files-found: ignore
+          retention-days: 90
