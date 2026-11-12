@@ -18,6 +18,10 @@ export interface ReportOptions {
   ciOnly?: boolean;
   /** Only records whose command matches (e.g. `affected`). */
   command?: RegExp;
+  /** ROI: € per developer hour (applied to time saved in local runs). */
+  ratePerHour?: number;
+  /** ROI: € per CI minute (applied to time saved in CI runs). */
+  ciPricePerMinute?: number;
 }
 
 export interface TargetStats {
@@ -38,7 +42,23 @@ export interface GroupStats {
   runDuration?: Summary;
   tasks: RunSummary;
   savedMs: number;
+  savedCiMs: number;
+  savedLocalMs: number;
   targets: TargetStats[];
+}
+
+/**
+ * Money value of the saved time. Local: saved hours × rate — an upper bound (not every saved minute was a minute a
+ * developer waited). CI: saved minutes × price per minute (machine time; parallel agents all count).
+ */
+export interface Roi {
+  ratePerHour?: number;
+  ciPricePerMinute?: number;
+  savedLocalHours: number;
+  savedCiMinutes: number;
+  localEur?: number;
+  ciEur?: number;
+  totalEur?: number;
 }
 
 export interface UsageReport {
@@ -47,6 +67,7 @@ export interface UsageReport {
   to?: string;
   groupBy: GroupBy;
   groups: GroupStats[];
+  roi: Roi;
 }
 
 /** ISO 8601 week, e.g. `2026-W46`. */
@@ -133,6 +154,25 @@ function targetStats(tasks: readonly TaskRecord[], baselines: ReturnType<typeof 
     .sort((a, b) => (b.missDuration?.median ?? 0) - (a.missDuration?.median ?? 0));
 }
 
+export function computeRoi(groups: readonly GroupStats[], options: ReportOptions): Roi {
+  const savedLocalHours = groups.reduce((sum, group) => sum + group.savedLocalMs, 0) / 3_600_000;
+  const savedCiMinutes = groups.reduce((sum, group) => sum + group.savedCiMs, 0) / 60_000;
+  const localEur = options.ratePerHour === undefined ? undefined : savedLocalHours * options.ratePerHour;
+  const ciEur = options.ciPricePerMinute === undefined ? undefined : savedCiMinutes * options.ciPricePerMinute;
+  return {
+    ratePerHour: options.ratePerHour,
+    ciPricePerMinute: options.ciPricePerMinute,
+    savedLocalHours,
+    savedCiMinutes,
+    localEur,
+    ciEur,
+    totalEur: localEur === undefined && ciEur === undefined ? undefined : (localEur ?? 0) + (ciEur ?? 0),
+  };
+}
+
+const savedIn = (records: readonly RunRecord[], baselines: ReturnType<typeof missBaselines>) =>
+  records.flatMap((record) => record.tasks).reduce((sum, task) => sum + savedByHit(task, baselines), 0);
+
 export function buildReport(allRecords: readonly RunRecord[], options: ReportOptions): UsageReport {
   const records = filterRecords(allRecords, options);
   const baselines = missBaselines(records);
@@ -142,29 +182,58 @@ export function buildReport(allRecords: readonly RunRecord[], options: ReportOpt
     groups.set(key, [...(groups.get(key) ?? []), record]);
   }
   const starts = records.map((record) => record.startTime);
+  const groupStats = [...groups]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, entries]) => {
+      const tasks = entries.flatMap((record) => record.tasks);
+      return {
+        key,
+        runs: entries.length,
+        failedRuns: entries.filter((record) => record.summary.failed > 0).length,
+        runDuration: summarize(entries.map((record) => record.durationMs)),
+        tasks: summarizeTasks(tasks),
+        savedMs: tasks.reduce((sum, task) => sum + savedByHit(task, baselines), 0),
+        savedCiMs: savedIn(
+          entries.filter((record) => record.ci?.isCi),
+          baselines,
+        ),
+        savedLocalMs: savedIn(
+          entries.filter((record) => !record.ci?.isCi),
+          baselines,
+        ),
+        targets: targetStats(tasks, baselines),
+      };
+    });
   return {
     records: records.length,
     from: starts.length ? new Date(Math.min(...starts)).toISOString() : undefined,
     to: starts.length ? new Date(Math.max(...starts)).toISOString() : undefined,
     groupBy: options.groupBy,
-    groups: [...groups]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, entries]) => {
-        const tasks = entries.flatMap((record) => record.tasks);
-        return {
-          key,
-          runs: entries.length,
-          failedRuns: entries.filter((record) => record.summary.failed > 0).length,
-          runDuration: summarize(entries.map((record) => record.durationMs)),
-          tasks: summarizeTasks(tasks),
-          savedMs: tasks.reduce((sum, task) => sum + savedByHit(task, baselines), 0),
-          targets: targetStats(tasks, baselines),
-        };
-      }),
+    groups: groupStats,
+    roi: computeRoi(groupStats, options),
   };
 }
 
 const ratio = (part: number, whole: number) => (whole ? part / whole : undefined);
+const euro = (value: number | undefined) =>
+  value === undefined
+    ? '–'
+    : `${value.toLocaleString('de-DE', { maximumFractionDigits: 2, minimumFractionDigits: 2 })} €`;
+
+export function roiToMarkdown(roi: Roi): string[] {
+  const lines = [
+    '## ROI (Schätzung)',
+    '',
+    '| | gespart | Satz | Wert |',
+    '|---|---:|---:|---:|',
+    `| lokal | ${roi.savedLocalHours.toFixed(2)} h | ${roi.ratePerHour === undefined ? '`--rate`' : `${roi.ratePerHour} €/h`} | ${euro(roi.localEur)} |`,
+    `| CI | ${roi.savedCiMinutes.toFixed(1)} min | ${roi.ciPricePerMinute === undefined ? '`--ci-price`' : `${roi.ciPricePerMinute} €/min`} | ${euro(roi.ciEur)} |`,
+    `| **gesamt** | | | **${euro(roi.totalEur)}** |`,
+    '',
+    'Lokal = Obergrenze (nicht jede gesparte Minute war Wartezeit). CI = Maschinenzeit, parallele Agents zählen einzeln.',
+  ];
+  return lines;
+}
 
 export function reportToMarkdown(report: UsageReport): string {
   const lines = [
@@ -181,6 +250,7 @@ export function reportToMarkdown(report: UsageReport): string {
       `| ${group.key} | ${group.runs} | ${group.failedRuns} | ${formatMs(group.runDuration?.median)} | ${formatMs(group.runDuration?.p90)} | ${group.tasks.total} | ${group.tasks.miss} | ${formatPercent(ratio(group.tasks.localHit, cacheable))} | ${formatPercent(ratio(group.tasks.remoteHit, cacheable))} | ${formatPercent(group.tasks.hitRate)} | ${formatMs(group.savedMs)} |`,
     );
   }
+  lines.push('', ...roiToMarkdown(report.roi));
   for (const group of report.groups) {
     lines.push(
       '',

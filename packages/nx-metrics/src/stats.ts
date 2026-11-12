@@ -47,6 +47,19 @@ export function formatMs(ms: number | undefined): string {
   return `${minutes}m ${Math.round((ms % 60_000) / 1000)}s`;
 }
 
+/** `1536` → `1.5 KiB`; for markdown tables. */
+export function formatBytes(bytes: number | undefined): string {
+  if (bytes === undefined || Number.isNaN(bytes)) return '–';
+  const units = ['B', 'KiB', 'MiB', 'GiB'];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  return unit === 0 ? `${value} B` : `${value.toFixed(1)} ${units[unit]}`;
+}
+
 export function formatPercent(ratio: number | undefined): string {
   return ratio === undefined || Number.isNaN(ratio) ? '–' : `${(ratio * 100).toFixed(1)} %`;
 }

@@ -68,6 +68,8 @@ export interface BenchResult {
   startedAt: string;
   finishedAt: string;
   git: GitInfo & { dirty: boolean };
+  /** Set by `bench --ref`: the benched commit (git.sha is that commit, not the worktree's plugin commit). */
+  ref?: { ref: string; sha: string; pluginAdded: boolean };
   machine: MachineInfo;
   iterations: number;
   warmup: number;

@@ -40,3 +40,37 @@ export async function postJson(url: string, body: unknown, options: PostOptions)
   });
   if (!response.ok) throw new Error(`collector answered ${response.status} ${response.statusText}`);
 }
+
+export interface PushResult {
+  inserted: number;
+  duplicates: number;
+}
+
+/** Sends records as JSON lines in batches (collector: POST /v1/runs, idempotent per runId). */
+export async function pushRecords(
+  url: string,
+  records: readonly unknown[],
+  options: { token?: string; batchSize?: number; timeoutMs?: number },
+): Promise<PushResult> {
+  const total: PushResult = { inserted: 0, duplicates: 0 };
+  const batchSize = options.batchSize ?? 200;
+  for (let offset = 0; offset < records.length; offset += batchSize) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-ndjson',
+        ...(options.token ? { authorization: `Bearer ${options.token}` } : {}),
+      },
+      body: records
+        .slice(offset, offset + batchSize)
+        .map((record) => JSON.stringify(record))
+        .join('\n'),
+      signal: AbortSignal.timeout(options.timeoutMs ?? 30_000),
+    });
+    if (!response.ok) throw new Error(`collector answered ${response.status}: ${await response.text()}`);
+    const result = (await response.json()) as PushResult;
+    total.inserted += result.inserted;
+    total.duplicates += result.duplicates;
+  }
+  return total;
+}

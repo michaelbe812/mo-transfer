@@ -4,6 +4,7 @@ export * from './stats.ts';
 export * from './report.ts';
 export * from './graph.ts';
 export * from './affected.ts';
+export * from './cache-size.ts';
 export { readJsonl, appendJsonl } from './sinks.ts';
 export {
   parseBenchConfig,
