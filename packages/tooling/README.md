@@ -15,6 +15,8 @@ Daneben, außerhalb dieser Gruppe: [`packages/coupling-analysis`](../coupling-an
 
 Ebenso eigenständig: [`packages/nx-remote-cache-custom`](../nx-remote-cache-custom/README.md) (`@berger-engineering/nx-remote-cache-custom`), self-hosted Nx Remote Cache (MinIO/S3, Azure Blob) als Docker-Image (Tag `type:tooling`, `tooling:nx-remote-cache`, importiert keine Tooling-Lib).
 
+Ebenso eigenständig: [`packages/nx-metrics`](../nx-metrics/README.md) (`@berger-engineering/nx-metrics`), misst die Wirkung von Slicing und Remote Cache: `postTasksExecution`-Plugin (in `nx.json` registriert, schreibt `.nx/metrics/runs.jsonl`), Bench-Szenarien (`nx-metrics.bench.json`), Report, Graph- und Affected-Metriken (Tag `type:tooling`, `tooling:nx-metrics`, importiert keine Tooling-Lib).
+
 Alle tragen zusätzlich `type:tooling` (darf nur `type:tooling` importieren, Libs in `libs/` dürfen kein Tooling importieren).
 
 ## Abhängigkeiten
@@ -69,6 +71,7 @@ Alle schreiben bzw. pflegen die Config-Dateien der Libs und die `paths`. `compon
 | `pnpm verify` (`nx run tooling-verify:verify`)      | siehe [verify](verify/README.md)                                                                                                                                                                                                                               |
 | `pnpm verify:nx-internals`                          | nach `nx migrate` / Angular-Update                                                                                                                                                                                                                             |
 | `pnpm coupling --repo <path>`                       | Schnitt-Analyse aus den Quellen, siehe [`packages/coupling-analysis`](../coupling-analysis/README.md)                                                                                                                                                          |
+| `pnpm nx-metrics bench --name <label>`              | Wirkung von Slicing/Remote Cache messen (auch `report`, `compare`, `graph`, `affected`), siehe [`packages/nx-metrics`](../nx-metrics/README.md) |
 
 ## `nx affected`
 

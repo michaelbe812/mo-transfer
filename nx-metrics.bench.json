@@ -1,0 +1,53 @@
+{
+  "$comment": "Bench scenarios, see packages/nx-metrics/README.md → Benchmarks. Run: pnpm nx-metrics bench --name baseline",
+  "iterations": 5,
+  "warmup": 1,
+  "env": { "NX_DAEMON": "false", "NX_TUI": "false" },
+  "scenarios": [
+    {
+      "name": "cold",
+      "description": "everything without cache: pure execution time",
+      "command": "nx run-many -t lint typecheck test build",
+      "cache": "none"
+    },
+    {
+      "name": "warm-local",
+      "description": "everything again, local cache warm (upper bound of the cache effect)",
+      "command": "nx run-many -t lint typecheck test build",
+      "cache": "keep"
+    },
+    {
+      "name": "fresh-agent",
+      "description": "fresh CI agent: local state wiped, hits only from the remote cache (needs NX_SELF_HOSTED_REMOTE_CACHE_SERVER)",
+      "command": "nx run-many -t lint typecheck test build",
+      "cache": "fresh-agent"
+    },
+    {
+      "name": "no-remote",
+      "description": "fresh CI agent without remote cache: baseline for the remote cache effect",
+      "command": "nx run-many -t lint typecheck test build",
+      "cache": "fresh-agent",
+      "remoteCache": false
+    },
+    {
+      "name": "pr-leaf",
+      "description": "typical PR: change in a UI lib, warm cache",
+      "command": "nx affected -t lint typecheck test build --base=HEAD",
+      "cache": "keep",
+      "touch": ["libs/booking/ui/src/booking-card.ts"]
+    },
+    {
+      "name": "pr-shared",
+      "description": "worst case: change in a shared lib, warm cache",
+      "command": "nx affected -t lint typecheck test build --base=HEAD",
+      "cache": "keep",
+      "touch": ["libs/shared/utils/src/format-date.ts"]
+    },
+    {
+      "name": "graph",
+      "description": "project graph computation without workspace data (overhead of many projects)",
+      "command": "nx show projects --json",
+      "cache": "fresh-agent"
+    }
+  ]
+}

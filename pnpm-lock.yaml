@@ -196,6 +196,12 @@ importers:
         specifier: '>=5.7 <7'
         version: 6.0.3
 
+  packages/nx-metrics:
+    dependencies:
+      nx:
+        specifier: '>=20.5'
+        version: 23.1.0(@swc-node/register@1.12.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.2(@swc/helpers@0.5.23))
+
   packages/nx-remote-cache-custom:
     dependencies:
       '@aws-sdk/client-s3':

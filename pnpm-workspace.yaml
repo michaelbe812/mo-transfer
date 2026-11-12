@@ -3,6 +3,7 @@ packages:
   - 'packages/openapi-bench'
   - 'packages/coupling-analysis'
   - 'packages/nx-remote-cache-custom'
+  - 'packages/nx-metrics'
 
 autoInstallPeers: true
 onlyBuiltDependencies:

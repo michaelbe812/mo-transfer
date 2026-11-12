@@ -8,6 +8,7 @@
     "verify:nx-internals": "node packages/tooling/verify/scripts/verify-nx-internals.mjs",
     "openapi:generate": "nx run-many -t generate-api-client generate-api-testing",
     "coupling": "node --experimental-strip-types --no-warnings=ExperimentalWarning packages/coupling-analysis/src/cli.ts",
+    "nx-metrics": "node --experimental-strip-types --no-warnings=ExperimentalWarning packages/nx-metrics/src/cli.ts",
     "test:ui": "sh -c 'nx run \"$0:test\" --ui \"$@\"'"
   },
   "private": true,

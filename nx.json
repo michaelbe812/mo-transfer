@@ -169,6 +169,12 @@
       "options": {
         "targetName": "e2e"
       }
+    },
+    {
+      "plugin": "./packages/nx-metrics/src/plugin.ts",
+      "options": {
+        "outputFile": ".nx/metrics/runs.jsonl"
+      }
     }
   ],
   "neverConnectToCloud": true

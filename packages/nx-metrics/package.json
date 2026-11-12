@@ -1,0 +1,48 @@
+{
+  "name": "@berger-engineering/nx-metrics",
+  "version": "0.1.0",
+  "description": "Measure the effect of Nx architecture work (slicing, remote cache): postTasksExecution plugin records every run (durations, cache hits local/remote), reproducible benchmark scenarios, graph and affected metrics, before/after comparison.",
+  "keywords": [
+    "nx",
+    "monorepo",
+    "benchmark",
+    "remote-cache",
+    "ci",
+    "metrics",
+    "build-performance"
+  ],
+  "license": "MIT",
+  "author": "Michael Berger",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./plugin": {
+      "types": "./dist/plugin.d.ts",
+      "default": "./dist/plugin.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "nx-metrics": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.10"
+  },
+  "peerDependencies": {
+    "nx": ">=20.5"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.lib.json && node scripts/fix-declarations.mjs && chmod +x dist/cli.js",
+    "prepack": "npm run build"
+  }
+}

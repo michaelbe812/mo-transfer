@@ -20,7 +20,7 @@ Ein Dokument pro Thema. Einstieg: [Architektur](architektur.md), dann je nach Au
 
 Weitere Quellen:
 
-- Paket-Referenz: [`packages/tooling/README.md`](../packages/tooling/README.md) und die README jeder Tooling-Lib (z. B. [`openapi`](../packages/tooling/openapi/README.md) mit „Testing-Lib: Mocks-Engines“), [`packages/coupling-analysis`](../packages/coupling-analysis/README.md), [`packages/nx-remote-cache-custom`](../packages/nx-remote-cache-custom/README.md)
+- Paket-Referenz: [`packages/tooling/README.md`](../packages/tooling/README.md) und die README jeder Tooling-Lib (z. B. [`openapi`](../packages/tooling/openapi/README.md) mit „Testing-Lib: Mocks-Engines“), [`packages/coupling-analysis`](../packages/coupling-analysis/README.md), [`packages/nx-remote-cache-custom`](../packages/nx-remote-cache-custom/README.md), [`packages/nx-metrics`](../packages/nx-metrics/README.md) (Wirkung von Slicing/Remote Cache messen)
 - Vergleich vollständig vs. reduziert: [`blueprint-vergleich.html`](blueprint-vergleich.html)
 - Präsentationen: [`architektur.pptx`](architektur.pptx), [`Frontend-Testing-Strategie für Angular.pptx`](<Frontend-Testing-Strategie für Angular.pptx>)
 - Agent-Skill Testing: [`skills/frontend-testing`](../skills/frontend-testing/SKILL.md)
