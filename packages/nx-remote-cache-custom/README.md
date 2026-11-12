@@ -20,6 +20,7 @@ Client-seitig: Nx ≥ 22.7.7 bzw. ≥ 23.0.2 (Fix für CVE-2026-71476, Zip-Slip 
 | `GET`   | `/v1/cache/{hash}` | 200 (`application/octet-stream`), 401, 404                                         |
 | `PUT`   | `/v1/cache/{hash}` | 200, 401, 403 (Read-only-Token), 409 (existiert), 411 (ohne `Content-Length`), 413 |
 | `GET`   | `/health`          | 200 `ok`, ohne Auth (Probes)                                                       |
+| `GET`   | `/metrics`         | 200 Prometheus-Text, 401 (nur wenn `NX_CACHE_METRICS_TOKEN` gesetzt)               |
 
 Auth: `Authorization: Bearer <token>`. Bodies werden gestreamt (kein Puffern im Speicher). Ein Treffer trägt `x-nx-cache-namespace: trusted|dev`.
 
@@ -70,6 +71,22 @@ Prüfen: `nx reset && nx run <projekt>:build` zeigt `[remote cache]`. Falscher T
 
 Lokal mit dem Compose-Stack: Tokens `ci-token`, `dev-token`, `ro-token`.
 
+## Metriken
+
+`GET /metrics` (Prometheus-Textformat, ohne Client-Bibliothek, Zähler im Prozess, also pro Instanz und ab Neustart):
+
+| Metrik | Labels | Inhalt |
+|---|---|---|
+| `nx_cache_requests_total` | `operation` (get/put), `outcome`, `role` (ci/dev/read-only/none), `namespace` | Requests. `outcome`: `hit`, `miss`, `stored`, `exists` (409), `unauthorized`, `forbidden`, `invalid`, `too-large`, `error` |
+| `nx_cache_request_duration_seconds` | `operation`, `outcome` | Histogramm, GET bis zum ersten Byte (Stream-Dauer nicht enthalten) |
+| `nx_cache_bytes_total` | `operation`, `namespace` | ausgelieferte (get) und gespeicherte (put) Bytes |
+| `nx_cache_entry_bytes` | `operation` | Histogramm der Eintragsgrößen, Basis für `NX_CACHE_MAX_ENTRY_BYTES` |
+| `process_uptime_seconds`, `process_resident_memory_bytes` | – | Prozess |
+
+Nützliche Abfragen: Server-Hit-Rate `sum(rate(nx_cache_requests_total{operation="get",outcome="hit"}[5m])) / sum(rate(nx_cache_requests_total{operation="get",outcome=~"hit|miss"}[5m]))`, GET-Latenz p95 `histogram_quantile(0.95, sum by (le) (rate(nx_cache_request_duration_seconds_bucket{operation="get"}[5m])))`. Fertiges Dashboard mit Prometheus + Grafana: [`nx-metrics-collector`](../nx-metrics-collector/README.md). Die Sicht von Nx (welche Tasks, gesparte Zeit) liefert das Plugin [`nx-metrics`](../nx-metrics/README.md).
+
+Hinweis: Nx fragt den Server nur bei Misses im lokalen Cache, die Server-Hit-Rate ist also die Rate unter lokalen Misses, nicht die Gesamt-Hit-Rate.
+
 ## Server konfigurieren
 
 | Variable                                                                   | Default        | Bedeutung                                                                                  |
@@ -80,6 +97,7 @@ Lokal mit dem Compose-Stack: Tokens `ci-token`, `dev-token`, `ro-token`.
 | `PORT` / `HOST`                                                            | 3000 / 0.0.0.0 |                                                                                            |
 | `STORAGE_KEY_PREFIX`                                                       | leer           | Präfix der Objekt-Keys (z. B. ein Bucket für mehrere Repos)                                |
 | `STORAGE_CREATE_BUCKET`                                                    | false          | Bucket/Container beim Start anlegen (dev)                                                  |
+| `NX_CACHE_METRICS_TOKEN`                                                   | leer           | schützt `GET /metrics` (Bearer); leer → offen, dann per Netz absichern                     |
 
 **MinIO / S3:** `S3_BUCKET`, `S3_ENDPOINT` (z. B. `http://minio:9000`; leer → AWS), `S3_REGION` (Default `us-east-1`), `S3_ACCESS_KEY_ID` + `S3_SECRET_ACCESS_KEY` (leer → AWS Credential Chain, z. B. IRSA), `S3_FORCE_PATH_STYLE` (Default: true, wenn `S3_ENDPOINT` gesetzt).
 

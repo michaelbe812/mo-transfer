@@ -1,15 +1,16 @@
 import { NodeStream } from '@effect/platform-node';
 import { Effect, Layer, Option } from 'effect';
 import { HttpRouter, type HttpServerRequest, HttpServerResponse } from 'effect/http';
-import { keyOf, policyOf, roleOf } from './auth.ts';
+import { hasBearer, keyOf, policyOf, roleOf } from './auth.ts';
 import type { ServerConfig } from './config.ts';
+import { CacheMetrics, type Operation } from './metrics.ts';
 import { CacheStorage, StorageError } from './storage/cache-storage.ts';
 
 /**
  * Nx custom remote cache spec (OpenAPI 1.0.0, https://nx.dev/docs/kb/self-hosted-caching):
  *   GET /v1/cache/{hash}  200 octet-stream | 401 | 403 | 404
  *   PUT /v1/cache/{hash}  200 | 401 | 403 (read-only token) | 409 (exists, never overwritten)
- * Plus GET /health (no auth) for container probes.
+ * Plus GET /health (no auth) for container probes and GET /metrics (Prometheus, optional NX_CACHE_METRICS_TOKEN).
  * Reads and writes go to the namespaces of the caller's role (`policyOf`); `x-nx-cache-namespace` on a hit
  * names the namespace that served it.
  */
@@ -30,77 +31,131 @@ const withStorageErrors =
       ),
     );
 
-export const cacheRoutes = (config: ServerConfig) =>
+/** Records outcome, role, namespace and duration of every cache request, whatever branch answered it. */
+const instrumented =
+  (metrics: CacheMetrics, operation: Operation, config: ServerConfig) =>
+  <E, R>(
+    handler: (
+      request: HttpServerRequest.HttpServerRequest,
+    ) => Effect.Effect<HttpServerResponse.HttpServerResponse, E, R>,
+  ) =>
+  (request: HttpServerRequest.HttpServerRequest) =>
+    Effect.suspend(() => {
+      const started = performance.now();
+      return handler(request).pipe(
+        Effect.tap((response) =>
+          Effect.sync(() => {
+            const role = roleOf(request.headers['authorization'], config.tokens);
+            const namespace =
+              operation === 'get' ? response.headers['x-nx-cache-namespace'] : role && policyOf(role).write;
+            metrics.recordRequest({
+              operation,
+              status: response.status,
+              role,
+              namespace: response.status === 200 ? namespace : undefined,
+              seconds: (performance.now() - started) / 1000,
+            });
+          }),
+        ),
+      );
+    });
+
+export const cacheRoutes = (config: ServerConfig, metrics = new CacheMetrics()) =>
   HttpRouter.use(
     Effect.fn(function* (router) {
       const storage = yield* CacheStorage;
 
       yield* router.add('GET', '/health', Effect.succeed(plain(200, 'ok')));
 
+      yield* router.add('GET', '/metrics', (request: HttpServerRequest.HttpServerRequest) =>
+        Effect.sync(() =>
+          config.metricsToken && !hasBearer(request.headers['authorization'], [config.metricsToken])
+            ? plain(401, 'Missing or invalid metrics token.')
+            : HttpServerResponse.text(metrics.render(), { contentType: 'text/plain; version=0.0.4; charset=utf-8' }),
+        ),
+      );
+
       yield* router.add(
         'GET',
         '/v1/cache/:hash',
-        Effect.fn(function* (request: HttpServerRequest.HttpServerRequest) {
-          const role = roleOf(request.headers['authorization'], config.tokens);
-          if (!role) return plain(401, 'Missing or invalid authentication token.');
-          const hash = yield* hashParam;
-          if (Option.isNone(hash) || !VALID_HASH.test(hash.value)) return plain(400, 'Invalid hash');
+        instrumented(
+          metrics,
+          'get',
+          config,
+        )(
+          Effect.fn(function* (request: HttpServerRequest.HttpServerRequest) {
+            const role = roleOf(request.headers['authorization'], config.tokens);
+            if (!role) return plain(401, 'Missing or invalid authentication token.');
+            const hash = yield* hashParam;
+            if (Option.isNone(hash) || !VALID_HASH.test(hash.value)) return plain(400, 'Invalid hash');
 
-          for (const namespace of policyOf(role).read) {
-            const entry = yield* storage.get(keyOf(namespace, hash.value));
-            if (Option.isNone(entry)) continue;
-            const { body, contentLength } = entry.value;
-            return HttpServerResponse.stream(
-              NodeStream.fromReadable({
-                evaluate: () => body,
-                onError: (cause) => new StorageError({ operation: 'get-stream', cause }),
-              }),
-              {
-                contentType: 'application/octet-stream',
-                contentLength,
-                headers: { 'x-nx-cache-namespace': namespace },
-              },
-            );
-          }
-          return plain(404, 'The record was not found');
-        }, withStorageErrors('get')),
+            for (const namespace of policyOf(role).read) {
+              const entry = yield* storage.get(keyOf(namespace, hash.value));
+              if (Option.isNone(entry)) continue;
+              const { body, contentLength } = entry.value;
+              if (contentLength !== undefined) metrics.recordBytes('get', namespace, contentLength);
+              return HttpServerResponse.stream(
+                NodeStream.fromReadable({
+                  evaluate: () => body,
+                  onError: (cause) => new StorageError({ operation: 'get-stream', cause }),
+                }),
+                {
+                  contentType: 'application/octet-stream',
+                  contentLength,
+                  headers: { 'x-nx-cache-namespace': namespace },
+                },
+              );
+            }
+            return plain(404, 'The record was not found');
+          }, withStorageErrors('get')),
+        ),
       );
 
       yield* router.add(
         'PUT',
         '/v1/cache/:hash',
-        Effect.fn(function* (request: HttpServerRequest.HttpServerRequest) {
-          const role = roleOf(request.headers['authorization'], config.tokens);
-          if (!role) return plain(401, 'Missing or invalid authentication token.');
-          const { read, write } = policyOf(role);
-          if (!write) return plain(403, 'Access forbidden: read-only token cannot write');
-          const hash = yield* hashParam;
-          if (Option.isNone(hash) || !VALID_HASH.test(hash.value)) return plain(400, 'Invalid hash');
+        instrumented(
+          metrics,
+          'put',
+          config,
+        )(
+          Effect.fn(function* (request: HttpServerRequest.HttpServerRequest) {
+            const role = roleOf(request.headers['authorization'], config.tokens);
+            if (!role) return plain(401, 'Missing or invalid authentication token.');
+            const { read, write } = policyOf(role);
+            if (!write) return plain(403, 'Access forbidden: read-only token cannot write');
+            const hash = yield* hashParam;
+            if (Option.isNone(hash) || !VALID_HASH.test(hash.value)) return plain(400, 'Invalid hash');
 
-          const contentLength = Number(request.headers['content-length']);
-          if (!Number.isSafeInteger(contentLength) || contentLength < 0) return plain(411, 'Content-Length required');
-          if (contentLength > config.maxEntryBytes) return plain(413, 'Entry too large');
+            const contentLength = Number(request.headers['content-length']);
+            if (!Number.isSafeInteger(contentLength) || contentLength < 0) return plain(411, 'Content-Length required');
+            if (contentLength > config.maxEntryBytes) return plain(413, 'Entry too large');
 
-          // cheap pre-check over everything the caller can read (a dev upload of a trusted hit is pointless), saves
-          // streaming the body; the conditional put stays authoritative
-          for (const namespace of read) {
-            if (yield* storage.exists(keyOf(namespace, hash.value))) {
-              return plain(409, 'Cannot override an existing record');
+            // cheap pre-check over everything the caller can read (a dev upload of a trusted hit is pointless), saves
+            // streaming the body; the conditional put stays authoritative
+            for (const namespace of read) {
+              if (yield* storage.exists(keyOf(namespace, hash.value))) {
+                return plain(409, 'Cannot override an existing record');
+              }
             }
-          }
 
-          const body = yield* NodeStream.toReadable(request.stream);
-          return yield* storage.put(keyOf(write, hash.value), body, contentLength).pipe(
-            Effect.as(plain(200, 'Successfully uploaded the output')),
-            Effect.catchTag('EntryAlreadyExists', () =>
-              Effect.succeed(plain(409, 'Cannot override an existing record')),
-            ),
-          );
-        }, withStorageErrors('put')),
+            const body = yield* NodeStream.toReadable(request.stream);
+            return yield* storage.put(keyOf(write, hash.value), body, contentLength).pipe(
+              Effect.tap(() => Effect.sync(() => metrics.recordBytes('put', write, contentLength))),
+              Effect.as(plain(200, 'Successfully uploaded the output')),
+              Effect.catchTag('EntryAlreadyExists', () =>
+                Effect.succeed(plain(409, 'Cannot override an existing record')),
+              ),
+            );
+          }, withStorageErrors('put')),
+        ),
       );
     }),
   );
 
 /** Routes with their storage — serve with `HttpRouter.serve` or `HttpRouter.toWebHandler`. */
-export const appLayer = <E, R>(config: ServerConfig, storage: Layer.Layer<CacheStorage, E, R>) =>
-  cacheRoutes(config).pipe(Layer.provide(storage));
+export const appLayer = <E, R>(
+  config: ServerConfig,
+  storage: Layer.Layer<CacheStorage, E, R>,
+  metrics = new CacheMetrics(),
+) => cacheRoutes(config, metrics).pipe(Layer.provide(storage));

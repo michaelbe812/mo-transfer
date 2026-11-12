@@ -3,6 +3,8 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json tsconfig.json tsconfig.lib.json ./
+# no lockfile in the image: package.json "overrides" pins @effect/platform-node-shared to the effect version
+# (otherwise npm resolves a newer one that imports modules effect 4.0.6 lacks → ERR_MODULE_NOT_FOUND at start)
 RUN npm install --no-audit --no-fund
 COPY scripts ./scripts
 COPY src ./src

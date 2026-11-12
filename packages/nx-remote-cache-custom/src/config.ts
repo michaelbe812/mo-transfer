@@ -16,6 +16,8 @@ export interface ServerConfig {
   readonly tokens: AccessTokens;
   /** Upper bound for one task output; larger uploads are rejected with 413. */
   readonly maxEntryBytes: number;
+  /** Protects `GET /metrics` (Prometheus scrape, `Authorization: Bearer`); unset → open (network-level protection). */
+  readonly metricsToken?: Redacted.Redacted;
 }
 
 /** Comma-separated list of secrets → one Redacted per token (several tokens allow rotation without downtime). */
@@ -49,6 +51,7 @@ export const serverConfig = Effect.gen(function* () {
     host: yield* Config.String('HOST').pipe(Config.withDefault('0.0.0.0')),
     tokens,
     maxEntryBytes: yield* Config.Int('NX_CACHE_MAX_ENTRY_BYTES').pipe(Config.withDefault(2 * 1024 ** 3)),
+    metricsToken: Option.getOrUndefined(yield* Config.option(Config.Redacted('NX_CACHE_METRICS_TOKEN'))),
   } satisfies ServerConfig;
 });
 

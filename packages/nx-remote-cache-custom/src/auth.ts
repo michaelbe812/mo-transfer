@@ -42,6 +42,12 @@ const digest = (value: string) => createHash('sha256').update(value).digest();
 const matchesAny = (candidate: Buffer, tokens: ReadonlyArray<Redacted.Redacted>) =>
   tokens.reduce((found, token) => timingSafeEqual(candidate, digest(Redacted.value(token))) || found, false);
 
+/** True when `Authorization: Bearer <token>` matches one of `tokens` (constant time). */
+export const hasBearer = (authorization: string | undefined, tokens: ReadonlyArray<Redacted.Redacted>): boolean => {
+  const match = /^Bearer\s+(.+)$/i.exec(authorization ?? '');
+  return match ? matchesAny(digest(match[1].trim()), tokens) : false;
+};
+
 /** Role granted by an `Authorization: Bearer <token>` header; undefined → 401. */
 export const roleOf = (authorization: string | undefined, tokens: AccessTokens): Role | undefined => {
   const match = /^Bearer\s+(.+)$/i.exec(authorization ?? '');
