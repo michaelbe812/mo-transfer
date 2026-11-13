@@ -90,6 +90,7 @@ Oder direkt aus Grafana: Zeitraum auf Baseline bzw. Nachher stellen, Wo = `ci`.
 - **Geteilte Runner:** Bench nur auf dedizierten oder gleich großen Agents. Netzteil statt Akku.
 - **Falsche Cache-Treffer:** eine hohe Hit-Rate ist nur gut, wenn die Inputs stimmen (`namedInputs`). Stichprobe: `--skip-nx-cache`-Lauf und Artefakte vergleichen.
 - **Gesparte Zeit ist eine Schätzung:** Median-Miss desselben Tasks minus Hit-Dauer. Lokal eine Obergrenze (nicht jede Minute war Wartezeit). Im Bericht so benennen.
+- **Nx < 23.1.1 und Remote Cache:** jeder wartende Miss wird pro Scheduling-Runde erneut abgefragt (GET-Misses ≫ Tasks, Server-Last, verfälscht die Server-Hit-Rate). Vor der Messung Nx auf ≥ 23.1.1 heben.
 - **Codewachstum:** wächst das Repo während der Messung stark, Werte pro Projekt bzw. pro Task vergleichen.
 
 ## Vorlage Kundenbericht
