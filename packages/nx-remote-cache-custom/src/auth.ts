@@ -1,6 +1,6 @@
 import { Redacted } from 'effect';
 import { createHash, timingSafeEqual } from 'node:crypto';
-import type { AccessTokens } from './config.ts';
+import type { AccessToken, AccessTokens } from './config.ts';
 
 /**
  * Who calls:
@@ -48,13 +48,37 @@ export const hasBearer = (authorization: string | undefined, tokens: ReadonlyArr
   return match ? matchesAny(digest(match[1].trim()), tokens) : false;
 };
 
-/** Role granted by an `Authorization: Bearer <token>` header; undefined → 401. */
-export const roleOf = (authorization: string | undefined, tokens: AccessTokens): Role | undefined => {
+/** Authenticated caller: its role and the name of the matching token (metrics label `client`). */
+export interface Caller {
+  readonly role: Role;
+  readonly client: string;
+}
+
+/** Name of the first matching token; compares against every token so timing doesn't reveal the position. */
+const matchingName = (candidate: Buffer, tokens: ReadonlyArray<AccessToken>) =>
+  tokens.reduce<string | undefined>(
+    (found, token) =>
+      timingSafeEqual(candidate, digest(Redacted.value(token.secret))) ? (found ?? token.name) : found,
+    undefined,
+  );
+
+/** Caller behind an `Authorization: Bearer <token>` header; undefined → 401. */
+export const callerOf = (authorization: string | undefined, tokens: AccessTokens): Caller | undefined => {
   const match = /^Bearer\s+(.+)$/i.exec(authorization ?? '');
   if (!match) return undefined;
   const candidate = digest(match[1].trim());
-  if (matchesAny(candidate, tokens.ci)) return 'ci';
-  if (matchesAny(candidate, tokens.dev)) return 'dev';
-  if (matchesAny(candidate, tokens.readOnly)) return 'read-only';
+  const byRole: ReadonlyArray<[Role, ReadonlyArray<AccessToken>]> = [
+    ['ci', tokens.ci],
+    ['dev', tokens.dev],
+    ['read-only', tokens.readOnly],
+  ];
+  for (const [role, list] of byRole) {
+    const client = matchingName(candidate, list);
+    if (client !== undefined) return { role, client };
+  }
   return undefined;
 };
+
+/** Role granted by an `Authorization: Bearer <token>` header; undefined → 401. */
+export const roleOf = (authorization: string | undefined, tokens: AccessTokens): Role | undefined =>
+  callerOf(authorization, tokens)?.role;

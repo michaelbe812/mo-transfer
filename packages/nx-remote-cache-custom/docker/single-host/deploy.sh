@@ -29,7 +29,7 @@ remote "cd '$remote_dir' && if [ ! -f .env ]; then
   printf '%s\n' \
     'NX_CACHE_DATA_DIR=$data_dir' \
     'MINIO_ROOT_USER=nxcache' \"MINIO_ROOT_PASSWORD=\$(s)\" \
-    \"NX_CACHE_CI_TOKENS=\$(s)\" \"NX_CACHE_DEV_TOKENS=\$(s)\" \"NX_CACHE_READ_ONLY_TOKENS=\$(s)\" \
+    \"NX_CACHE_CI_TOKENS=ci:\$(s)\" \"NX_CACHE_DEV_TOKENS=dev:\$(s)\" \"NX_CACHE_READ_ONLY_TOKENS=pr:\$(s)\" \
     \"NX_CACHE_METRICS_TOKEN=\$(s)\" \"POSTGRES_PASSWORD=\$(s)\" \"COLLECTOR_TOKENS=\$(s)\" \
     \"GRAFANA_ADMIN_PASSWORD=\$(openssl rand -hex 12)\" > .env
   echo '  generated .env (copy it to your password manager)'

@@ -1,10 +1,12 @@
 /**
  * Prometheus metrics of the cache server (text exposition format 0.0.4, no client library):
- *   nx_cache_requests_total{operation,outcome,role,namespace}        GET hit/miss, PUT stored/exists, 4xx/5xx
+ *   nx_cache_requests_total{operation,outcome,role,namespace,client,repo}  GET hit/miss, PUT stored/exists, 4xx/5xx
  *   nx_cache_request_duration_seconds{operation,outcome}  histogram  GET: time to first byte (stream not included)
- *   nx_cache_bytes_total{operation,namespace}                        bytes served (GET hits) / stored (PUT)
+ *   nx_cache_bytes_total{operation,namespace,client,repo}            bytes served (GET hits) / stored (PUT)
  *   nx_cache_entry_bytes{operation}                       histogram  entry size distribution
  * The hit rate the server sees = hit / (hit + miss); Nx' own view is in nx-metrics (plugin).
+ * `client` = name of the caller's token (`name:secret`), `repo` = path prefix `/r/<repo>`; both `none` when unknown,
+ * and only set for authenticated callers, so anonymous requests cannot create new series.
  */
 
 export type Operation = 'get' | 'put';
@@ -25,7 +27,17 @@ export interface RequestSample {
   status: number;
   role?: string;
   namespace?: string;
+  client?: string;
+  repo?: string;
   seconds: number;
+}
+
+export interface BytesSample {
+  operation: Operation;
+  namespace: string;
+  bytes: number;
+  client?: string;
+  repo?: string;
 }
 
 export const DURATION_BUCKETS = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60];
@@ -135,12 +147,15 @@ export class CacheMetrics {
       outcome,
       role: sample.role ?? 'none',
       namespace: sample.namespace ?? 'none',
+      client: sample.client ?? 'none',
+      repo: sample.repo ?? 'none',
     });
     this.duration.observe({ operation: sample.operation, outcome }, sample.seconds);
   }
 
-  recordBytes(operation: Operation, namespace: string, bytes: number): void {
-    this.bytes.inc({ operation, namespace }, bytes);
+  recordBytes(sample: BytesSample): void {
+    const { operation, namespace, bytes } = sample;
+    this.bytes.inc({ operation, namespace, client: sample.client ?? 'none', repo: sample.repo ?? 'none' }, bytes);
     this.entrySize.observe({ operation }, bytes);
   }
 
