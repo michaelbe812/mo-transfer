@@ -133,7 +133,7 @@ describe('generated testing libs compile in a fixture workspace (real shared/tes
     ];
     expect(files.length).toBeGreaterThanOrEqual(6);
     expect(typecheck(root, files)).toEqual([]);
-  });
+  }, 30_000); // tsc over a fixture workspace: ~6 s on GitHub runners
 });
 
 /**
@@ -168,5 +168,5 @@ describe('--examples compile for every entity shape (fixture workspace, real sha
     const files = dirs.flatMap((dir) => tsFilesBelow(root, dir));
     expect(files.length).toBeGreaterThan(0);
     expect(typecheck(root, files)).toEqual([]);
-  });
+  }, 30_000);
 });
