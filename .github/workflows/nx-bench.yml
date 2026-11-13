@@ -38,6 +38,13 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # parallel generate-api-client tasks would each download the jar into the same dir → "Unable to access jarfile"
+      - uses: actions/cache@v6
+        with:
+          path: node_modules/.cache/openapi-generator-cli
+          key: openapi-generator-${{ hashFiles('openapitools.json') }}
+      - name: OpenAPI generator jar (once, before nx)
+        run: pnpm exec openapi-generator-cli version
       - run: pnpm exec playwright install --with-deps chromium
       - name: bench HEAD
         run: pnpm -s nx-metrics bench --ref HEAD --name nightly --iterations "${{ inputs.iterations || '3' }}" --out tmp/nx-bench/nightly
