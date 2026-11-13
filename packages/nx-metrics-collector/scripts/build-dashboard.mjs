@@ -71,6 +71,10 @@ const unitOverride = (name, unit, decimals) => ({
   matcher: { id: 'byName', options: name },
   properties: [{ id: 'unit', value: unit }, ...(decimals === undefined ? [] : [{ id: 'decimals', value: decimals }])],
 });
+/** GET hit rate per label value: hits / (hits + misses). */
+const hitRateBy = (label) =>
+  `sum by (${label}) (rate(nx_cache_requests_total{operation="get",outcome="hit"}[$__rate_interval])) / sum by (${label}) (rate(nx_cache_requests_total{operation="get",outcome=~"hit|miss"}[$__rate_interval]))`;
+
 const row = (title, y) => ({
   id: nextId++,
   type: 'row',
@@ -342,6 +346,38 @@ from runs where ${RUN_FILTER} order by started_at desc limit 50`,
     { x: 18, y: 56, w: 6, h: 8 },
     [prom('sum(minio_bucket_usage_object_total{bucket="nx-cache"})', 'Objekte')],
     'short',
+  ),
+
+  // labels `repo` (URL prefix /r/<repo>) and `client` (token name `name:secret`); `none` = not set by the client
+  row('Cache-Server nach Repo und Rechner', 64),
+  timeseries(
+    'GET-Hit-Rate nach Repo',
+    { x: 0, y: 65, w: 12, h: 8 },
+    [prom(hitRateBy('repo'), '{{repo}}')],
+    'percentunit',
+  ),
+  timeseries(
+    'GET-Hit-Rate nach Rechner',
+    { x: 12, y: 65, w: 12, h: 8 },
+    [prom(hitRateBy('client'), '{{client}}')],
+    'percentunit',
+  ),
+  timeseries(
+    'Requests/s nach Repo',
+    { x: 0, y: 73, w: 12, h: 8 },
+    [
+      prom(
+        'sum by (repo, operation) (rate(nx_cache_requests_total{role!="none"}[$__rate_interval]))',
+        '{{repo}} {{operation}}',
+      ),
+    ],
+    'reqps',
+  ),
+  timeseries(
+    'Durchsatz nach Rechner',
+    { x: 12, y: 73, w: 12, h: 8 },
+    [prom('sum by (client, operation) (rate(nx_cache_bytes_total[$__rate_interval]))', '{{client}} {{operation}}')],
+    'Bps',
   ),
 ];
 

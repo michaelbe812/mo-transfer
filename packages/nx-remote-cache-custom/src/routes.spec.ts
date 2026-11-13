@@ -1,7 +1,7 @@
 import { Layer, Redacted } from 'effect';
 import { HttpRouter, HttpServer } from 'effect/http';
 import { afterAll, describe, expect, it } from 'vitest';
-import type { ServerConfig } from './config.ts';
+import { parseToken, type ServerConfig } from './config.ts';
 import { appLayer } from './routes.ts';
 import { layerMemory } from './storage/memory.ts';
 
@@ -9,9 +9,9 @@ const config: ServerConfig = {
   port: 0,
   host: '127.0.0.1',
   tokens: {
-    ci: [Redacted.make('ci-token')],
-    dev: [Redacted.make('dev-token')],
-    readOnly: [Redacted.make('ro-token')],
+    ci: [parseToken('ci-token')],
+    dev: [parseToken('dev-token')],
+    readOnly: [parseToken('ro-token')],
   },
   maxEntryBytes: 1024,
 };
@@ -116,5 +116,35 @@ describe('namespaces: developers write to dev, ci never reads it', () => {
     expect(await (await get('2004', 'ci-token')).text()).toBe('ci build');
     // developers keep their own copy first — same hash, same inputs
     expect((await get('2004', 'dev-token')).headers.get('x-nx-cache-namespace')).toBe('dev');
+  });
+});
+
+describe('repo prefix /r/{repo}', () => {
+  const at = (path: string, init?: RequestInit) => handler(new Request(`http://cache.test${path}`, init));
+
+  it('serves the same entries under /r/{repo}/v1/cache — repos and worktrees share hits', async () => {
+    const body = bytes('shared');
+    const stored = await at('/r/repo-a/v1/cache/3001', {
+      method: 'PUT',
+      body,
+      headers: { ...auth('dev-token'), 'content-length': String(body.length) },
+    });
+    expect(stored.status).toBe(200);
+    expect(await (await at('/r/repo-b/v1/cache/3001', { headers: auth('dev-token') })).text()).toBe('shared');
+    expect(await (await get('3001', 'dev-token')).text()).toBe('shared');
+  });
+
+  it('rejects invalid repo names (400) and still requires a token (401)', async () => {
+    expect((await at('/r/bad%20name/v1/cache/3002', { headers: auth('dev-token') })).status).toBe(400);
+    expect((await at('/r/repo-a/v1/cache/3002')).status).toBe(401);
+  });
+});
+
+describe('parseToken', () => {
+  it('reads `name:secret` and treats plain secrets as unnamed', () => {
+    expect(parseToken('macbook:abc123').name).toBe('macbook');
+    expect(Redacted.value(parseToken('macbook:abc123').secret)).toBe('abc123');
+    expect(parseToken('abc123').name).toBe('unnamed');
+    expect(Redacted.value(parseToken('abc123').secret)).toBe('abc123');
   });
 });

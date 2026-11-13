@@ -65,7 +65,7 @@ export NX_SELF_HOSTED_REMOTE_CACHE_SERVER=https://nx-cache.example.com
 export NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN=<persönlicher dev-token>
 ```
 
-Token erzeugen: `openssl rand -base64 32`.
+Token erzeugen: `openssl rand -base64 32`. Optional mit Namen `name:secret` in der Server-Liste (z. B. `NX_CACHE_DEV_TOKENS=anna:…,ben:…`): Der Name erscheint als Metrik-Label `client`, der Client schickt nur das Secret. Einträge ohne Namen gelten als `unnamed`.
 
 Prüfen: `nx reset && nx run <projekt>:build` zeigt `[remote cache]`. Falscher Token → Nx meldet `Unauthorized`; Read-only + Miss → Task läuft, Upload wird still abgelehnt.
 
@@ -77,13 +77,15 @@ Lokal mit dem Compose-Stack: Tokens `ci-token`, `dev-token`, `ro-token`.
 
 | Metrik | Labels | Inhalt |
 |---|---|---|
-| `nx_cache_requests_total` | `operation` (get/put), `outcome`, `role` (ci/dev/read-only/none), `namespace` | Requests. `outcome`: `hit`, `miss`, `stored`, `exists` (409), `unauthorized`, `forbidden`, `invalid`, `too-large`, `error` |
+| `nx_cache_requests_total` | `operation` (get/put), `outcome`, `role` (ci/dev/read-only/none), `namespace`, `client`, `repo` | Requests. `outcome`: `hit`, `miss`, `stored`, `exists` (409), `unauthorized`, `forbidden`, `invalid`, `too-large`, `error` |
 | `nx_cache_request_duration_seconds` | `operation`, `outcome` | Histogramm, GET bis zum ersten Byte (Stream-Dauer nicht enthalten) |
-| `nx_cache_bytes_total` | `operation`, `namespace` | ausgelieferte (get) und gespeicherte (put) Bytes |
+| `nx_cache_bytes_total` | `operation`, `namespace`, `client`, `repo` | ausgelieferte (get) und gespeicherte (put) Bytes |
 | `nx_cache_entry_bytes` | `operation` | Histogramm der Eintragsgrößen, Basis für `NX_CACHE_MAX_ENTRY_BYTES` |
 | `process_uptime_seconds`, `process_resident_memory_bytes` | – | Prozess |
 
 Nützliche Abfragen: Server-Hit-Rate `sum(rate(nx_cache_requests_total{operation="get",outcome="hit"}[5m])) / sum(rate(nx_cache_requests_total{operation="get",outcome=~"hit|miss"}[5m]))`, GET-Latenz p95 `histogram_quantile(0.95, sum by (le) (rate(nx_cache_request_duration_seconds_bucket{operation="get"}[5m])))`. Fertiges Dashboard mit Prometheus + Grafana: [`nx-metrics-collector`](../nx-metrics-collector/README.md). Die Sicht von Nx (welche Tasks, gesparte Zeit) liefert das Plugin [`nx-metrics`](../nx-metrics/README.md).
+
+**Nach Rechner und Repo:** `client` = Name des Tokens (siehe oben). `repo` kommt aus der URL: Nx übernimmt einen Pfad in `NX_SELF_HOSTED_REMOTE_CACHE_SERVER`, der Server beantwortet dieselben Routen auch unter `/r/{repo}/v1/cache/{hash}` (`[A-Za-z0-9._-]{1,100}`, sonst 400). Die Storage-Keys enthalten das Repo nicht, Treffer zwischen Repos und Worktrees bleiben erhalten. Beide Labels sind `none`, wenn nicht gesetzt, und werden nur für authentifizierte Aufrufer vergeben (anonyme Requests erzeugen keine neuen Serien).
 
 Hinweis: Nx fragt den Server nur bei Misses im lokalen Cache, die Server-Hit-Rate ist also die Rate unter lokalen Misses, nicht die Gesamt-Hit-Rate.
 
@@ -195,18 +197,22 @@ packages/nx-remote-cache-custom/docker/single-host/deploy.sh <ssh-ziel> <remote-
 
 Grafana zeigt Belegung, Quota und Anzahl Einträge (Prometheus-Job `minio`, `/minio/v2/metrics/bucket`).
 
-**Clients:** einmal global statt `.env` pro Repo, damit neue Repos und Worktrees automatisch mitmachen. Eigener Dev-Token pro Rechner (`NX_CACHE_DEV_TOKENS` kommagetrennt):
+**Clients:** einmal global statt `.env` pro Repo, damit neue Repos und Worktrees automatisch mitmachen. Eigener benannter Dev-Token pro Rechner (`NX_CACHE_DEV_TOKENS=macbook:…,mac-mini:…`):
 
 ```sh
 # ~/.config/nx-cache/env (chmod 600)
-NX_SELF_HOSTED_REMOTE_CACHE_SERVER=http://mac-mini.fritz.box:3100
-NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN=<dev-token>
+NX_CACHE_BASE_URL=http://mac-mini.fritz.box:3100
+NX_SELF_HOSTED_REMOTE_CACHE_SERVER=http://mac-mini.fritz.box:3100   # ohne Repo, für IDEs (launchd)
+NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN=<dev-token, nur das Secret>
 NX_METRICS_ENDPOINT=http://mac-mini.fritz.box:4000/v1/runs
 NX_METRICS_TOKEN=<collector-token>
 
 # ~/.zshenv
 [ -r "$HOME/.config/nx-cache/env" ] && { set -a; . "$HOME/.config/nx-cache/env"; set +a; }
+[ -r "$HOME/.config/nx-cache/repo-url.zsh" ] && . "$HOME/.config/nx-cache/repo-url.zsh"
 ```
+
+[`repo-url.zsh`](docker/single-host/repo-url.zsh) hängt beim Shell-Start und bei jedem `cd` `/r/<repo>` an die URL. Repo ist der Ordnername des Haupt-Checkouts, Worktrees zählen also zu ihrem Repo. Außerhalb von Git bleibt die Basis-URL (`repo="none"`).
 
 Aus dem Dock gestartete IDEs lesen `~/.zshenv` nicht: ein LaunchAgent mit `RunAtLoad`, der jede Zeile per `launchctl setenv` setzt, macht die Werte auch dort sichtbar. Repos mit Nx Cloud (`nxCloudId` in `nx.json`) nutzen weiter Nx Cloud; ältere Nx-Versionen (geprüft: 20.5 nein, 21.5 ja) kennen `NX_SELF_HOSTED_REMOTE_CACHE_SERVER` nicht und ignorieren es.
 

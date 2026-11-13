@@ -1,7 +1,7 @@
 import { Layer, Redacted } from 'effect';
 import { HttpRouter, HttpServer } from 'effect/http';
 import { afterAll, describe, expect, it } from 'vitest';
-import type { ServerConfig } from './config.ts';
+import { parseToken, type ServerConfig } from './config.ts';
 import { CacheMetrics, outcomeOf } from './metrics.ts';
 import { appLayer } from './routes.ts';
 import { layerMemory } from './storage/memory.ts';
@@ -9,7 +9,11 @@ import { layerMemory } from './storage/memory.ts';
 const config: ServerConfig = {
   port: 0,
   host: '127.0.0.1',
-  tokens: { ci: [Redacted.make('ci-token')], dev: [Redacted.make('dev-token')], readOnly: [Redacted.make('ro-token')] },
+  tokens: {
+    ci: [parseToken('pipeline:ci-token')],
+    dev: [parseToken('macbook:dev-token'), parseToken('dev-token-unnamed')],
+    readOnly: [parseToken('ro-token')],
+  },
   maxEntryBytes: 1024,
   metricsToken: Redacted.make('scrape-token'),
 };
@@ -22,11 +26,12 @@ afterAll(() => dispose());
 
 const url = (path: string) => `http://cache.test${path}`;
 const auth = (token: string) => ({ authorization: `Bearer ${token}` });
-const get = (hash: string, token: string) => handler(new Request(url(`/v1/cache/${hash}`), { headers: auth(token) }));
-const put = (hash: string, text: string, token: string) => {
+const get = (hash: string, token: string, prefix = '') =>
+  handler(new Request(url(`${prefix}/v1/cache/${hash}`), { headers: auth(token) }));
+const put = (hash: string, text: string, token: string, prefix = '') => {
   const body = new TextEncoder().encode(text);
   return handler(
-    new Request(url(`/v1/cache/${hash}`), {
+    new Request(url(`${prefix}/v1/cache/${hash}`), {
       method: 'PUT',
       body,
       headers: { ...auth(token), 'content-length': String(body.length) },
@@ -62,22 +67,86 @@ describe('cache metrics', () => {
     expect((await put('2002', 'x', 'ro-token')).status).toBe(403);
     expect((await get('2001', 'nope')).status).toBe(401);
 
+    const none = { client: 'none', repo: 'none' };
     const count = (labels: Record<string, string>) => metrics.requests.get(labels);
-    expect(count({ operation: 'get', outcome: 'miss', role: 'read-only', namespace: 'none' })).toBe(1);
-    expect(count({ operation: 'put', outcome: 'stored', role: 'ci', namespace: 'trusted' })).toBe(1);
-    expect(count({ operation: 'put', outcome: 'exists', role: 'ci', namespace: 'none' })).toBe(1);
-    expect(count({ operation: 'get', outcome: 'hit', role: 'dev', namespace: 'trusted' })).toBe(1);
-    expect(count({ operation: 'put', outcome: 'forbidden', role: 'read-only', namespace: 'none' })).toBe(1);
-    expect(count({ operation: 'get', outcome: 'unauthorized', role: 'none', namespace: 'none' })).toBe(1);
-    expect(metrics.bytes.get({ operation: 'put', namespace: 'trusted' })).toBe(8);
-    expect(metrics.bytes.get({ operation: 'get', namespace: 'trusted' })).toBe(8);
+    expect(
+      count({
+        operation: 'get',
+        outcome: 'miss',
+        role: 'read-only',
+        namespace: 'none',
+        client: 'unnamed',
+        repo: 'none',
+      }),
+    ).toBe(1);
+    expect(
+      count({
+        operation: 'put',
+        outcome: 'stored',
+        role: 'ci',
+        namespace: 'trusted',
+        client: 'pipeline',
+        repo: 'none',
+      }),
+    ).toBe(1);
+    expect(
+      count({ operation: 'put', outcome: 'exists', role: 'ci', namespace: 'none', client: 'pipeline', repo: 'none' }),
+    ).toBe(1);
+    expect(
+      count({ operation: 'get', outcome: 'hit', role: 'dev', namespace: 'trusted', client: 'macbook', repo: 'none' }),
+    ).toBe(1);
+    expect(
+      count({
+        operation: 'put',
+        outcome: 'forbidden',
+        role: 'read-only',
+        namespace: 'none',
+        client: 'unnamed',
+        repo: 'none',
+      }),
+    ).toBe(1);
+    expect(count({ operation: 'get', outcome: 'unauthorized', role: 'none', namespace: 'none', ...none })).toBe(1);
+    expect(metrics.bytes.get({ operation: 'put', namespace: 'trusted', client: 'pipeline', repo: 'none' })).toBe(8);
+    expect(metrics.bytes.get({ operation: 'get', namespace: 'trusted', client: 'macbook', repo: 'none' })).toBe(8);
 
     const text = await scrape();
     expect(text).toContain('# TYPE nx_cache_requests_total counter');
-    expect(text).toContain('nx_cache_requests_total{operation="get",outcome="hit",role="dev",namespace="trusted"} 1');
+    expect(text).toContain(
+      'nx_cache_requests_total{operation="get",outcome="hit",role="dev",namespace="trusted",client="macbook",repo="none"} 1',
+    );
     expect(text).toMatch(/nx_cache_request_duration_seconds_bucket\{operation="get",outcome="hit",le="\+Inf"\} 1/);
-    expect(text).toContain('nx_cache_bytes_total{operation="put",namespace="trusted"} 8');
+    expect(text).toContain('nx_cache_bytes_total{operation="put",namespace="trusted",client="pipeline",repo="none"} 8');
     expect(text).toContain('nx_cache_entry_bytes_bucket{operation="get",le="1024"} 1');
     expect(text).toMatch(/process_uptime_seconds \d/);
+  });
+});
+
+describe('client and repo labels', () => {
+  it('labels requests by token name and /r/{repo} prefix', async () => {
+    expect((await put('3001', 'abc', 'dev-token', '/r/mo-transfer')).status).toBe(200);
+    const hit = await get('3001', 'dev-token-unnamed', '/r/other-repo');
+    expect(hit.status).toBe(200);
+    await hit.text();
+
+    const count = (labels: Record<string, string>) => metrics.requests.get(labels);
+    expect(
+      count({
+        operation: 'put',
+        outcome: 'stored',
+        role: 'dev',
+        namespace: 'dev',
+        client: 'macbook',
+        repo: 'mo-transfer',
+      }),
+    ).toBe(1);
+    expect(
+      count({ operation: 'get', outcome: 'hit', role: 'dev', namespace: 'dev', client: 'unnamed', repo: 'other-repo' }),
+    ).toBe(1);
+    expect(metrics.bytes.get({ operation: 'put', namespace: 'dev', client: 'macbook', repo: 'mo-transfer' })).toBe(3);
+  });
+
+  it('never labels unauthenticated requests with the requested repo', async () => {
+    expect((await get('3002', 'nope', '/r/attacker-chosen')).status).toBe(401);
+    expect(await scrape()).not.toContain('attacker-chosen');
   });
 });
