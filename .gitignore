@@ -57,3 +57,6 @@ __screenshots__/
 
 # generated OpenAPI clients (packages/tooling/openapi): per client lib only src/index.ts is committed
 **/src/generated/**
+
+# azure deploy secrets
+deploy/azure/.env

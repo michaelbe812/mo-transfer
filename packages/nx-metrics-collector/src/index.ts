@@ -3,6 +3,7 @@ export { createCollector, isAuthorized, type CollectorOptions } from './server.t
 export {
   createMemoryStore,
   createPostgresStore,
+  ensureReadOnlyRole,
   migrate,
   runRow,
   taskRows,

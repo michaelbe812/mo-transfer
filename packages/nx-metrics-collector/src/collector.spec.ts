@@ -3,7 +3,7 @@ import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseBody, validateRecord, type RunRecord } from './run-record.ts';
 import { createCollector } from './server.ts';
-import { createMemoryStore, createPostgresStore, migrate, runRow, taskRows } from './store.ts';
+import { createMemoryStore, createPostgresStore, ensureReadOnlyRole, migrate, runRow, taskRows } from './store.ts';
 
 const record = (runId: string, overrides: Partial<RunRecord> = {}): RunRecord => ({
   schema: 1,
@@ -145,5 +145,25 @@ describe.skipIf(!databaseUrl)('Postgres store', () => {
     const facts = await pool.query("select saved_ms from task_facts where run_id = $1 and task_id = 'b:test'", [runId]);
     // b:test never missed → fallback to the median miss of target "test" (≥ 5000 from a:test) minus 100
     expect(Number(facts.rows[0].saved_ms)).toBeGreaterThan(0);
+  });
+
+  it('creates a read-only role idempotently: SELECT works, INSERT is denied', async () => {
+    const role = 'nx_metrics_it_reader';
+    await ensureReadOnlyRole(pool, role, "pa'ss");
+    await ensureReadOnlyRole(pool, role, "pa'ss");
+    const url = new URL(databaseUrl as string);
+    url.username = role;
+    url.password = "pa'ss";
+    const reader = new pg.Client({ connectionString: url.toString() });
+    await reader.connect();
+    try {
+      expect((await reader.query('select count(*)::int as n from task_facts')).rows[0].n).toBeGreaterThanOrEqual(0);
+      await expect(reader.query("insert into runs (run_id) values ('x')")).rejects.toThrow(/permission denied/);
+    } finally {
+      await reader.end();
+      await pool.query(
+        `revoke all on all tables in schema public from ${role}; revoke usage on schema public from ${role}; drop role ${role}`,
+      );
+    }
   });
 });

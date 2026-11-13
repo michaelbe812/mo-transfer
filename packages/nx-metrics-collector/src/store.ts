@@ -207,6 +207,18 @@ export async function migrate(pool: pg.Pool): Promise<void> {
   await pool.query(SCHEMA_SQL);
 }
 
+/**
+ * Login role that may only read (Grafana). Managed Postgres (Azure, RDS) has no init scripts, so the collector
+ * creates it at startup; re-running updates the password and grants SELECT on tables/views created since.
+ */
+export async function ensureReadOnlyRole(pool: pg.Pool, role: string, password: string): Promise<void> {
+  const name = pg.escapeIdentifier(role);
+  const exists = await pool.query('select 1 from pg_roles where rolname = $1', [role]);
+  await pool.query(`${exists.rowCount ? 'alter' : 'create'} role ${name} login password ${pg.escapeLiteral(password)}`);
+  await pool.query(`grant usage on schema public to ${name}`);
+  await pool.query(`grant select on all tables in schema public to ${name}`);
+}
+
 /** Tasks in chunks: Postgres allows 65535 bind parameters per statement. */
 const TASK_CHUNK = 1000;
 

@@ -1,18 +1,19 @@
+# Values from env (Grafana expands $VAR / ${VAR}); defaults for the compose stack are set in compose.yml.
 apiVersion: 1
 datasources:
   - name: nx-metrics
     uid: nx-metrics-pg
     type: grafana-postgresql-datasource
-    url: postgres:5432
-    user: grafana
+    url: ${NX_METRICS_PG_HOST}
+    user: ${NX_METRICS_PG_USER}
     secureJsonData:
-      password: grafana
+      password: ${NX_METRICS_PG_PASSWORD}
     jsonData:
-      database: nxmetrics
-      sslmode: disable
+      database: ${NX_METRICS_PG_DATABASE}
+      sslmode: ${NX_METRICS_PG_SSLMODE}
       postgresVersion: 1700
     isDefault: true
   - name: nx-cache
     uid: nx-cache-prom
     type: prometheus
-    url: http://prometheus:9090
+    url: ${NX_CACHE_PROMETHEUS_URL}

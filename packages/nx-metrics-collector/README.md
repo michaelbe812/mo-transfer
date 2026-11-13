@@ -37,6 +37,7 @@ Akzeptiert `RunRecord` Schema 1. Unbekannte Felder werden ignoriert, die `runId`
 | `COLLECTOR_MAX_BODY_BYTES` | 10 MiB | pro Request (`push` schickt 200 Records je Request) |
 | `PORT` / `HOST` | 4000 / 0.0.0.0 | |
 | `STORE` | postgres | `memory` für Tests |
+| `COLLECTOR_READONLY_ROLE` / `COLLECTOR_READONLY_PASSWORD` | – | legt beim Start eine Login-Rolle nur mit `SELECT` an (Grafana); für managed Postgres ohne Init-Skripte |
 
 Das Schema legt der Collector beim Start idempotent an (`create … if not exists`, Views `create or replace`).
 
@@ -68,7 +69,12 @@ Quelle: `scripts/build-dashboard.mjs` erzeugt `docker/grafana/dashboards/nx-metr
 
 ## Produktivbetrieb
 
-1. Postgres (managed, z. B. Azure Database for PostgreSQL), eigener User für den Collector, Rolle `grafana` nur mit `SELECT` (siehe `docker/postgres/init.sql`).
+Azure (Container Apps, Postgres Flexible Server, Grafana-Image): fertig in [`deploy/azure`](../../deploy/azure/README.md). Eigener Server: Compose-Stack oben mit echten Passwörtern. Grafana-Image mit Dashboard: `docker build -t nx-metrics-grafana packages/nx-metrics-collector/docker/grafana` (Datasources per Env `NX_METRICS_PG_*`, `NX_CACHE_PROMETHEUS_URL`).
+
+Von Hand:
+
+
+1. Postgres (managed, z. B. Azure Database for PostgreSQL), eigener User für den Collector, Rolle `grafana` nur mit `SELECT` (`COLLECTOR_READONLY_ROLE`/`_PASSWORD` oder `docker/postgres/init.sql`).
 2. Collector als Container hinter TLS (`https://nx-metrics.<firma>.de`), `COLLECTOR_TOKENS` aus dem Secret-Store. CI bekommt `NX_METRICS_ENDPOINT` + `NX_METRICS_TOKEN` als Variablen.
 3. Grafana (vorhandenes nehmen, wenn es eins gibt): Datasources wie in `docker/grafana/provisioning/datasources/datasources.yml`, Dashboard-JSON importieren.
 4. Prometheus: Scrape-Job je Cache-Instanz (`docker/prometheus/prometheus.yml`), bei `NX_CACHE_METRICS_TOKEN` mit `authorization.credentials`.

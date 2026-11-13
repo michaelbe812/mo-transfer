@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
  * Env: DATABASE_URL (postgres://…, required unless STORE=memory), PORT (4000), HOST (0.0.0.0),
- *      COLLECTOR_TOKENS (comma-separated, empty → no auth), COLLECTOR_MAX_BODY_BYTES (10 MiB), STORE (postgres|memory)
+ *      COLLECTOR_TOKENS (comma-separated, empty → no auth), COLLECTOR_MAX_BODY_BYTES (10 MiB), STORE (postgres|memory),
+ *      COLLECTOR_READONLY_ROLE + COLLECTOR_READONLY_PASSWORD (optional: login role with SELECT only, for Grafana)
  */
 import pg from 'pg';
 import { createCollector } from './server.ts';
-import { createMemoryStore, createPostgresStore, migrate, type RunStore } from './store.ts';
+import { createMemoryStore, createPostgresStore, ensureReadOnlyRole, migrate, type RunStore } from './store.ts';
 
 const env = process.env;
 const log = (line: string) => console.log(`${new Date().toISOString()} ${line}`);
@@ -24,6 +25,10 @@ async function createStore(): Promise<RunStore> {
       log(`waiting for postgres (${error instanceof Error ? error.message : String(error)})`);
       await new Promise((resolve) => setTimeout(resolve, 2000));
     }
+  }
+  if (env.COLLECTOR_READONLY_ROLE && env.COLLECTOR_READONLY_PASSWORD) {
+    await ensureReadOnlyRole(pool, env.COLLECTOR_READONLY_ROLE, env.COLLECTOR_READONLY_PASSWORD);
+    log(`read-only role ${env.COLLECTOR_READONLY_ROLE} ready`);
   }
   return createPostgresStore(pool);
 }

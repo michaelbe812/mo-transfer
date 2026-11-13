@@ -28,7 +28,7 @@ Ziel: belastbar zeigen, was feineres Slicing und der Remote Cache für Build, Te
    "plugins": [{ "plugin": "@berger-engineering/nx-metrics/plugin" }]
    ```
    Schreibt `.nx/metrics/runs.jsonl`, `.nx/metrics` in `.gitignore`. Prüfen: `NX_DAEMON=false NX_METRICS_CONSOLE=summary nx lint <projekt>` zeigt eine `[nx-metrics]`-Zeile.
-2. **Collector + Grafana**: [Compose-Stack](../packages/nx-metrics-collector/README.md) bzw. beim Kunden vorhandenes Grafana/Postgres. Prometheus scrapt den Cache-Server, sobald er läuft.
+2. **Collector + Grafana**: [Compose-Stack](../packages/nx-metrics-collector/README.md) (eigener Server), [Azure](../deploy/azure/README.md) (`deploy.sh`, auch mit Remote Cache) bzw. beim Kunden vorhandenes Grafana/Postgres. Prometheus scrapt den Cache-Server, sobald er läuft.
 3. **CI**: jede Pipeline schickt ihre Läufe, entweder direkt oder per Artefakt + `push`:
    ```yaml
    env:

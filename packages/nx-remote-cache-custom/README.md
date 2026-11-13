@@ -119,6 +119,9 @@ Ein Treffer verlängert nichts: ein Eintrag läuft trotz Nutzung ab und wird dan
 
 ## Produktivbetrieb
 
+Azure fertig als Bicep (Container App, Blob mit Managed Identity, Lifecycle, optional mit Metrics-Stack): [`deploy/azure`](../../deploy/azure/README.md).
+
+
 Checkliste, in dieser Reihenfolge:
 
 1. **Speicher anlegen**, privat (kein öffentlicher Zugriff):
