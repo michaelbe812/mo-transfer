@@ -3,12 +3,29 @@ import { type AzureAuth, layerAzure } from './storage/azure.ts';
 import { layerMemory } from './storage/memory.ts';
 import { layerS3 } from './storage/s3.ts';
 
+/** One access token; `name` identifies the caller in metrics (label `client`), never the secret. */
+export interface AccessToken {
+  readonly name: string;
+  readonly secret: Redacted.Redacted;
+}
+
 /** Access tokens per role (see `Role` in auth.ts). */
 export interface AccessTokens {
-  readonly ci: ReadonlyArray<Redacted.Redacted>;
-  readonly dev: ReadonlyArray<Redacted.Redacted>;
-  readonly readOnly: ReadonlyArray<Redacted.Redacted>;
+  readonly ci: ReadonlyArray<AccessToken>;
+  readonly dev: ReadonlyArray<AccessToken>;
+  readonly readOnly: ReadonlyArray<AccessToken>;
 }
+
+export const UNNAMED_CLIENT = 'unnamed';
+const NAMED_TOKEN = /^([A-Za-z0-9._-]{1,64}):(.+)$/;
+
+/** `name:secret` → named token, plain `secret` → `unnamed` (generated secrets are hex/base64, never contain `:`). */
+export const parseToken = (entry: string): AccessToken => {
+  const named = NAMED_TOKEN.exec(entry);
+  return named
+    ? { name: named[1], secret: Redacted.make(named[2]) }
+    : { name: UNNAMED_CLIENT, secret: Redacted.make(entry) };
+};
 
 export interface ServerConfig {
   readonly port: number;
@@ -20,7 +37,10 @@ export interface ServerConfig {
   readonly metricsToken?: Redacted.Redacted;
 }
 
-/** Comma-separated list of secrets → one Redacted per token (several tokens allow rotation without downtime). */
+/**
+ * Comma-separated list of `name:secret` or `secret` → one token each (several tokens allow rotation without downtime,
+ * one per person/machine makes them revocable one by one).
+ */
 const tokenList = (name: string) =>
   Config.Redacted(name).pipe(
     Config.option,
@@ -32,7 +52,7 @@ const tokenList = (name: string) =>
             .split(',')
             .map((token) => token.trim())
             .filter((token) => token.length > 0)
-            .map((token) => Redacted.make(token)),
+            .map(parseToken),
       }),
     ),
   );
