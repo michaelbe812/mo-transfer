@@ -293,6 +293,56 @@ from runs where ${RUN_FILTER} order by started_at desc limit 50`,
     'short',
     { custom: { drawStyle: 'bars', fillOpacity: 80 } },
   ),
+
+  // MinIO bucket metrics (job `minio`, /minio/v2/metrics/bucket); usage is computed by the MinIO scanner, so it lags a few minutes
+  row('Speicher (MinIO-Bucket nx-cache)', 55),
+  panel(
+    'gauge',
+    'Belegung / Quota',
+    { x: 0, y: 56, w: 6, h: 8 },
+    [
+      prom(
+        'sum(minio_bucket_usage_total_bytes{bucket="nx-cache"}) / sum(minio_bucket_quota_total_bytes{bucket="nx-cache"})',
+        'Belegung',
+      ),
+    ],
+    {
+      description: 'Anteil der harten Bucket-Quota; ohne Quota keine Daten. Der Evictor räumt vor der Quota auf.',
+      fieldConfig: {
+        defaults: {
+          unit: 'percentunit',
+          min: 0,
+          max: 1,
+          decimals: 1,
+          thresholds: {
+            mode: 'absolute',
+            steps: [
+              { color: 'green', value: null },
+              { color: 'orange', value: 0.8 },
+              { color: 'red', value: 0.95 },
+            ],
+          },
+        },
+        overrides: [],
+      },
+      options: { reduceOptions: { calcs: ['lastNotNull'], fields: '', values: false } },
+    },
+  ),
+  timeseries(
+    'Belegung',
+    { x: 6, y: 56, w: 12, h: 8 },
+    [
+      prom('sum(minio_bucket_usage_total_bytes{bucket="nx-cache"})', 'belegt'),
+      prom('sum(minio_bucket_quota_total_bytes{bucket="nx-cache"})', 'quota', 'B'),
+    ],
+    'bytes',
+  ),
+  timeseries(
+    'Einträge',
+    { x: 18, y: 56, w: 6, h: 8 },
+    [prom('sum(minio_bucket_usage_object_total{bucket="nx-cache"})', 'Objekte')],
+    'short',
+  ),
 ];
 
 const textbox = (name, label, value, description) => ({
