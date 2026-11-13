@@ -171,6 +171,45 @@ NX_CACHE_DEV_TOKENS=<token-anna>,<token-ben>
 
 Lokal starten: `docker run -p 3000:3000 --env-file cache.env nx-remote-cache-custom`. Das Image ist eigenständig (keine Workspace-Abhängigkeiten), läuft als `node`, mit `HEALTHCHECK` auf `/health`.
 
+## Single-Host-Deployment
+
+Ein Rechner im LAN (z. B. Mac mini mit externer SSD) für einen Entwickler oder ein kleines Team: Cache, MinIO und der Metrik-Stack aus [`nx-metrics-collector`](../nx-metrics-collector/README.md) in einem Compose-Projekt ([`docker/single-host/`](docker/single-host/compose.yml)).
+
+```sh
+packages/nx-remote-cache-custom/docker/single-host/deploy.sh <ssh-ziel> <remote-dir> [data-dir]
+# z. B. deploy.sh macmini@mac-mini.fritz.box /Volumes/DevSSD/nx-cache
+```
+
+- Erster Lauf erzeugt `<remote-dir>/.env` mit Zufalls-Secrets (Vorlage: `.env.example`), danach bleibt sie unangetastet → in den Passwort-Manager.
+- Jeder Lauf kopiert Compose, Konfiguration und beide Pakete nach `<remote-dir>/src/`, baut die Images auf dem Host und startet geänderte Dienste neu (gleicher Befehl für Updates).
+- Erreichbar im LAN: Cache `:3100`, Collector `:4000/v1/runs`, Grafana `:3310`. Nur auf dem Host: MinIO `:9000`/`:9001`, Prometheus `:9090`.
+- MinIO-Daten per Bind-Mount in `NX_CACHE_DATA_DIR` mit `create_host_path: false`: ist die externe Platte nicht gemountet, startet MinIO nicht, statt auf die interne Platte zu schreiben.
+
+**Speichergrenzen** (Env in `.env`, Defaults):
+
+| Grenze | Umsetzung |
+|---|---|
+| Alter `NX_CACHE_RETENTION_DAYS=5` | MinIO-ILM-Regel für `trusted/` und `dev/`; der Scanner löscht mit etwas Verzögerung |
+| Größe `NX_CACHE_EVICT_HIGH_GIB=90` → `NX_CACHE_EVICT_LOW_GIB=80` | Container `evictor` ([`evict.sh`](docker/single-host/evict.sh)) prüft alle 10 min, löscht älteste Einträge zuerst |
+| hart `NX_CACHE_QUOTA_GIB=100` | Bucket-Quota; voll → PUT schlägt fehl, Nx baut lokal weiter |
+
+Grafana zeigt Belegung, Quota und Anzahl Einträge (Prometheus-Job `minio`, `/minio/v2/metrics/bucket`).
+
+**Clients:** einmal global statt `.env` pro Repo, damit neue Repos und Worktrees automatisch mitmachen. Eigener Dev-Token pro Rechner (`NX_CACHE_DEV_TOKENS` kommagetrennt):
+
+```sh
+# ~/.config/nx-cache/env (chmod 600)
+NX_SELF_HOSTED_REMOTE_CACHE_SERVER=http://mac-mini.fritz.box:3100
+NX_SELF_HOSTED_REMOTE_CACHE_ACCESS_TOKEN=<dev-token>
+NX_METRICS_ENDPOINT=http://mac-mini.fritz.box:4000/v1/runs
+NX_METRICS_TOKEN=<collector-token>
+
+# ~/.zshenv
+[ -r "$HOME/.config/nx-cache/env" ] && { set -a; . "$HOME/.config/nx-cache/env"; set +a; }
+```
+
+Aus dem Dock gestartete IDEs lesen `~/.zshenv` nicht: ein LaunchAgent mit `RunAtLoad`, der jede Zeile per `launchctl setenv` setzt, macht die Werte auch dort sichtbar. Repos mit Nx Cloud (`nxCloudId` in `nx.json`) nutzen weiter Nx Cloud; ältere Nx-Versionen (geprüft: 20.5 nein, 21.5 ja) kennen `NX_SELF_HOSTED_REMOTE_CACHE_SERVER` nicht und ignorieren es.
+
 ## Entwicklung
 
 ```sh

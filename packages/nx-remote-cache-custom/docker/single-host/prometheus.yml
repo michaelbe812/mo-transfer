@@ -1,0 +1,18 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  # cache server; /metrics protected by NX_CACHE_METRICS_TOKEN (deploy.sh writes it to secrets/metrics-token)
+  - job_name: nx-cache
+    metrics_path: /metrics
+    authorization: { credentials_file: /etc/prometheus/metrics-token }
+    static_configs:
+      - targets: ['cache:3000']
+        labels: { instance_name: single-host }
+
+  # bucket usage, object count and quota (minio_bucket_*); the MinIO scanner updates usage every few minutes
+  - job_name: minio
+    metrics_path: /minio/v2/metrics/bucket
+    scrape_interval: 60s
+    static_configs:
+      - targets: ['minio:9000']

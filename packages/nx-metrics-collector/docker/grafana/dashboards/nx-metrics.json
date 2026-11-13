@@ -1198,6 +1198,188 @@
           "mode": "multi"
         }
       }
+    },
+    {
+      "id": 22,
+      "type": "row",
+      "title": "Speicher (MinIO-Bucket nx-cache)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 55,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 23,
+      "type": "gauge",
+      "title": "Belegung / Quota",
+      "gridPos": {
+        "x": 0,
+        "y": 56,
+        "w": 6,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "nx-cache-prom"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "sum(minio_bucket_usage_total_bytes{bucket=\"nx-cache\"}) / sum(minio_bucket_quota_total_bytes{bucket=\"nx-cache\"})",
+          "legendFormat": "Belegung",
+          "range": true
+        }
+      ],
+      "description": "Anteil der harten Bucket-Quota; ohne Quota keine Daten. Der Evictor räumt vor der Quota auf.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.8
+              },
+              {
+                "color": "red",
+                "value": 0.95
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 24,
+      "type": "timeseries",
+      "title": "Belegung",
+      "gridPos": {
+        "x": 6,
+        "y": 56,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "nx-cache-prom"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "sum(minio_bucket_usage_total_bytes{bucket=\"nx-cache\"})",
+          "legendFormat": "belegt",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "sum(minio_bucket_quota_total_bytes{bucket=\"nx-cache\"})",
+          "legendFormat": "quota",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 25,
+      "type": "timeseries",
+      "title": "Einträge",
+      "gridPos": {
+        "x": 18,
+        "y": 56,
+        "w": 6,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "nx-cache-prom"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "sum(minio_bucket_usage_object_total{bucket=\"nx-cache\"})",
+          "legendFormat": "Objekte",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
     }
   ]
 }
