@@ -1,7 +1,8 @@
 /**
  * Generates docker/grafana/dashboards/nx-metrics.json (provisioned into Grafana). Edit here, then:
  *   node packages/nx-metrics-collector/scripts/build-dashboard.mjs
- * Panels: Nx' view (Postgres, from the plugin's run records) + the cache server's view (Prometheus).
+ * Panels: overview from the cache server (Prometheus, every repo, no plugin needed) on top, then Nx' view (Postgres,
+ * run records of repos with the nx-metrics plugin), then the cache server's details.
  * Variables: ci (all/ci/local), branch, rate (€/dev hour), ci_price (€/CI minute) for the ROI panels.
  */
 import { writeFileSync } from 'node:fs';
@@ -24,6 +25,16 @@ const sql = (rawSql, format = 'table') => ({
   editorMode: 'code',
 });
 const prom = (expr, legendFormat, refId = 'A') => ({ refId, datasource: PROM, expr, legendFormat, range: true });
+/** One value per series at the end of the range (stat tiles, tables). */
+const promInstant = (expr, refId = 'A', format = 'time_series') => ({
+  refId,
+  datasource: PROM,
+  expr,
+  instant: true,
+  range: false,
+  format,
+  legendFormat: '__auto',
+});
 
 function panel(type, title, gridPos, targets, extra = {}) {
   return {
@@ -84,8 +95,118 @@ const row = (title, y) => ({
   panels: [],
 });
 
-const panels = [
-  row('Nx: Läufe und Cache (Plugin-Records)', 0),
+// ---- overview: cache server counters over the selected range (Prometheus; every repo, no plugin needed) ----
+// increase() over $__range: new series lose their first scrape (Prometheus extrapolation), so small counts are approximate
+const inRange = (selector) => `sum(increase(nx_cache_requests_total{${selector}}[$__range]))`;
+const HITS = 'operation="get",outcome="hit"';
+const MISSES = 'operation="get",outcome="miss"';
+const UPLOADS = 'operation="put",outcome="stored"';
+
+const promStat = (title, x, expr, unit, description, decimals = 0) =>
+  panel('stat', title, { x, y: 1, w: 4, h: 4 }, [promInstant(expr)], {
+    description,
+    fieldConfig: {
+      defaults: { unit, decimals, noValue: '0', color: { mode: 'fixed', fixedColor: 'purple' } },
+      overrides: [],
+    },
+    options: {
+      reduceOptions: { calcs: ['lastNotNull'], fields: '', values: false },
+      colorMode: 'background',
+      graphMode: 'none',
+      textMode: 'value',
+    },
+  });
+
+/**
+ * Table: one row per value of `label` with hits, misses, uploads, bytes served over the range.
+ * `or 0 * …` fills missing combinations with 0 (instead of empty cells); series from before the labels existed have
+ * no label at all and are shown as "(ohne Label)".
+ */
+const promBreakdown = (title, x, label, header) => {
+  const allLabels = `0 * sum by (${label}) (increase(nx_cache_requests_total[$__range]))`;
+  const byLabel = (expr) =>
+    `label_replace((sum by (${label}) (increase(${expr}[$__range])) or ${allLabels}), "${label}", "(ohne Label)", "${label}", "")`;
+  return panel(
+    'table',
+    title,
+    { x, y: 5, w: 12, h: 8 },
+    [
+      promInstant(byLabel(`nx_cache_requests_total{${HITS}}`), 'A', 'table'),
+      promInstant(byLabel(`nx_cache_requests_total{${MISSES}}`), 'B', 'table'),
+      promInstant(byLabel(`nx_cache_requests_total{${UPLOADS}}`), 'C', 'table'),
+      promInstant(byLabel('nx_cache_bytes_total{operation="get"}'), 'D', 'table'),
+    ],
+    {
+      description: `Nach Label \`${label}\` (\`none\` = Client ohne ${label === 'repo' ? 'Repo-Präfix /r/<repo>' : 'Token-Namen'}).`,
+      fieldConfig: {
+        defaults: { decimals: 0, custom: { align: 'auto', minWidth: 60 } },
+        overrides: [
+          unitOverride('ausgeliefert', 'bytes', 1),
+          { matcher: { id: 'byName', options: header }, properties: [{ id: 'custom.width', value: 150 }] },
+        ],
+      },
+      options: { showHeader: true, cellHeight: 'sm', sortBy: [{ displayName: 'Misses', desc: true }] },
+      transformations: [
+        { id: 'merge', options: {} },
+        {
+          id: 'organize',
+          options: {
+            excludeByName: { Time: true },
+            renameByName: {
+              [label]: header,
+              'Value #A': 'Treffer',
+              'Value #B': 'Misses',
+              'Value #C': 'Uploads',
+              'Value #D': 'ausgeliefert',
+            },
+          },
+        },
+      ],
+    },
+  );
+};
+
+const overview = [
+  row('Überblick Remote Cache (alle Repos, Cache-Server)', 0),
+  promStat(
+    'Remote-Treffer',
+    0,
+    inRange(HITS),
+    'short',
+    'GET-Treffer im Zeitraum: Task-Outputs, die nicht gebaut werden mussten.',
+  ),
+  promStat('Misses', 4, inRange(MISSES), 'short', 'GET ohne Eintrag (Nx fragt nur bei lokalen Misses).'),
+  promStat('Uploads', 8, inRange(UPLOADS), 'short', 'Neu gespeicherte Task-Outputs.'),
+  promStat(
+    'Remote-Hit-Rate',
+    12,
+    `${inRange(HITS)} / (${inRange(HITS)} + ${inRange(MISSES)})`,
+    'percentunit',
+    'Treffer unter den lokalen Misses. Hoch, wenn ein zweiter Rechner/Worktree denselben Stand baut.',
+    1,
+  ),
+  promStat(
+    'Ausgeliefert',
+    16,
+    'sum(increase(nx_cache_bytes_total{operation="get"}[$__range]))',
+    'bytes',
+    'Bytes aus dem Remote Cache.',
+    1,
+  ),
+  promStat(
+    'Aktive Repos',
+    20,
+    'count(sum by (repo) (increase(nx_cache_requests_total{role!="none",repo!="none"}[$__range])) > 0)',
+    'short',
+    'Repos mit Cache-Verkehr im Zeitraum (Präfix /r/<repo>).',
+  ),
+  promBreakdown('Nach Repo', 0, 'repo', 'Repo'),
+  promBreakdown('Nach Rechner', 12, 'client', 'Rechner'),
+];
+const OVERVIEW_HEIGHT = 13;
+
+const detailPanels = [
+  row('Nx: Läufe und Cache (nur Repos mit nx-metrics-Plugin)', 0),
   stat(
     'Läufe',
     0,
@@ -379,6 +500,12 @@ from runs where ${RUN_FILTER} order by started_at desc limit 50`,
     [prom('sum by (client, operation) (rate(nx_cache_bytes_total[$__rate_interval]))', '{{client}} {{operation}}')],
     'Bps',
   ),
+];
+
+// details below the overview
+const panels = [
+  ...overview,
+  ...detailPanels.map((item) => ({ ...item, gridPos: { ...item.gridPos, y: item.gridPos.y + OVERVIEW_HEIGHT } })),
 ];
 
 const textbox = (name, label, value, description) => ({

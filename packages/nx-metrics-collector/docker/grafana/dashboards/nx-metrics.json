@@ -109,7 +109,7 @@
     {
       "id": 1,
       "type": "row",
-      "title": "Nx: Läufe und Cache (Plugin-Records)",
+      "title": "Überblick Remote Cache (alle Repos, Cache-Server)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -122,10 +122,619 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "Läufe",
+      "title": "Remote-Treffer",
       "gridPos": {
         "x": 0,
         "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "nx-cache-prom"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "sum(increase(nx_cache_requests_total{operation=\"get\",outcome=\"hit\"}[$__range]))",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "legendFormat": "__auto"
+        }
+      ],
+      "description": "GET-Treffer im Zeitraum: Task-Outputs, die nicht gebaut werden mussten.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Misses",
+      "gridPos": {
+        "x": 4,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "nx-cache-prom"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "sum(increase(nx_cache_requests_total{operation=\"get\",outcome=\"miss\"}[$__range]))",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "legendFormat": "__auto"
+        }
+      ],
+      "description": "GET ohne Eintrag (Nx fragt nur bei lokalen Misses).",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Uploads",
+      "gridPos": {
+        "x": 8,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "nx-cache-prom"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "sum(increase(nx_cache_requests_total{operation=\"put\",outcome=\"stored\"}[$__range]))",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "legendFormat": "__auto"
+        }
+      ],
+      "description": "Neu gespeicherte Task-Outputs.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Remote-Hit-Rate",
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "nx-cache-prom"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "sum(increase(nx_cache_requests_total{operation=\"get\",outcome=\"hit\"}[$__range])) / (sum(increase(nx_cache_requests_total{operation=\"get\",outcome=\"hit\"}[$__range])) + sum(increase(nx_cache_requests_total{operation=\"get\",outcome=\"miss\"}[$__range])))",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "legendFormat": "__auto"
+        }
+      ],
+      "description": "Treffer unter den lokalen Misses. Hoch, wenn ein zweiter Rechner/Worktree denselben Stand baut.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1,
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Ausgeliefert",
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "nx-cache-prom"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "sum(increase(nx_cache_bytes_total{operation=\"get\"}[$__range]))",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "legendFormat": "__auto"
+        }
+      ],
+      "description": "Bytes aus dem Remote Cache.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 1,
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Aktive Repos",
+      "gridPos": {
+        "x": 20,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "nx-cache-prom"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "count(sum by (repo) (increase(nx_cache_requests_total{role!=\"none\",repo!=\"none\"}[$__range])) > 0)",
+          "instant": true,
+          "range": false,
+          "format": "time_series",
+          "legendFormat": "__auto"
+        }
+      ],
+      "description": "Repos mit Cache-Verkehr im Zeitraum (Präfix /r/<repo>).",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Nach Repo",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "nx-cache-prom"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "label_replace((sum by (repo) (increase(nx_cache_requests_total{operation=\"get\",outcome=\"hit\"}[$__range])) or 0 * sum by (repo) (increase(nx_cache_requests_total[$__range]))), \"repo\", \"(ohne Label)\", \"repo\", \"\")",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "legendFormat": "__auto"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "label_replace((sum by (repo) (increase(nx_cache_requests_total{operation=\"get\",outcome=\"miss\"}[$__range])) or 0 * sum by (repo) (increase(nx_cache_requests_total[$__range]))), \"repo\", \"(ohne Label)\", \"repo\", \"\")",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "legendFormat": "__auto"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "label_replace((sum by (repo) (increase(nx_cache_requests_total{operation=\"put\",outcome=\"stored\"}[$__range])) or 0 * sum by (repo) (increase(nx_cache_requests_total[$__range]))), \"repo\", \"(ohne Label)\", \"repo\", \"\")",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "legendFormat": "__auto"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "label_replace((sum by (repo) (increase(nx_cache_bytes_total{operation=\"get\"}[$__range])) or 0 * sum by (repo) (increase(nx_cache_requests_total[$__range]))), \"repo\", \"(ohne Label)\", \"repo\", \"\")",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "legendFormat": "__auto"
+        }
+      ],
+      "description": "Nach Label `repo` (`none` = Client ohne Repo-Präfix /r/<repo>).",
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "minWidth": 60
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ausgeliefert"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Repo"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "Misses",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "repo": "Repo",
+              "Value #A": "Treffer",
+              "Value #B": "Misses",
+              "Value #C": "Uploads",
+              "Value #D": "ausgeliefert"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Nach Rechner",
+      "gridPos": {
+        "x": 12,
+        "y": 5,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "nx-cache-prom"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "label_replace((sum by (client) (increase(nx_cache_requests_total{operation=\"get\",outcome=\"hit\"}[$__range])) or 0 * sum by (client) (increase(nx_cache_requests_total[$__range]))), \"client\", \"(ohne Label)\", \"client\", \"\")",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "legendFormat": "__auto"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "label_replace((sum by (client) (increase(nx_cache_requests_total{operation=\"get\",outcome=\"miss\"}[$__range])) or 0 * sum by (client) (increase(nx_cache_requests_total[$__range]))), \"client\", \"(ohne Label)\", \"client\", \"\")",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "legendFormat": "__auto"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "label_replace((sum by (client) (increase(nx_cache_requests_total{operation=\"put\",outcome=\"stored\"}[$__range])) or 0 * sum by (client) (increase(nx_cache_requests_total[$__range]))), \"client\", \"(ohne Label)\", \"client\", \"\")",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "legendFormat": "__auto"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "nx-cache-prom"
+          },
+          "expr": "label_replace((sum by (client) (increase(nx_cache_bytes_total{operation=\"get\"}[$__range])) or 0 * sum by (client) (increase(nx_cache_requests_total[$__range]))), \"client\", \"(ohne Label)\", \"client\", \"\")",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "legendFormat": "__auto"
+        }
+      ],
+      "description": "Nach Label `client` (`none` = Client ohne Token-Namen).",
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "custom": {
+            "align": "auto",
+            "minWidth": 60
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ausgeliefert"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Rechner"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "Misses",
+            "desc": true
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "client": "Rechner",
+              "Value #A": "Treffer",
+              "Value #B": "Misses",
+              "Value #C": "Uploads",
+              "Value #D": "ausgeliefert"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "row",
+      "title": "Nx: Läufe und Cache (nur Repos mit nx-metrics-Plugin)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Läufe",
+      "gridPos": {
+        "x": 0,
+        "y": 14,
         "w": 4,
         "h": 4
       },
@@ -171,12 +780,12 @@
       }
     },
     {
-      "id": 3,
+      "id": 12,
       "type": "stat",
       "title": "Cache-Hit-Rate",
       "gridPos": {
         "x": 4,
-        "y": 1,
+        "y": 14,
         "w": 4,
         "h": 4
       },
@@ -223,12 +832,12 @@
       }
     },
     {
-      "id": 4,
+      "id": 13,
       "type": "stat",
       "title": "davon Remote",
       "gridPos": {
         "x": 8,
-        "y": 1,
+        "y": 14,
         "w": 4,
         "h": 4
       },
@@ -275,12 +884,12 @@
       }
     },
     {
-      "id": 5,
+      "id": 14,
       "type": "stat",
       "title": "Gesparte Zeit",
       "gridPos": {
         "x": 12,
-        "y": 1,
+        "y": 14,
         "w": 4,
         "h": 4
       },
@@ -327,12 +936,12 @@
       }
     },
     {
-      "id": 6,
+      "id": 15,
       "type": "stat",
       "title": "Ersparnis Entwickler",
       "gridPos": {
         "x": 16,
-        "y": 1,
+        "y": 14,
         "w": 4,
         "h": 4
       },
@@ -379,12 +988,12 @@
       }
     },
     {
-      "id": 7,
+      "id": 16,
       "type": "stat",
       "title": "Ersparnis CI",
       "gridPos": {
         "x": 20,
-        "y": 1,
+        "y": 14,
         "w": 4,
         "h": 4
       },
@@ -431,12 +1040,12 @@
       }
     },
     {
-      "id": 8,
+      "id": 17,
       "type": "timeseries",
       "title": "Hit-Rate pro Tag",
       "gridPos": {
         "x": 0,
-        "y": 5,
+        "y": 18,
         "w": 12,
         "h": 8
       },
@@ -483,12 +1092,12 @@
       }
     },
     {
-      "id": 9,
+      "id": 18,
       "type": "timeseries",
       "title": "Laufdauer p50 / p90 pro Tag",
       "gridPos": {
         "x": 12,
-        "y": 5,
+        "y": 18,
         "w": 12,
         "h": 8
       },
@@ -532,12 +1141,12 @@
       }
     },
     {
-      "id": 10,
+      "id": 19,
       "type": "timeseries",
       "title": "Gesparte Zeit pro Tag",
       "gridPos": {
         "x": 0,
-        "y": 13,
+        "y": 26,
         "w": 12,
         "h": 8
       },
@@ -584,12 +1193,12 @@
       }
     },
     {
-      "id": 11,
+      "id": 20,
       "type": "timeseries",
       "title": "Tasks pro Tag nach Cache-Ergebnis",
       "gridPos": {
         "x": 12,
-        "y": 13,
+        "y": 26,
         "w": 12,
         "h": 8
       },
@@ -636,12 +1245,12 @@
       }
     },
     {
-      "id": 12,
+      "id": 21,
       "type": "table",
       "title": "Targets",
       "gridPos": {
         "x": 0,
-        "y": 21,
+        "y": 34,
         "w": 12,
         "h": 9
       },
@@ -733,12 +1342,12 @@
       }
     },
     {
-      "id": 13,
+      "id": 22,
       "type": "table",
       "title": "Langsamste Tasks (Miss-Median)",
       "gridPos": {
         "x": 12,
-        "y": 21,
+        "y": 34,
         "w": 12,
         "h": 9
       },
@@ -810,12 +1419,12 @@
       }
     },
     {
-      "id": 14,
+      "id": 23,
       "type": "table",
       "title": "Letzte Läufe",
       "gridPos": {
         "x": 0,
-        "y": 30,
+        "y": 43,
         "w": 24,
         "h": 8
       },
@@ -879,25 +1488,25 @@
       }
     },
     {
-      "id": 15,
+      "id": 24,
       "type": "row",
       "title": "Cache-Server (Prometheus, nx-remote-cache-custom)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 38,
+        "y": 51,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 16,
+      "id": 25,
       "type": "timeseries",
       "title": "Requests/s nach Ergebnis",
       "gridPos": {
         "x": 0,
-        "y": 39,
+        "y": 52,
         "w": 8,
         "h": 8
       },
@@ -940,12 +1549,12 @@
       }
     },
     {
-      "id": 17,
+      "id": 26,
       "type": "timeseries",
       "title": "Server-Hit-Rate (GET)",
       "gridPos": {
         "x": 8,
-        "y": 39,
+        "y": 52,
         "w": 8,
         "h": 8
       },
@@ -988,12 +1597,12 @@
       }
     },
     {
-      "id": 18,
+      "id": 27,
       "type": "timeseries",
       "title": "GET-Latenz (bis erstes Byte)",
       "gridPos": {
         "x": 16,
-        "y": 39,
+        "y": 52,
         "w": 8,
         "h": 8
       },
@@ -1046,12 +1655,12 @@
       }
     },
     {
-      "id": 19,
+      "id": 28,
       "type": "timeseries",
       "title": "Durchsatz",
       "gridPos": {
         "x": 0,
-        "y": 47,
+        "y": 60,
         "w": 8,
         "h": 8
       },
@@ -1094,12 +1703,12 @@
       }
     },
     {
-      "id": 20,
+      "id": 29,
       "type": "timeseries",
       "title": "Eintragsgröße p50 / p95",
       "gridPos": {
         "x": 8,
-        "y": 47,
+        "y": 60,
         "w": 8,
         "h": 8
       },
@@ -1152,12 +1761,12 @@
       }
     },
     {
-      "id": 21,
+      "id": 30,
       "type": "timeseries",
       "title": "Abgelehnt / Fehler",
       "gridPos": {
         "x": 16,
-        "y": 47,
+        "y": 60,
         "w": 8,
         "h": 8
       },
@@ -1200,25 +1809,25 @@
       }
     },
     {
-      "id": 22,
+      "id": 31,
       "type": "row",
       "title": "Speicher (MinIO-Bucket nx-cache)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 55,
+        "y": 68,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 23,
+      "id": 32,
       "type": "gauge",
       "title": "Belegung / Quota",
       "gridPos": {
         "x": 0,
-        "y": 56,
+        "y": 69,
         "w": 6,
         "h": 8
       },
@@ -1276,12 +1885,12 @@
       }
     },
     {
-      "id": 24,
+      "id": 33,
       "type": "timeseries",
       "title": "Belegung",
       "gridPos": {
         "x": 6,
-        "y": 56,
+        "y": 69,
         "w": 12,
         "h": 8
       },
@@ -1334,12 +1943,12 @@
       }
     },
     {
-      "id": 25,
+      "id": 34,
       "type": "timeseries",
       "title": "Einträge",
       "gridPos": {
         "x": 18,
-        "y": 56,
+        "y": 69,
         "w": 6,
         "h": 8
       },
@@ -1382,25 +1991,25 @@
       }
     },
     {
-      "id": 26,
+      "id": 35,
       "type": "row",
       "title": "Cache-Server nach Repo und Rechner",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 64,
+        "y": 77,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 27,
+      "id": 36,
       "type": "timeseries",
       "title": "GET-Hit-Rate nach Repo",
       "gridPos": {
         "x": 0,
-        "y": 65,
+        "y": 78,
         "w": 12,
         "h": 8
       },
@@ -1443,12 +2052,12 @@
       }
     },
     {
-      "id": 28,
+      "id": 37,
       "type": "timeseries",
       "title": "GET-Hit-Rate nach Rechner",
       "gridPos": {
         "x": 12,
-        "y": 65,
+        "y": 78,
         "w": 12,
         "h": 8
       },
@@ -1491,12 +2100,12 @@
       }
     },
     {
-      "id": 29,
+      "id": 38,
       "type": "timeseries",
       "title": "Requests/s nach Repo",
       "gridPos": {
         "x": 0,
-        "y": 73,
+        "y": 86,
         "w": 12,
         "h": 8
       },
@@ -1539,12 +2148,12 @@
       }
     },
     {
-      "id": 30,
+      "id": 39,
       "type": "timeseries",
       "title": "Durchsatz nach Rechner",
       "gridPos": {
         "x": 12,
-        "y": 73,
+        "y": 86,
         "w": 12,
         "h": 8
       },
