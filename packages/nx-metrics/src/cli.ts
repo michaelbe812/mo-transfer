@@ -14,6 +14,8 @@ import { checkoutRef } from './bench/ref.ts';
 import { runBench, type BenchResult } from './bench/runner.ts';
 import { cacheSizeToMarkdown, findWorkspaceDb, readCacheEntries, summarizeCacheSize } from './cache-size.ts';
 import { computeGraphMetrics, graphToMarkdown, readNxGraph } from './graph.ts';
+import { analyzeGranularity, granularityToMarkdown } from './granularity.ts';
+import { collectGranularityInput } from './granularity-input.ts';
 import { DEFAULT_OUTPUT_FILE, summaryLine } from './plugin.ts';
 import type { RunRecord } from './record.ts';
 import { buildReport, GROUP_BY, reportToMarkdown, type GroupBy } from './report.ts';
@@ -50,6 +52,16 @@ Usage: nx-metrics <command> [options]        (all commands: --repo <path>, defau
                --ref <rev>           default HEAD
                --commits <n>         default 50
                --with-target <t>     only projects with this target (e.g. test)
+               --out <dir>
+  granularity  is the slicing too fine / too coarse, does it pay off with/without remote cache? → findings + tips
+               --target <t>          default build
+               --commits <n>         git history to replay, default 200;  --ref <rev> default HEAD
+               --input <file>        run records for durations, repeatable, default <repo>/${DEFAULT_OUTPUT_FILE}
+               --parallel <n>        concurrent tasks, default 3
+               --overhead-ms <ms>    override the fitted per-task overhead
+               --restore-ms <ms>     override the remote cache restore time per task
+               --ignore <regex>      files not feeding the target (default: specs, stories, docs, test configs)
+               --global <regex>      root files invalidating everything (default: nx.json, lockfile, tsconfig.base …)
                --out <dir>
   push       send run records (JSONL, e.g. CI artifacts) to the collector, idempotent per run
                --input <file>        repeatable, default <repo>/${DEFAULT_OUTPUT_FILE}
@@ -90,6 +102,11 @@ const { values, positionals } = parseArgs({
     install: { type: 'string' },
     'keep-worktree': { type: 'boolean', default: false },
     'ci-price': { type: 'string' },
+    parallel: { type: 'string' },
+    'overhead-ms': { type: 'string' },
+    'restore-ms': { type: 'string' },
+    ignore: { type: 'string' },
+    global: { type: 'string' },
     version: { type: 'boolean', default: false },
     help: { type: 'boolean', short: 'h', default: false },
   },
@@ -212,6 +229,25 @@ function affected(): void {
   emit('affected', affectedToMarkdown(replay), replay);
 }
 
+function granularity(): void {
+  const inputs = values.input?.length ? values.input.map((file) => resolve(file)) : [join(repo, DEFAULT_OUTPUT_FILE)];
+  const input = collectGranularityInput({
+    repo,
+    target: values.target ?? 'build',
+    ref: values.ref ?? 'HEAD',
+    commits: positiveInt(values.commits, 'commits') ?? 200,
+    recordFiles: inputs,
+    ignore: values.ignore ? new RegExp(values.ignore) : undefined,
+    global: values.global ? new RegExp(values.global) : undefined,
+  });
+  const report = analyzeGranularity(input, {
+    parallel: positiveInt(values.parallel, 'parallel') ?? 3,
+    overheadMs: positiveNumber(values['overhead-ms'], 'overhead-ms'),
+    restoreMs: positiveNumber(values['restore-ms'], 'restore-ms'),
+  });
+  emit('granularity', granularityToMarkdown(report), report);
+}
+
 async function cacheSize(): Promise<void> {
   const dbFile = findWorkspaceDb(repo);
   const entries = (await readCacheEntries(dbFile)).filter((entry) => !values.target || entry.target === values.target);
@@ -277,6 +313,7 @@ const COMMANDS: Record<string, () => void | Promise<void>> = {
   report,
   graph,
   affected,
+  granularity,
   'cache-size': cacheSize,
   push,
   last,

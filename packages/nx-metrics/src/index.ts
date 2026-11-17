@@ -4,6 +4,14 @@ export * from './stats.ts';
 export * from './report.ts';
 export * from './graph.ts';
 export * from './affected.ts';
+export * from './granularity.ts';
+export {
+  collectGranularityInput,
+  createOwnerLookup,
+  DEFAULT_GLOBAL,
+  DEFAULT_IGNORE,
+  type CollectOptions,
+} from './granularity-input.ts';
 export * from './cache-size.ts';
 export { readJsonl, appendJsonl } from './sinks.ts';
 export {

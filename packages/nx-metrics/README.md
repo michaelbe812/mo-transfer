@@ -12,6 +12,7 @@ Misst die Wirkung von Nx-Architekturarbeit (feinere Slices, Remote Cache) auf Bu
 | **Collector** | Läufe zentral sammeln, Grafana-Dashboard, ROI | `nx-metrics push`, [`nx-metrics-collector`](../nx-metrics-collector/README.md) |
 | **Graph** | Wie weit strahlt eine Änderung (Blast Radius, Fan-in/out, Kettenlänge)? | `nx-metrics graph` |
 | **Affected-Replay** | Wie viele Projekte trifft ein typischer Commit, alte vs. neue Struktur? | `nx-metrics affected` |
+| **Granularität** | Zu fein oder zu grob geschnitten? Lohnt es sich mit/ohne Remote Cache? Mit Tipps | `nx-metrics granularity` |
 
 ## Plugin
 
@@ -158,6 +159,44 @@ nx-metrics affected --commits 100 --with-target test
 
 - **Blast Radius** = alle Projekte, die transitiv von einem Projekt abhängen, also was `affected` bei einer Änderung baut. Feineres Slicing lohnt sich, wenn der mittlere Blast Radius (in % des Workspaces) sinkt. Eine steigende Projektzahl allein ist kein Gewinn.
 - **Affected-Replay** spielt die letzten N Commits (first parent) gegen den **aktuellen** Graphen ab: `nx show projects --affected --base=<sha>~1 --head=<sha>`. Auf altem und neuem Stand mit demselben Commit-Bereich ausführen, dann ergibt sich die Affected-Ratio vorher/nachher. Grenze: Dateien, die es nach einem Umzug nicht mehr gibt, fallen heraus. Für den alten Stand deshalb im Worktree des alten Commits laufen lassen.
+
+## Granularität
+
+```sh
+nx run-many -t build --skip-nx-cache        # einmal, mit Plugin: misst Task-Dauern (besser mehrfach, auch CI-Records)
+nx-metrics granularity                      # target build, letzte 200 Commits
+nx-metrics granularity --target test --commits 500 --input ci-runs.jsonl --parallel 8 --out reports/granularity
+```
+
+Läuft in jedem Nx-Workspace (nutzt dessen `nx graph`, `git log`, `git ls-files`), keine Annahmen über Konventionen. Ohne Records arbeitet es mit Annahmen (1,5 s Overhead/Task, ~100 KB/s) und sagt das im Report.
+
+**Kostenmodell:** Task = Overhead + Arbeit(Quellgröße). Der Overhead (Prozessstart, Compiler-Startup, `.d.ts`-Emit, also der Preis eines weiteren Projekts) kommt als Achsenabschnitt einer Regression gemessener Miss-Dauern gegen die Quellgröße (Apps ausgenommen). Restore-Zeit aus `remote-hit`-Tasks, sonst 200 ms. Wanduhr ≈ max(kritischer Pfad, Arbeit / parallel).
+
+**Replay:** Die letzten N Commits (ohne Merges) gegen den **aktuellen** Graphen, Affected über Projekt-Roots plus transitive Dependents. Drei Szenarien je Commit:
+
+| Szenario | Was läuft |
+|---|---|
+| fein, ohne Cache | Affected plus deren `^target`-Hülle, alles kalt (CI ohne Cache) |
+| fein, Remote Cache (ideal) | nur Affected, Abhängigkeiten werden restauriert |
+| grob | ein Task je Einstiegspunkt (App/Package), kompiliert seine Hülle aus dem Source ≈ `buildLibsFromSource: true` bzw. Libs zusammengelegt |
+
+**Befunde (mit Tipp):**
+
+| Befund | Signal |
+|---|---|
+| `incremental-inactive` | App-Executor mit `buildLibsFromSource` ≠ `false`, obwohl Libs buildable sind, also doppelte Arbeit |
+| `overhead-share` | Overhead ≥ 30 % eines kalten Voll-Builds → zu fein |
+| `tiny-projects` | Task < 2× Overhead → zusammenlegen oder non-buildable |
+| `hotspot` | oft geändert und viele Dependents → Schnitt korrigieren (stabil/volatil trennen), nicht mehr Libs |
+| `large-volatile` | großes Projekt, oft geändert → zu grob, entlang Change-Grenzen teilen |
+| `co-change` | Paare, die fast immer gemeinsam geändert werden → Split bringt nur Overhead |
+| `deep-chain` | kritischer Pfad > Arbeit/parallel → Graph abflachen |
+| `global-commits` | viele Commits auf nx.json/Lockfile/tsconfig.base → Inputs schärfen |
+| `no-cache-penalty` / `cache-no-gain` / `cache-gain` | Vergleich fein vs. grob, mit und ohne Remote Cache |
+
+Daraus ein Urteil: `too fine`, `too coarse`, `mixed` (Schnitt statt Anzahl ist das Problem) oder `balanced`.
+
+**Grenzen:** Affected ist über Projekt-Roots angenähert (keine Nx-Inputs, Lockfile pessimistisch = alles; exakt, aber langsam: `nx-metrics affected`). Pro Lauf wird nur ein Target modelliert, andere `dependsOn`-Targets (Codegen) fehlen. `--ignore` / `--global` passen an, welche Dateien nicht zählen bzw. alles invalidieren.
 
 ## Cache-Größe
 

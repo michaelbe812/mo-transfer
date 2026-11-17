@@ -8,9 +8,19 @@ import { join } from 'node:path';
 import { runNx } from './nx.ts';
 import { formatPercent, summarize, type Summary } from './stats.ts';
 
+/** Resolved target config as `nx graph --file` writes it (targetDefaults and inferred targets merged in). */
+export interface NxGraphTarget {
+  executor?: string;
+  dependsOn?: Array<string | { target?: string; dependencies?: boolean; projects?: string | string[] }>;
+  options?: Record<string, unknown>;
+}
+
 export interface NxGraphFile {
   graph: {
-    nodes: Record<string, { name: string; type: string; data: { root: string; tags?: string[] } }>;
+    nodes: Record<
+      string,
+      { name: string; type: string; data: { root: string; tags?: string[]; targets?: Record<string, NxGraphTarget> } }
+    >;
     dependencies: Record<string, Array<{ source: string; target: string; type: string }>>;
   };
 }
